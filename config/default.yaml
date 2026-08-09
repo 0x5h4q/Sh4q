@@ -1,0 +1,30 @@
+
+# sh4q config — example / test config
+# Deliberately scoped to localhost only, so testing never risks touching
+# anything real. This is the file the Scope Engine will validate against next.
+
+scope:
+  targets:
+    - "127.0.0.1"
+    - "localhost"
+  excluded: []
+  ports:
+    - 8000
+    - 8081
+
+rate_limit:
+  max_concurrent: 3
+  requests_per_second: 2.0
+  budget: 1000
+
+timeout:
+  dns_seconds: 5.0
+  http_seconds: 10.0
+
+output:
+  directory: "./sh4q-output"
+  format: "json"
+
+logging:
+  level: "INFO"
+  structured: true
