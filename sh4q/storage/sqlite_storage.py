@@ -1,4 +1,3 @@
-
 """
 sh4q/storage/sqlite_storage.py
 
@@ -52,28 +51,31 @@ class SQLiteStorage:
             await db.commit()
 
     async def save_node(self, node: Node) -> Node:
-        existing = await self.get_node(node.id)
+        # Atomic upsert — SQLite handles "does this exist, insert or merge"
+        # as ONE indivisible statement. This closes the race condition a
+        # separate get_node() + INSERT would have: two concurrent plugins
+        # discovering the same new node at the same time can no longer both
+        # see "doesn't exist yet" and both try to insert.
+        #
+        # json_patch(existing, new) merges the two attribute dicts, with
+        # new keys added and conflicting keys taking the NEW value — i.e.
+        # the latest discovery wins on any key both sides set.
         async with aiosqlite.connect(self._db_path) as db:
-            if existing:
-                # Merge, don't overwrite — this is the "asset store enriches
-                # over time" behavior. Existing attributes win on conflict
-                # only if the new node didn't provide a fresher value.
-                merged = {**existing.attributes, **node.attributes}
-                await db.execute(
-                    "UPDATE nodes SET attributes = ?, last_seen = ? WHERE id = ?",
-                    (json.dumps(merged), node.last_seen, node.id),
-                )
-                node.attributes = merged
-                node.first_seen = existing.first_seen  # preserve original discovery time
-            else:
-                await db.execute(
-                    "INSERT INTO nodes (id, type, value, attributes, first_seen, last_seen) "
-                    "VALUES (?, ?, ?, ?, ?, ?)",
-                    (node.id, node.type, node.value, json.dumps(node.attributes),
-                     node.first_seen, node.last_seen),
-                )
+            await db.execute(
+                """
+                INSERT INTO nodes (id, type, value, attributes, first_seen, last_seen)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    attributes = json_patch(nodes.attributes, excluded.attributes),
+                    last_seen = excluded.last_seen
+                """,
+                (node.id, node.type, node.value, json.dumps(node.attributes),
+                 node.first_seen, node.last_seen),
+            )
             await db.commit()
-        return node
+        # Read back the current state so the caller gets what's actually
+        # stored (including merged attributes and the true first_seen).
+        return await self.get_node(node.id)
 
     async def get_node(self, node_id: str) -> Node | None:
         async with aiosqlite.connect(self._db_path) as db:
