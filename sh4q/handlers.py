@@ -1,0 +1,55 @@
+
+"""
+sh4q/handlers.py
+
+The initial discovery handler — deliberately a plain function, not a
+Normalizer class (per the Week 3 scoping decision). Subscribes to the
+Event bus, converts Discovery payloads into Node/Relationship, and
+persists them through Storage.
+
+This is also where Gate 2 lives: a newly discovered target (e.g. the IP
+a domain resolves to) gets its own scope check before Sh4q treats it as
+an actual asset — separate from Gate 1, which already authorized the
+original target before the plugin ever ran.
+"""
+
+from sh4q.events import Event
+from sh4q.scope import ScopeEngine
+from sh4q.storage import Node, Relationship, StorageRepository
+
+
+def make_discovery_handler(scope: ScopeEngine, storage: StorageRepository):
+    """Returns an event handler bound to a specific ScopeEngine and
+    Storage instance, matching the EventBus's single-argument Handler shape."""
+
+    async def handle_discovery(event: Event) -> None:
+        kind = event.payload["kind"]
+        data = event.payload["data"]
+
+        if kind == "dns_resolution":
+            domain = data["domain"]
+            ip = data["ip"]
+
+            # The domain itself was already Gate-1-authorized before the
+            # plugin ran, so it's saved unconditionally.
+            domain_node = Node(type="domain", value=domain)
+            await storage.save_node(domain_node)
+
+            # Gate 2: the IP is a NEWLY discovered target. A domain being
+            # in scope does not automatically mean its resolved IP is —
+            # e.g. shared hosting or a CDN IP a program explicitly excludes.
+            decision = scope.authorize(ip)
+            if not decision.allowed:
+                print(f"  GATE 2 DENY: {ip} -> {decision.reason} (not persisted as an asset)")
+                return
+
+            ip_node = Node(type="ip", value=ip)
+            await storage.save_node(ip_node)
+            await storage.save_relationship(
+                Relationship(from_id=domain_node.id, to_id=ip_node.id, type="RESOLVES_TO")
+            )
+            print(f"  SAVED: {domain} --RESOLVES_TO--> {ip}")
+        else:
+            print(f"  (no handler yet for discovery kind={kind!r})")
+
+    return handle_discovery
