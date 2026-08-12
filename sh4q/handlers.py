@@ -13,6 +13,8 @@ an actual asset — separate from Gate 1, which already authorized the
 original target before the plugin ever ran.
 """
 
+from httpx import URL as HttpURL
+
 from sh4q.events import Event
 from sh4q.scope import ScopeEngine
 from sh4q.storage import Node, Relationship, StorageRepository
@@ -49,6 +51,34 @@ def make_discovery_handler(scope: ScopeEngine, storage: StorageRepository):
                 Relationship(from_id=domain_node.id, to_id=ip_node.id, type="RESOLVES_TO")
             )
             print(f"  SAVED: {domain} --RESOLVES_TO--> {ip}")
+
+        elif kind == "http_probe":
+            final_url = data["final_url"]
+            host = HttpURL(final_url).host
+
+            # Gate 2 again, same principle, different trigger: a redirect
+            # can land on a completely different host than the one that
+            # was originally authorized. Check the ACTUAL host reached,
+            # not the one that was requested.
+            decision = scope.authorize(host)
+            if not decision.allowed:
+                print(f"  GATE 2 DENY: {host} -> {decision.reason} ({final_url} not persisted)")
+                return
+
+            domain_node = Node(type="domain", value=host)
+            await storage.save_node(domain_node)
+
+            url_node = Node(
+                type="url",
+                value=final_url,
+                attributes={"status": data["status"], "server": data.get("server", "")},
+            )
+            await storage.save_node(url_node)
+            await storage.save_relationship(
+                Relationship(from_id=domain_node.id, to_id=url_node.id, type="SERVES")
+            )
+            print(f"  SAVED: {host} --SERVES--> {final_url} [{data['status']}]")
+
         else:
             print(f"  (no handler yet for discovery kind={kind!r})")
 
