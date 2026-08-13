@@ -73,7 +73,6 @@ class SQLiteStorage:
 
     async def save_relationship(self, relationship: Relationship) -> Relationship:
         async with aiosqlite.connect(self._db_path) as db:
-            # INSERT OR IGNORE: re-saving an identical relationship (same deterministic id) is a no-op, not an error or a duplicate.
             await db.execute(
                 "INSERT OR IGNORE INTO relationships "
                 "(id, from_id, to_id, type, attributes, created_at) VALUES (?, ?, ?, ?, ?, ?)",
