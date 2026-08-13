@@ -1,13 +1,4 @@
 
-"""
-sh4q/scheduler.py
-
-The Scheduler — orchestrates running plugins against a target. This is
-where Config, Scope, Storage, Events, and the Plugin contract finally
-meet. Deliberately simple dependency ordering (explicit depends_on lists)
-per the decision to defer capability-based typing until real plugins
-justify it.
-"""
 
 import asyncio
 
@@ -23,8 +14,6 @@ class Scheduler:
         self._bus = bus
 
     def _ordered_plugins(self) -> list[Plugin]:
-        """Simple dependency-respecting order: a plugin only runs once every
-        plugin it depends on (by name) has already been placed."""
         ordered: list[Plugin] = []
         remaining = list(self._plugins)
         done_names: set[str] = set()
@@ -42,12 +31,12 @@ class Scheduler:
                 raise RuntimeError(f"Circular or unmet plugin dependency among: {names}")
         return ordered
 
-    async def run(self, target: str) -> None:
-        # Gate 1: is the ORIGINAL target allowed to be scanned at all?
+    async def run(self, target: str):
+        # Gate 1: is the original target allowed to be scanned at all?
         decision = self._scope.authorize(target)
         print(f"GATE 1: {target} -> {'ALLOW' if decision.allowed else 'DENY'} ({decision.reason})")
         if not decision.allowed:
-            return
+            return decision
 
         for plugin in self._ordered_plugins():
             if not await plugin.preflight():
@@ -67,12 +56,18 @@ class Scheduler:
             finally:
                 await plugin.cleanup()
 
-            # The Scheduler publishes on the plugin's behalf — the plugin
-            # itself never touches the Event bus.
+            # The Scheduler publishes on the plugin's behalf, the plugin itself never touches the Event bus.
             for d in discoveries:
                 await self._bus.publish(
                     Event(
                         type="discovery",
-                        payload={"kind": d.kind, "data": d.data, "source_plugin": plugin.metadata.name},
+                        payload={
+                            "kind": d.kind,
+                            "data": d.data,
+                            "source_plugin": plugin.metadata.name,
+                            "scan_target": target,   # the actual target being scanned — not inferred later
+                        },
                     )
                 )
+
+        return decision
