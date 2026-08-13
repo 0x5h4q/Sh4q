@@ -1,17 +1,4 @@
-"""
-sh4q/plugins/http_plugin.py
 
-Depends on "dns" — the Scheduler's dependency ordering (already proven)
-guarantees this runs after the DNS plugin, though it doesn't actually
-consume DNS's output directly; it just makes sense conceptually to
-resolve before probing.
-
-Reports the FINAL url after redirects, not just the requested one. This
-matters: a redirect can land on a genuinely different host than the one
-that was authorized — the exact same "newly discovered target needs its
-own scope check" situation as the CDN-IP case in the DNS handler, just
-reached via redirect instead of DNS resolution.
-"""
 
 import asyncio
 
@@ -25,7 +12,7 @@ class HTTPPlugin(Plugin):
     metadata = PluginMetadata(
         name="http",
         dependencies=["dns"],
-        risk_level="active-low",   # genuine network interaction with the target, but not exploitative
+        risk_level="active-low",   
         timeout=10.0,
     )
 

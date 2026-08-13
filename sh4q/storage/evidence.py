@@ -1,16 +1,4 @@
-"""
-sh4q/storage/evidence.py
 
-Evidence answers "why do we believe this?" — the Asset Store (Node/
-Relationship) answers "what do we currently believe?". Two different
-truths, per the architecture decision: Evidence is immutable/append-only,
-Asset Store is a living, mergeable model.
-
-id = the originating event's id, deliberately. This means if an event
-gets replayed after a crash-recovery, re-appending its evidence is a
-no-op (same id, INSERT OR IGNORE) rather than a duplicate — the exact
-same idempotency principle already proven for relationships.
-"""
 
 import json
 from dataclasses import dataclass, field
@@ -26,7 +14,7 @@ def _now() -> str:
 
 @dataclass
 class Evidence:
-    id: str              # = the event id that produced this
+    id: str              
     target: str
     plugin: str
     kind: str
@@ -62,9 +50,6 @@ class SQLiteEvidenceStore:
 
     async def append(self, evidence: Evidence) -> None:
         async with aiosqlite.connect(self._db_path) as db:
-            # OR IGNORE, never UPDATE — genuinely append-only. A replayed
-            # event re-appending the same evidence id is a no-op, not a
-            # second row and not a mutation of the first.
             await db.execute(
                 "INSERT OR IGNORE INTO evidence (id, target, plugin, kind, content, captured_at) "
                 "VALUES (?, ?, ?, ?, ?, ?)",

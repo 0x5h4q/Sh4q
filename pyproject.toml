@@ -1,0 +1,21 @@
+[project]
+name = "sh4q"
+version = "0.1.0"
+description = "Sh4q — scope-aware, discovery-only reconnaissance orchestration framework"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2",
+    "pyyaml",
+    "aiosqlite",
+    "httpx",
+]
+
+[project.scripts]
+sh4q = "sh4q.cli.main:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["sh4q*"]

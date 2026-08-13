@@ -1,18 +1,4 @@
 
-"""
-sh4q/storage/interface.py
-
-The Storage Interface — one of the six frozen contracts. The rest of the
-engine (Scheduler, plugins, everything) talks ONLY to this shape. It never
-touches SQL, or any backend-specific detail, directly.
-
-Deliberately minimal by design, per the recorded decision: this abstracts
-PERSISTENCE MECHANICS (how/where data is stored), not the DOMAIN VOCABULARY
-(Node/Relationship) and not graph-traversal semantics. No traverse_graph(),
-no find_neighbors(), no cypher_query() — those are graph-database features,
-and adding them here would be exactly the kind of premature abstraction
-this project has been deliberately avoiding everywhere else.
-"""
 
 from typing import Protocol
 

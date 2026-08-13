@@ -1,14 +1,3 @@
-"""
-sh4q/storage/sqlite_storage.py
-
-The ONE place in the whole engine that knows SQL exists. Everything else
-talks to StorageRepository's Node/Relationship vocabulary; this class is
-what translates that into two plain relational tables underneath.
-
-This is the repository pattern in practice: swapping SQLite for Postgres
-later means writing a new class that implements the same four methods —
-nothing in the Scheduler, plugins, or anywhere else has to change.
-"""
 
 import json
 
@@ -51,15 +40,6 @@ class SQLiteStorage:
             await db.commit()
 
     async def save_node(self, node: Node) -> Node:
-        # Atomic upsert — SQLite handles "does this exist, insert or merge"
-        # as ONE indivisible statement. This closes the race condition a
-        # separate get_node() + INSERT would have: two concurrent plugins
-        # discovering the same new node at the same time can no longer both
-        # see "doesn't exist yet" and both try to insert.
-        #
-        # json_patch(existing, new) merges the two attribute dicts, with
-        # new keys added and conflicting keys taking the NEW value — i.e.
-        # the latest discovery wins on any key both sides set.
         async with aiosqlite.connect(self._db_path) as db:
             await db.execute(
                 """
@@ -73,8 +53,7 @@ class SQLiteStorage:
                  node.first_seen, node.last_seen),
             )
             await db.commit()
-        # Read back the current state so the caller gets what's actually
-        # stored (including merged attributes and the true first_seen).
+        # Read back the current state so the caller gets what's actually stored (including merged attributes and the true first_seen).
         return await self.get_node(node.id)
 
     async def get_node(self, node_id: str) -> Node | None:
@@ -94,8 +73,7 @@ class SQLiteStorage:
 
     async def save_relationship(self, relationship: Relationship) -> Relationship:
         async with aiosqlite.connect(self._db_path) as db:
-            # INSERT OR IGNORE: re-saving an identical relationship
-            # (same deterministic id) is a no-op, not an error or a duplicate.
+            # INSERT OR IGNORE: re-saving an identical relationship (same deterministic id) is a no-op, not an error or a duplicate.
             await db.execute(
                 "INSERT OR IGNORE INTO relationships "
                 "(id, from_id, to_id, type, attributes, created_at) VALUES (?, ?, ?, ?, ?, ?)",

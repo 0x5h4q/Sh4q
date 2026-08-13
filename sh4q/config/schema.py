@@ -1,12 +1,4 @@
 
-"""
-
-Defines the SHAPE every config file must fit. This is what your original
-project doc called the "Configuration Schema". Using pydantic here (not plain dicts) means a malformed config
-gets rejected immediately with a clear error, instead of silently causing
-weird behavior three layers deep in the engine later.
-
-"""
 
 from pydantic import BaseModel, Field
 

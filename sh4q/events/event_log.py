@@ -1,18 +1,4 @@
-"""
 
-The DURABLE part of the Event Interface. asyncio.Queue is fast but lives
-only in memory — if the process crashes, whatever was in the queue is
-gone. This log is what actually survives a crash: every event is written
-here BEFORE it's handed to the queue, with a status that tracks whether
-it's been fully processed.
-
-Lifecycle: PENDING (written, not yet picked up) -> PROCESSING (dispatcher
-is actively running handlers for it) -> COMPLETED (all handlers finished
-successfully). On restart, anything not COMPLETED gets re-queued — that
-includes PROCESSING, since if we're starting fresh, the previous process
-that was "processing" it is the one that crashed.
-
-"""
 
 import json
 
@@ -65,9 +51,6 @@ class DurableEventLog:
             await db.commit()
 
     async def recover_unfinished(self) -> list[Event]:
-        """Everything not COMPLETED, oldest first. Called once at startup,
-        before the dispatcher starts, to re-queue anything a crash
-        interrupted."""
         async with aiosqlite.connect(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
