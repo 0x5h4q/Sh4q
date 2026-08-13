@@ -1,4 +1,3 @@
-
 """
 sh4q/handlers.py
 
@@ -18,15 +17,33 @@ from httpx import URL as HttpURL
 from sh4q.events import Event
 from sh4q.scope import ScopeEngine
 from sh4q.storage import Node, Relationship, StorageRepository
+from sh4q.storage.evidence import Evidence, EvidenceStore
 
 
-def make_discovery_handler(scope: ScopeEngine, storage: StorageRepository):
-    """Returns an event handler bound to a specific ScopeEngine and
-    Storage instance, matching the EventBus's single-argument Handler shape."""
+def make_discovery_handler(scope: ScopeEngine, storage: StorageRepository, evidence_store: EvidenceStore):
+    """Returns an event handler bound to a specific ScopeEngine, Storage,
+    and EvidenceStore instance, matching the EventBus's single-argument
+    Handler shape."""
 
     async def handle_discovery(event: Event) -> None:
         kind = event.payload["kind"]
         data = event.payload["data"]
+        source_plugin = event.payload.get("source_plugin", "unknown")
+
+        # Evidence is appended UNCONDITIONALLY — it records what was
+        # observed, independent of whether Gate 2 later decides it's
+        # authorized to become part of the believed asset graph. This is
+        # the "why do we believe this" trail, and it should exist even
+        # for things that get denied.
+        await evidence_store.append(
+            Evidence(
+                id=event.id,
+                target=data.get("domain") or data.get("final_url") or data.get("url") or "",
+                plugin=source_plugin,
+                kind=kind,
+                content=data,
+            )
+        )
 
         if kind == "dns_resolution":
             domain = data["domain"]

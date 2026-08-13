@@ -1,14 +1,6 @@
-
-"""
-sh4q/events/event.py
-
-The Event Interface's data shape — one of the six frozen contracts.
-Deliberately minimal: a type (what kind of thing happened) and a payload
-(the actual data), plus a timestamp for free provenance.
-"""
-
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from uuid import uuid4
 
 
 def _now() -> str:
@@ -17,6 +9,7 @@ def _now() -> str:
 
 @dataclass
 class Event:
-    type: str            # e.g. "dns_found", "http_probed"
+    type: str           
     payload: dict = field(default_factory=dict)
     timestamp: str = field(default_factory=_now)
+    id: str = field(default_factory=lambda: uuid4().hex)   # stable id for durable tracking

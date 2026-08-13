@@ -1,4 +1,3 @@
-
 """
 sh4q/events/bus.py
 
@@ -13,15 +12,17 @@ from collections import defaultdict
 from typing import Awaitable, Callable
 
 from .event import Event
+from .event_log import DurableEventLog
 
 Handler = Callable[[Event], Awaitable[None]]
 
 
 class EventBus:
-    def __init__(self):
+    def __init__(self, event_log: DurableEventLog | None = None):
         self._queue: asyncio.Queue[Event] = asyncio.Queue()
         self._subscribers: dict[str, list[Handler]] = defaultdict(list)
         self._dispatcher_task: asyncio.Task | None = None
+        self._event_log = event_log   # None = old in-process-only behavior, no durability
 
     def subscribe(self, event_type: str, handler: Handler) -> None:
         """Register a handler to be called whenever an event of this type
@@ -31,15 +32,36 @@ class EventBus:
     async def publish(self, event: Event) -> None:
         """Announce that something happened. Returns almost immediately —
         does NOT wait for subscribers to react. That's the whole point."""
+        if self._event_log:
+            # Durable write happens BEFORE the in-memory queue — this is
+            # what makes the event survive a crash. If we queued first
+            # and the process died before this line ran, the event would
+            # be gone with no trace it ever existed.
+            await self._event_log.record_pending(event)
         await self._queue.put(event)
+
+    async def recover(self) -> int:
+        """Call once at startup, before start(). Re-queues anything left
+        unfinished by a previous crashed run. Returns how many were
+        recovered, mainly so callers/tests can assert on it."""
+        if not self._event_log:
+            return 0
+        unfinished = await self._event_log.recover_unfinished()
+        for event in unfinished:
+            await self._queue.put(event)
+        return len(unfinished)
 
     async def _dispatch_loop(self) -> None:
         while True:
             event = await self._queue.get()
+            if self._event_log:
+                await self._event_log.mark_processing(event.id)
             handlers = self._subscribers.get(event.type, [])
             # Run all subscribers for this event concurrently, not one
             # after another — a slow subscriber shouldn't delay the others.
             await asyncio.gather(*(handler(event) for handler in handlers))
+            if self._event_log:
+                await self._event_log.mark_completed(event.id)
             self._queue.task_done()
 
     def start(self) -> None:
