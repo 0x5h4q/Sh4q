@@ -8,13 +8,14 @@ from sh4q.storage import Node, Relationship, StorageRepository
 from sh4q.storage.evidence import Evidence, EvidenceStore
 
 
-def make_discovery_handler(scope: ScopeEngine, storage: StorageRepository, evidence_store: EvidenceStore):
+def make_discovery_handler(scope: ScopeEngine, storage: StorageRepository, evidence_store: EvidenceStore, stats: dict | None = None):
 
     async def handle_discovery(event: Event) -> None:
         kind = event.payload["kind"]
         data = event.payload["data"]
         source_plugin = event.payload.get("source_plugin", "unknown")
         scan_target = event.payload.get("scan_target", "")
+
         await evidence_store.append(
             Evidence(
                 id=event.id,
@@ -28,12 +29,10 @@ def make_discovery_handler(scope: ScopeEngine, storage: StorageRepository, evide
         if kind == "dns_resolution":
             domain = data["domain"]
             ip = data["ip"]
-
-            # The domain itself was already Gate-1-authorized before the plugin ran, so it's saved unconditionally.
             domain_node = Node(type="domain", value=domain)
             await storage.save_node(domain_node)
 
-            # Gate 2: the IP is a NEWLY discovered target. A domain being in scope does not automatically mean its resolved IP is 
+            # Gate 2: the IP is a NEWLY discovered target. A domain being in scope does not automatically mean its resolved IP is.
             decision = scope.authorize(ip)
             if not decision.allowed:
                 print(f"  GATE 2 DENY: {ip} -> {decision.reason} (not persisted as an asset)")
@@ -44,6 +43,8 @@ def make_discovery_handler(scope: ScopeEngine, storage: StorageRepository, evide
             await storage.save_relationship(
                 Relationship(from_id=domain_node.id, to_id=ip_node.id, type="RESOLVES_TO")
             )
+            if stats is not None:
+                stats["relationships"] = stats.get("relationships", 0) + 1
             print(f"  SAVED: {domain} --RESOLVES_TO--> {ip}")
 
         elif kind == "http_probe":
@@ -66,6 +67,8 @@ def make_discovery_handler(scope: ScopeEngine, storage: StorageRepository, evide
             await storage.save_relationship(
                 Relationship(from_id=domain_node.id, to_id=url_node.id, type="SERVES")
             )
+            if stats is not None:
+                stats["relationships"] = stats.get("relationships", 0) + 1
             print(f"  SAVED: {host} --SERVES--> {final_url} [{data['status']}]")
 
         else:

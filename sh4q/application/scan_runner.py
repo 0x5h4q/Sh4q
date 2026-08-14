@@ -51,14 +51,16 @@ async def run_scan(target: str, config_path: str | None = None) -> ScanSummary:
     bus = EventBus(event_log=event_log)
 
     discovery_count = 0
+    stats: dict = {"relationships": 0}
 
     async def count_discoveries(event) -> None:
         nonlocal discovery_count
         discovery_count += 1
 
-    bus.subscribe("discovery", make_discovery_handler(scope, storage, evidence_store))
+    bus.subscribe("discovery", make_discovery_handler(scope, storage, evidence_store, stats=stats))
     bus.subscribe("discovery", count_discoveries)
-    # Automatic resume: pick up anything a previous crashed run left unfinished, before starting the dispatcher or running new work.
+
+    # Automatic resume: pick up anything a previous crashed run left unfinished before starting the dispatcher or running new work.
     recovered = await bus.recover()
 
     bus.start()
@@ -69,8 +71,6 @@ async def run_scan(target: str, config_path: str | None = None) -> ScanSummary:
     await bus.drain()
     bus.stop()
 
-    domain_id = f"domain:{target}"
-    relationships = await storage.get_relationships(domain_id)
     evidence_records = await evidence_store.list_for_target(target)
 
     return ScanSummary(
@@ -78,7 +78,7 @@ async def run_scan(target: str, config_path: str | None = None) -> ScanSummary:
         scope_allowed=decision.allowed,
         scope_reason=decision.reason,
         discoveries=discovery_count,
-        relationships=len(relationships),
+        relationships=stats["relationships"],
         evidence=len(evidence_records),
         recovered_events=recovered,
         duration_seconds=time.monotonic() - start,

@@ -2,3 +2,4 @@ venv/
 __pycache__/
 *.pyc
 sh4q-output/
+sh4q.egg-info/
