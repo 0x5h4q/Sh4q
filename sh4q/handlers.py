@@ -1,4 +1,3 @@
-
 from httpx import URL as HttpURL
 
 from sh4q.events import Event
@@ -13,7 +12,6 @@ def make_discovery_handler(
     evidence_store: EvidenceStore,
     stats: dict | None = None,
 ):
-
     async def handle_discovery(event: Event) -> None:
         kind = event.payload["kind"]
         data = event.payload["data"]
@@ -34,17 +32,15 @@ def make_discovery_handler(
             domain = data["domain"]
             ip = data["ip"]
 
-            # The original domain has already passed Gate 1.
             domain_node = Node(type="domain", value=domain)
             await storage.save_node(domain_node)
 
-            # Gate 2: the newly discovered IP must independently be authorized before it becomes an asset in the graph.
             decision = scope.authorize(ip)
 
             if not decision.allowed:
                 print(
                     f"  GATE 2 DENY: {ip} -> {decision.reason} "
-                    "(not persisted as an asset)"
+                    f"(not persisted as an asset)"
                 )
                 return
 
@@ -52,11 +48,7 @@ def make_discovery_handler(
             await storage.save_node(ip_node)
 
             await storage.save_relationship(
-                Relationship(
-                    from_id=domain_node.id,
-                    to_id=ip_node.id,
-                    type="RESOLVES_TO",
-                )
+                Relationship(from_id=domain_node.id, to_id=ip_node.id, type="RESOLVES_TO")
             )
 
             if stats is not None:
@@ -67,6 +59,7 @@ def make_discovery_handler(
         elif kind == "http_probe":
             final_url = data["final_url"]
             host = HttpURL(final_url).host
+
             decision = scope.authorize(host)
 
             if not decision.allowed:
@@ -82,37 +75,63 @@ def make_discovery_handler(
             url_node = Node(
                 type="url",
                 value=final_url,
-                attributes={
-                    "status": data["status"],
-                    "server": data.get("server", ""),
-                },
+                attributes={"status": data["status"], "server": data.get("server", "")},
             )
             await storage.save_node(url_node)
 
             await storage.save_relationship(
-                Relationship(
-                    from_id=domain_node.id,
-                    to_id=url_node.id,
-                    type="SERVES",
-                )
+                Relationship(from_id=domain_node.id, to_id=url_node.id, type="SERVES")
             )
 
             if stats is not None:
                 stats["relationships"] = stats.get("relationships", 0) + 1
 
-            print(
-                f"  SAVED: {host} --SERVES--> "
-                f"{final_url} [{data['status']}]"
+            print(f"  SAVED: {host} --SERVES--> {final_url} [{data['status']}]")
+
+        elif kind == "subdomain_found":
+            hostname = data["hostname"]
+            root_domain = data["domain"]
+            root_node = Node(type="domain", value=root_domain)
+            await storage.save_node(root_node)
+
+            decision = scope.authorize(hostname)
+
+            if not decision.allowed:
+                print(
+                    f"  GATE 2 DENY: {hostname} -> {decision.reason} "
+                    f"(not persisted as an asset)"
+                )
+                return
+
+            sub_node = Node(
+                type="domain",
+                value=hostname,
+                attributes={"source": data.get("source", "")},
+            )
+            await storage.save_node(sub_node)
+
+            await storage.save_relationship(
+                Relationship(from_id=root_node.id, to_id=sub_node.id, type="HAS_SUBDOMAIN")
             )
 
-        elif kind in ("http_error", "dns_error"):
-            print(
-                f"  FAILED  {kind}: "
-                f"{data.get('error', 'unknown error')}"
-            )
+            if stats is not None:
+                stats["relationships"] = stats.get("relationships", 0) + 1
+
+            print(f"  SAVED: {root_domain} --HAS_SUBDOMAIN--> {hostname}")
+
+        elif kind == "ct_rate_limited":
+            source = data.get("source") or source_plugin or "unknown"
+            retry_after = data.get("retry_after")
+
+            if retry_after is not None:
+                print(f"  CT RATE LIMITED: {source} (Retry-After: {retry_after}s)")
+            else:
+                print(f"  CT RATE LIMITED: {source}")
+
+        elif kind in ("http_error", "dns_error", "ct_error"):
+            print(f"  FAILED  {kind}: {data.get('error', 'unknown error')}")
 
         else:
-            # Preserve the fallback for genuinely unknown discovery kinds.
             print(f"  (no handler yet for discovery kind={kind!r})")
 
     return handle_discovery

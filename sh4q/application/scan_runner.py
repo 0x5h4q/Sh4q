@@ -1,4 +1,5 @@
 
+
 import os
 import time
 from dataclasses import dataclass
@@ -7,6 +8,7 @@ from sh4q.config import Sh4qConfig, load_config
 from sh4q.events import EventBus
 from sh4q.events.event_log import DurableEventLog
 from sh4q.handlers import make_discovery_handler
+from sh4q.plugins.ct_plugin import CTPlugin
 from sh4q.plugins.dns_plugin import DNSPlugin
 from sh4q.plugins.http_plugin import HTTPPlugin
 from sh4q.scheduler import Scheduler
@@ -57,15 +59,14 @@ async def run_scan(target: str, config_path: str | None = None) -> ScanSummary:
         nonlocal discovery_count
         discovery_count += 1
 
+
     bus.subscribe("discovery", make_discovery_handler(scope, storage, evidence_store, stats=stats))
     bus.subscribe("discovery", count_discoveries)
-
-    # Automatic resume: pick up anything a previous crashed run left unfinished before starting the dispatcher or running new work.
     recovered = await bus.recover()
 
     bus.start()
 
-    scheduler = Scheduler(plugins=[DNSPlugin(), HTTPPlugin()], scope=scope, bus=bus)
+    scheduler = Scheduler(plugins=[DNSPlugin(), HTTPPlugin(), CTPlugin()], scope=scope, bus=bus)
     decision = await scheduler.run(target)
 
     await bus.drain()

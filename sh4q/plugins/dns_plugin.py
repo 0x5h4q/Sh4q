@@ -1,3 +1,4 @@
+
 import asyncio
 import socket
 
@@ -13,31 +14,24 @@ class DNSPlugin(Plugin):
     )
 
     async def execute(self, target: str) -> list[Discovery]:
+        loop = asyncio.get_running_loop()
+
         try:
-            results = await asyncio.to_thread(
-                socket.getaddrinfo,
-                target,
-                None,
-                socket.AF_UNSPEC,
-                socket.SOCK_STREAM,
-            )
-        except socket.gaierror as e:
-            return [
-                Discovery(
-                    kind="dns_error",
-                    data={
-                        "domain": target,
-                        "error": str(e),
-                    },
-                )
-            ]
+            results = await loop.getaddrinfo(target, None)
+
         except OSError as e:
+            retryable = (
+                isinstance(e, socket.gaierror)
+                and e.errno == socket.EAI_AGAIN
+            )
+
             return [
                 Discovery(
                     kind="dns_error",
                     data={
                         "domain": target,
                         "error": str(e),
+                        "retryable": retryable,
                     },
                 )
             ]
@@ -46,7 +40,6 @@ class DNSPlugin(Plugin):
             {
                 info[4][0]
                 for info in results
-                if info[4]
             }
         )
 
