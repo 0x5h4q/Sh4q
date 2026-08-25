@@ -33,38 +33,13 @@ class CTPlugin(Plugin):
         target: str,
     ):
         try:
-            print(f"CT SOURCE: {connector.name} on {target}")
-
             hostnames = await connector.fetch_hostnames(
                 target,
                 self._connector_timeout,
             )
-
-            print(
-                f"CT SOURCE SUCCESS: {connector.name} "
-                f"returned {len(hostnames)} hostname(s)"
-            )
-
             return connector.name, set(hostnames), None
 
         except CTConnectorError as e:
-            if e.partial_hostnames:
-                print(
-                    f"CT SOURCE PARTIAL: {connector.name} "
-                    f"retained {len(e.partial_hostnames)} hostname(s)"
-                )
-
-            if e.rate_limited:
-                print(
-                    f"CT SOURCE RATE LIMITED: "
-                    f"{connector.name}: {e}"
-                )
-            else:
-                print(
-                    f"CT SOURCE DEGRADED: "
-                    f"{connector.name}: {e}"
-                )
-
             return connector.name, e.partial_hostnames, e
 
     async def execute(
@@ -90,7 +65,47 @@ class CTPlugin(Plugin):
             if error is not None:
                 errors.append((source_name, error))
 
+        print("CT providers:")
+        for source_name, hostnames, error in results:
+            if error is None:
+                print(f"  {source_name:<14} success      {len(hostnames)} names")
+            elif error.rate_limited:
+                print(f"  {source_name:<14} rate-limited {str(error)}")
+            elif hostnames:
+                print(
+                    f"  {source_name:<14} partial      "
+                    f"{len(hostnames)} names; {str(error)}"
+                )
+            else:
+                print(f"  {source_name:<14} degraded     {str(error)}")
+
         discoveries: list[Discovery] = []
+
+        for source_name, hostnames, error in results:
+            if error is None:
+                status = "success"
+            elif error.rate_limited:
+                status = "rate_limited"
+            elif hostnames:
+                status = "partial"
+            else:
+                status = "degraded"
+
+            discoveries.append(
+                Discovery(
+                    kind="ct_provider_status",
+                    data={
+                        "domain": target,
+                        "source": source_name,
+                        "status": status,
+                        "names": len(hostnames),
+                        "error": str(error) if error is not None else None,
+                        "retryable": error.retryable if error is not None else False,
+                        "rate_limited": error.rate_limited if error is not None else False,
+                        "retry_after": error.retry_after if error is not None else None,
+                    },
+                )
+            )
 
         for hostname in sorted(all_hostnames):
             sources = sorted(
@@ -112,23 +127,7 @@ class CTPlugin(Plugin):
                 )
             )
 
-        if discoveries:
-            if errors:
-                for source_name, error in errors:
-                    if error.rate_limited:
-                        discoveries.append(
-                            Discovery(
-                                kind="ct_rate_limited",
-                                data={
-                                    "domain": target,
-                                    "source": source_name,
-                                    "error": str(error),
-                                    "retryable": False,
-                                    "retry_after": error.retry_after,
-                                },
-                            )
-                        )
-
+        if all_hostnames:
             return discoveries
 
         if errors:
@@ -139,7 +138,7 @@ class CTPlugin(Plugin):
             ]
 
             if rate_limit_errors:
-                return [
+                discoveries.append(
                     Discovery(
                         kind="ct_rate_limited",
                         data={
@@ -163,9 +162,10 @@ class CTPlugin(Plugin):
                             ),
                         },
                     )
-                ]
+                )
+                return discoveries
 
-            return [
+            discoveries.append(
                 Discovery(
                     kind="ct_error",
                     data={
@@ -184,6 +184,7 @@ class CTPlugin(Plugin):
                         ),
                     },
                 )
-            ]
+            )
+            return discoveries
 
         return []

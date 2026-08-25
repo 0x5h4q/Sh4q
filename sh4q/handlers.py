@@ -119,7 +119,10 @@ def make_discovery_handler(
             if stats is not None:
                 stats["relationships"] = stats.get("relationships", 0) + 1
 
-            print(f"  SAVED: {root_domain} --HAS_SUBDOMAIN--> {hostname}")
+        elif kind == "ct_provider_status":
+            # CTPlugin prints one compact provider table. The event remains
+            # durable evidence, but does not add duplicate console output.
+            return
 
         elif kind == "ct_rate_limited":
             source = data.get("source") or source_plugin or "unknown"
