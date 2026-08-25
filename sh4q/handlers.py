@@ -35,7 +35,9 @@ def make_discovery_handler(
             domain_node = Node(type="domain", value=domain)
             await storage.save_node(domain_node)
 
-            decision = scope.authorize(ip)
+            # The hostname was authorized at Gate 1. The resolved IP is
+            # checked against address safety policy, not hostname scope.
+            decision = scope.authorize_resolved_address(ip)
 
             if not decision.allowed:
                 print(
