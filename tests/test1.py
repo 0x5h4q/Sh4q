@@ -38,7 +38,7 @@ async def test_dedup():
     bus = EventBus()
     bus.subscribe("discovery", make_discovery_handler(scope, storage))
     bus.start()
-    scheduler = Scheduler(plugins=[DNSPlugin(), HTTPPlugin()], scope=scope, bus=bus)
+    scheduler = Scheduler(plugins=[DNSPlugin(), HTTPPlugin(scope)], scope=scope, bus=bus)
 
     print("=== TEST 1: repeated execution — no duplicates, correct merge ===")
     start = time.monotonic()
@@ -79,7 +79,7 @@ async def test_denied_target():
     bus.subscribe("discovery", make_discovery_handler(scope, storage))
     bus.start()
 
-    scheduler = Scheduler(plugins=[TrackedDNSPlugin(), TrackedHTTPPlugin()], scope=scope, bus=bus)
+    scheduler = Scheduler(plugins=[TrackedDNSPlugin(), TrackedHTTPPlugin(scope)], scope=scope, bus=bus)
     print()
     print("=== TEST 2: fully unauthorized target ===")
     await scheduler.run("evil.com")

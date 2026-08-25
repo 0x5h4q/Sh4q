@@ -8,6 +8,7 @@ scope:
     - "127.0.0.1"
     - "localhost"
   excluded: []
+  allow_private_addresses: true
   ports:
     - 8000
     - 8081

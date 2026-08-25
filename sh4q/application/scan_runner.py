@@ -66,7 +66,7 @@ async def run_scan(target: str, config_path: str | None = None) -> ScanSummary:
 
     bus.start()
 
-    scheduler = Scheduler(plugins=[DNSPlugin(), HTTPPlugin(), CTPlugin()], scope=scope, bus=bus)
+    scheduler = Scheduler(plugins=[DNSPlugin(), HTTPPlugin(scope), CTPlugin()], scope=scope, bus=bus)
     decision = await scheduler.run(target)
 
     await bus.drain()

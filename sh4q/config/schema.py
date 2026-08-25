@@ -7,6 +7,7 @@ class ScopeConfig(BaseModel):
     targets: list[str] = Field(default_factory=list)          
     excluded: list[str] = Field(default_factory=list)         
     ports: list[int] = Field(default_factory=lambda: [80, 443])
+    allow_private_addresses: bool = False
 
 
 class RateLimitConfig(BaseModel):

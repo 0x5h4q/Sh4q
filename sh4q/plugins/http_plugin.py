@@ -1,9 +1,11 @@
 import asyncio
 
 import httpx
+from sh4q.scope import ScopeEngine
 
 from .discovery import Discovery
 from .interface import Plugin, PluginMetadata
+from sh4q.network import ScopedHTTPClient, ScopedHTTPError
 
 
 class HTTPPlugin(Plugin):
@@ -14,11 +16,11 @@ class HTTPPlugin(Plugin):
         timeout=10.0,
     )
 
+    def __init__(self, scope: ScopeEngine):
+        self.scope = scope
+
     async def execute(self, target: str) -> list[Discovery]:
-        async with httpx.AsyncClient(
-            follow_redirects=True,
-            timeout=self.metadata.timeout,
-        ) as client:
+        async with ScopedHTTPClient(self.scope, timeout=self.metadata.timeout) as client:
 
             async def probe(scheme: str) -> Discovery:
                 url = f"{scheme}://{target}"
@@ -36,7 +38,7 @@ class HTTPPlugin(Plugin):
                         },
                     )
 
-                except httpx.HTTPError as e:
+                except (httpx.HTTPError, ScopedHTTPError) as e:
                     return Discovery(
                         kind="http_error",
                         data={
