@@ -1,6 +1,7 @@
 
 
 import json
+from datetime import datetime, timezone
 
 import aiosqlite
 
@@ -22,13 +23,19 @@ class DurableEventLog:
                     status TEXT NOT NULL,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
-                    error TEXT
+                    error TEXT,
+                    attempts INTEGER NOT NULL DEFAULT 0,
+                    next_attempt_at TEXT
                 )
                 """
             )
             columns = await (await db.execute("PRAGMA table_info(event_log)")).fetchall()
             if not any(row[1] == "error" for row in columns):
                 await db.execute("ALTER TABLE event_log ADD COLUMN error TEXT")
+            if not any(row[1] == "attempts" for row in columns):
+                await db.execute("ALTER TABLE event_log ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")
+            if not any(row[1] == "next_attempt_at" for row in columns):
+                await db.execute("ALTER TABLE event_log ADD COLUMN next_attempt_at TEXT")
             await db.commit()
 
     async def record_pending(self, event: Event) -> None:
@@ -46,8 +53,18 @@ class DurableEventLog:
     async def mark_completed(self, event_id: str) -> None:
         await self._set_status(event_id, "COMPLETED")
 
-    async def mark_failed(self, event_id: str, error: str) -> None:
-        await self._set_status(event_id, "FAILED", error=error)
+    async def mark_failed(self, event_id: str, error: str, *, max_attempts: int = 3, retry_delay: float = 0.0) -> bool:
+        next_attempt = datetime.now(timezone.utc).timestamp() + max(0.0, retry_delay)
+        async with aiosqlite.connect(self._db_path) as db:
+            row = await (await db.execute("SELECT attempts FROM event_log WHERE id = ?", (event_id,))).fetchone()
+            attempts = (row[0] if row else 0) + 1
+            status = "DEAD_LETTER" if attempts >= max_attempts else "FAILED"
+            await db.execute(
+                "UPDATE event_log SET status = ?, updated_at = ?, error = ?, attempts = ?, next_attempt_at = ? WHERE id = ?",
+                (status, _iso_now(), error, attempts, _iso_from_timestamp(next_attempt) if status == "FAILED" else None, event_id),
+            )
+            await db.commit()
+        return status == "FAILED"
 
     async def _set_status(self, event_id: str, status: str, error: str | None = None) -> None:
         async with aiosqlite.connect(self._db_path) as db:
@@ -61,7 +78,8 @@ class DurableEventLog:
         async with aiosqlite.connect(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
-                "SELECT * FROM event_log WHERE status != 'COMPLETED' ORDER BY created_at ASC"
+                "SELECT * FROM event_log WHERE status IN ('PENDING', 'PROCESSING', 'FAILED') AND (next_attempt_at IS NULL OR next_attempt_at <= ?) ORDER BY created_at ASC",
+                (_iso_now(),),
             )
             rows = await cursor.fetchall()
             return [
@@ -71,5 +89,8 @@ class DurableEventLog:
 
 
 def _iso_now() -> str:
-    from datetime import datetime, timezone
     return datetime.now(timezone.utc).isoformat()
+
+
+def _iso_from_timestamp(value: float) -> str:
+    return datetime.fromtimestamp(value, timezone.utc).isoformat()

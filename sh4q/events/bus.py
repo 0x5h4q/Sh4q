@@ -11,11 +11,13 @@ Handler = Callable[[Event], Awaitable[None]]
 
 
 class EventBus:
-    def __init__(self, event_log: DurableEventLog | None = None):
+    def __init__(self, event_log: DurableEventLog | None = None, *, max_event_attempts: int = 3, retry_delay: float = 0.0):
         self._queue: asyncio.Queue[Event] = asyncio.Queue()
         self._subscribers: dict[str, list[Handler]] = defaultdict(list)
         self._dispatcher_task: asyncio.Task | None = None
         self._event_log = event_log   # None = old in-process-only behavior, no durability
+        self._max_event_attempts = max(1, max_event_attempts)
+        self._retry_delay = max(0.0, retry_delay)
 
     def subscribe(self, event_type: str, handler: Handler) -> None:
         self._subscribers[event_type].append(handler)
@@ -50,6 +52,8 @@ class EventBus:
                     await self._event_log.mark_failed(
                         event.id,
                         f"{type(error).__name__}: {error}",
+                        max_attempts=self._max_event_attempts,
+                        retry_delay=self._retry_delay,
                     )
                 else:
                     print(f"EVENT FAILED {event.id}: {error}")
