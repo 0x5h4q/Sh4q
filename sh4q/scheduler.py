@@ -250,7 +250,13 @@ class Scheduler:
                 )
 
             finally:
-                await plugin.cleanup()
+                try:
+                    await plugin.cleanup()
+                except Exception as error:
+                    print(
+                        f"CLEANUP ERROR {plugin.metadata.name} "
+                        f"on {target}: {error}"
+                    )
 
             # -----------------------------------------------------
             #                   Publish discoveries

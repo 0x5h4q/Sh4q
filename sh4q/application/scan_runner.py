@@ -72,7 +72,7 @@ async def run_scan(target: str, config_path: str | None = None) -> ScanSummary:
     decision = await scheduler.run(target)
 
     await bus.drain()
-    bus.stop()
+    await bus.shutdown()
 
     evidence_records = await evidence_store.list_for_target(target)
 

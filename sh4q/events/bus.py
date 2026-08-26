@@ -70,3 +70,15 @@ class EventBus:
     def stop(self) -> None:
         if self._dispatcher_task:
             self._dispatcher_task.cancel()
+
+    async def shutdown(self) -> None:
+        """Cancel the dispatcher and wait for it to finish cleanly."""
+        task = self._dispatcher_task
+        self._dispatcher_task = None
+        if task is None:
+            return
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
