@@ -3,6 +3,8 @@ from dataclasses import dataclass
 
 import httpx
 
+from sh4q.network import TrustedServiceHTTPClient
+
 
 class CTConnectorError(Exception):
     def __init__(
@@ -64,8 +66,11 @@ def _retry_after(response: httpx.Response) -> int | None:
 class CertSpotterConnector(CTConnector):
     name = "certspotter"
 
-    def __init__(self, max_pages: int = 50):
+    def __init__(self, max_pages: int = 50, client_factory=None):
         self.max_pages = max_pages
+        self._client_factory = client_factory or (
+            lambda timeout: TrustedServiceHTTPClient({"api.certspotter.com"}, timeout=timeout)
+        )
 
     async def fetch_hostnames(
         self,
@@ -75,10 +80,7 @@ class CertSpotterConnector(CTConnector):
         hostnames: set[str] = set()
         after: str | None = None
 
-        async with httpx.AsyncClient(
-            timeout=timeout,
-            follow_redirects=True,
-        ) as client:
+        async with self._client_factory(timeout) as client:
             for _ in range(self.max_pages):
                 params = {
                     "domain": target,
@@ -185,8 +187,11 @@ class CertSpotterConnector(CTConnector):
 class CrtShConnector(CTConnector):
     name = "crt.sh"
 
-    def __init__(self, max_records: int = 10000):
+    def __init__(self, max_records: int = 10000, client_factory=None):
         self.max_records = max_records
+        self._client_factory = client_factory or (
+            lambda timeout: TrustedServiceHTTPClient({"crt.sh"}, timeout=timeout)
+        )
 
     async def fetch_hostnames(
         self,
@@ -194,10 +199,7 @@ class CrtShConnector(CTConnector):
         timeout: float,
     ) -> list[str]:
         try:
-            async with httpx.AsyncClient(
-                timeout=timeout,
-                follow_redirects=True,
-            ) as client:
+            async with self._client_factory(timeout) as client:
                 response = await client.get(
                     "https://crt.sh/",
                     params={

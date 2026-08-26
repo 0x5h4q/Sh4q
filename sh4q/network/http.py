@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import socket
 from collections.abc import Awaitable, Callable
 from urllib.parse import urljoin
@@ -144,3 +145,53 @@ class ScopedHTTPClient:
         loop = asyncio.get_running_loop()
         results = await loop.getaddrinfo(host, port, type=socket.SOCK_STREAM)
         return sorted({item[4][0] for item in results})
+
+
+class TrustedServiceHTTPClient:
+    """Pinned HTTPS client for explicitly approved third-party service APIs."""
+
+    def __init__(
+        self,
+        allowed_hosts: set[str],
+        *,
+        timeout: float,
+        transport: httpx.AsyncBaseTransport | None = None,
+        resolver: Callable[[str, int], Awaitable[list[str]]] | None = None,
+    ):
+        self._allowed_hosts = {host.lower().rstrip(".") for host in allowed_hosts}
+        self._resolver = resolver or ScopedHTTPClient._resolve
+        self._client = httpx.AsyncClient(
+            timeout=timeout,
+            follow_redirects=False,
+            transport=_PinnedIPTransport(transport),
+        )
+
+    async def __aenter__(self) -> "TrustedServiceHTTPClient":
+        await self._client.__aenter__()
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        await self._client.__aexit__(exc_type, exc, tb)
+
+    async def get(self, url: str, **kwargs) -> httpx.Response:
+        parsed = httpx.URL(url)
+        if parsed.scheme != "https" or not parsed.host or parsed.port not in (None, 443):
+            raise ScopedHTTPError("trusted service requires HTTPS on port 443")
+        host = parsed.host.lower().rstrip(".")
+        if host not in self._allowed_hosts:
+            raise ScopedHTTPError(f"unapproved trusted service host: {host}")
+        addresses = await self._resolver(host, 443)
+        if not addresses:
+            raise ScopedHTTPError(f"trusted service has no resolved address: {host}")
+        for address in addresses:
+            ip = ipaddress.ip_address(address)
+            if not ip.is_global:
+                raise ScopedHTTPError(f"trusted service resolves to non-public address: {address}")
+        response = await self._client.get(
+            url,
+            extensions={"sh4q_pinned_ip": addresses[0]},
+            **kwargs,
+        )
+        if response.is_redirect:
+            raise ScopedHTTPError(f"trusted service redirect denied: {url}")
+        return response

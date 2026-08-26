@@ -1,3 +1,3 @@
-from .http import ScopedHTTPClient, ScopedHTTPError
+from .http import ScopedHTTPClient, ScopedHTTPError, TrustedServiceHTTPClient
 
-__all__ = ["ScopedHTTPClient", "ScopedHTTPError"]
+__all__ = ["ScopedHTTPClient", "ScopedHTTPError", "TrustedServiceHTTPClient"]
