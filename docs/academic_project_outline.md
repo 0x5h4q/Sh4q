@@ -155,6 +155,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 8. Equivalent URLs are canonicalised before persistence.
 9. One scan-wide request limiter now enforces concurrency, pacing, and total budget at the HTTP transport boundary.
 10. Scope validation does not consume request budget; each real redirect, fallback-IP, pagination, or retry attempt does.
+11. Request-limit configuration and observed counters are persisted as a `request_metrics` evidence record for each scan outcome.
 
 ## 4.4 Testing Strategy
 

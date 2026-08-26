@@ -16,6 +16,7 @@ from sh4q.scheduler import Scheduler
 from sh4q.scope import ScopeEngine
 from sh4q.storage import SQLiteStorage
 from sh4q.storage.evidence import SQLiteEvidenceStore
+from sh4q.application.request_metrics import persist_request_metrics
 
 
 @dataclass
@@ -79,6 +80,7 @@ async def run_scan(target: str, config_path: str | None = None) -> ScanSummary:
 
     bus.start()
 
+    outcome = "completed"
     try:
         scheduler = Scheduler(
             plugins=[DNSPlugin(), HTTPPlugin(scope, limiter=limiter), CTPlugin(limiter=limiter)],
@@ -87,13 +89,24 @@ async def run_scan(target: str, config_path: str | None = None) -> ScanSummary:
         )
         decision = await scheduler.run(target)
         await bus.drain()
+    except BaseException:
+        outcome = "interrupted"
+        raise
     finally:
         # On Ctrl+C, queued events remain PENDING and an interrupted active
         # event remains PROCESSING. Both are recoverable on the next scan.
         await bus.shutdown()
+        request_metrics = await limiter.metrics()
+        await persist_request_metrics(
+            evidence_store,
+            target=target,
+            limits=config.rate_limit,
+            metrics=request_metrics,
+            duration_seconds=time.monotonic() - start,
+            outcome=outcome,
+        )
 
     evidence_records = await evidence_store.list_for_target(target)
-    request_metrics = await limiter.metrics()
 
     return ScanSummary(
         target=target,

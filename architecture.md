@@ -92,6 +92,8 @@ The configured concurrency, requests-per-second, and total-request budget are no
 
 The scan summary reports admitted, budget-denied, completed, failed, and peak-concurrency counts. Deterministic fake-transport tests verify the concurrency ceiling, pacing, budget exhaustion before transport contact, fallback-attempt accounting, metrics, and zero budget use for denied scope. Gate 3 remains open until retry/blocked terminology is fully represented in durable metrics and adapter contracts prevent future tools from bypassing admission.
 
+Each completed or interrupted scan now also writes a `request_metrics` evidence record containing the configured limits, observed counters, peak concurrency, duration, and outcome. This preserves the summary for later audit without introducing the deferred `scan_run` schema prematurely.
+
 ### Gate 4: Engineering quality
 
 - Replace print-only tests with assertions and deterministic fakes.
