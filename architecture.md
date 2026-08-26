@@ -78,6 +78,8 @@ These are tracked follow-ups, not permission to expand scope or add active scann
 - Isolate plugin cleanup failures.
 - Add crash/recovery tests for handler failure, duplicate delivery, and restart.
 
+Preliminary SQLite concurrency validation (2026-08-26): 50 parallel synthetic work units completed without observed lock errors or lost records, producing 100 nodes, 50 relationships, 50 durable events, and 50 evidence rows in approximately 0.669 seconds. Repeat runs and descriptive statistics remain required for academic evaluation.
+
 ### Gate 3: Enforced controls
 
 - Implement configured concurrency, request-rate, and total-request limits.

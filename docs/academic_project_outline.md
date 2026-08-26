@@ -174,7 +174,7 @@ Record database, query, search date, results reviewed, inclusion decisions, DOI 
 
 ## 4.6 Preliminary Results
 
-Controlled tests demonstrate blocked out-of-scope redirects, reserved-address rejection, DNS-rebinding resistance through IP pinning, preserved TLS hostname identity, URL deduplication, and retained CT partial results. Live-domain runs exposed realistic DNS latency, HTTP timeout, CT degradation, and rate-limit conditions. These runs informed corrections but are not a substitute for controlled evaluation.
+Controlled tests demonstrate blocked out-of-scope redirects, reserved-address rejection, DNS-rebinding resistance through IP pinning, preserved TLS hostname identity, URL deduplication, and retained CT partial results. A preliminary SQLite concurrency run completed 50 parallel synthetic work units in approximately 0.669 seconds and produced the expected 100 nodes, 50 relationships, 50 event-log records, and 50 evidence records without observed lock errors or lost writes. This single run is engineering evidence rather than a final benchmark; the formal evaluation should repeat the experiment and report descriptive statistics. Live-domain runs exposed realistic DNS latency, HTTP timeout, CT degradation, and rate-limit conditions. These runs informed corrections but are not a substitute for controlled evaluation.
 
 ## 4.7 Current Limitations
 
