@@ -1,6 +1,10 @@
 import asyncio
+import os
+
+import aiosqlite
 
 from sh4q.events import Event, EventBus
+from sh4q.events.event_log import DurableEventLog
 
 
 async def main() -> None:
@@ -23,6 +27,42 @@ async def main() -> None:
     assert processed == [healthy_event.id]
     await bus.shutdown()
     assert bus._dispatcher_task is None
+
+    path = "/tmp/sh4q_event_cancel_test.db"
+    if os.path.exists(path):
+        os.remove(path)
+    log = DurableEventLog(path)
+    await log.init()
+    durable_bus = EventBus(event_log=log)
+    started = asyncio.Event()
+
+    async def slow(event: Event) -> None:
+        started.set()
+        await asyncio.Event().wait()
+
+    durable_bus.subscribe("slow", slow)
+    interrupted = Event(type="slow")
+    queued = Event(type="slow")
+    await durable_bus.publish(interrupted)
+    await durable_bus.publish(queued)
+    durable_bus.start()
+    await asyncio.wait_for(started.wait(), timeout=1)
+    await durable_bus.shutdown()
+
+    async with aiosqlite.connect(path) as db:
+        rows = dict(
+            await (
+                await db.execute(
+                    "SELECT id, status FROM event_log WHERE id IN (?, ?)",
+                    (interrupted.id, queued.id),
+                )
+            ).fetchall()
+        )
+    assert rows[interrupted.id] == "PROCESSING"
+    assert rows[queued.id] == "PENDING"
+
+    recovery_bus = EventBus(event_log=log)
+    assert await recovery_bus.recover() == 2
     print("event lifecycle test passed")
 
 

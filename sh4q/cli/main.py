@@ -58,7 +58,14 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "scan":
-        summary = asyncio.run(run_scan(args.target, args.config))
+        try:
+            summary = asyncio.run(run_scan(args.target, args.config))
+        except KeyboardInterrupt:
+            print()
+            print("  Scan interrupted by user.")
+            print("  Unfinished durable events will be recovered on the next scan.")
+            print()
+            sys.exit(130)
         render_summary(summary)
         sys.exit(0 if summary.scope_allowed else 1)
 

@@ -68,11 +68,14 @@ async def run_scan(target: str, config_path: str | None = None) -> ScanSummary:
 
     bus.start()
 
-    scheduler = Scheduler(plugins=[DNSPlugin(), HTTPPlugin(scope), CTPlugin()], scope=scope, bus=bus)
-    decision = await scheduler.run(target)
-
-    await bus.drain()
-    await bus.shutdown()
+    try:
+        scheduler = Scheduler(plugins=[DNSPlugin(), HTTPPlugin(scope), CTPlugin()], scope=scope, bus=bus)
+        decision = await scheduler.run(target)
+        await bus.drain()
+    finally:
+        # On Ctrl+C, queued events remain PENDING and an interrupted active
+        # event remains PROCESSING. Both are recoverable on the next scan.
+        await bus.shutdown()
 
     evidence_records = await evidence_store.list_for_target(target)
 
