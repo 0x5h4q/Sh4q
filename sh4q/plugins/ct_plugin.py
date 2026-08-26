@@ -27,6 +27,7 @@ class CTPlugin(Plugin):
         ]
         self._connector_timeout = 10.0
         self._successful_results: dict[tuple[str, str], set[str]] = {}
+        self._terminal_results: dict[tuple[str, str], CTConnectorError] = {}
 
     async def _try_connector(
         self,
@@ -53,6 +54,10 @@ class CTPlugin(Plugin):
             cached = self._successful_results.get((target, connector.name))
             if cached is not None:
                 results.append((connector.name, set(cached), None, True))
+                continue
+            terminal = self._terminal_results.get((target, connector.name))
+            if terminal is not None:
+                results.append((connector.name, terminal.partial_hostnames, terminal, True))
             else:
                 pending.append(connector)
 
@@ -62,6 +67,8 @@ class CTPlugin(Plugin):
         for source_name, hostnames, error in attempted:
             if error is None:
                 self._successful_results[(target, source_name)] = set(hostnames)
+            elif error.rate_limited:
+                self._terminal_results[(target, source_name)] = error
             results.append((source_name, hostnames, error, False))
 
         order = {connector.name: index for index, connector in enumerate(self._connectors)}

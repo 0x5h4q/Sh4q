@@ -75,6 +75,22 @@ async def main() -> None:
         and item.data["preserved"] is True
         for item in second
     )
+
+    class LimitedConnector(CTConnector):
+        name = "limited"
+
+        def __init__(self):
+            self.calls = 0
+
+        async def fetch_hostnames(self, target: str, timeout: float) -> list[str]:
+            self.calls += 1
+            raise CTConnectorError("Retry-After: 60s", retryable=False, rate_limited=True)
+
+    limited = LimitedConnector()
+    limited_plugin = CTPlugin(connectors=[limited])
+    await limited_plugin.execute("example.com")
+    await limited_plugin.execute("example.com")
+    assert limited.calls == 1
     print("CT provider reporting test passed")
 
 

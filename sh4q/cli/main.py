@@ -23,33 +23,32 @@ def build_parser() -> argparse.ArgumentParser:
 
 def render_summary(summary) -> None:
     print()
-    print("  Sh4q — Recon Engine")
-    print()
-    print(f"  Target: {summary.target}")
-    print()
+    print("  SH4Q SCAN SUMMARY")
+    print("  =================")
+    print(f"  Target   {summary.target}")
 
     if not summary.scope_allowed:
-        print(f"  Scope    ✗ DENIED — {summary.scope_reason}")
+        print(f"  Scope    DENIED - {summary.scope_reason}")
         print()
         print("  Scan did not run: target is not authorized.")
         print()
         return
 
-    print(f"  Scope    ✓ Authorized")
+    print("  Scope    AUTHORIZED")
     if summary.recovered_events:
-        print(f"  Resume   ✓ Recovered {summary.recovered_events} event(s) from a previous run")
+        print(f"  Resume   recovered {summary.recovered_events} event(s)")
     print()
-    print("  ────────────────────────────────────")
-    print(f"  Assets         {summary.discoveries}")
-    print(f"    DNS addresses  {summary.dns_addresses}")
-    print(f"    HTTP endpoints {summary.http_endpoints}")
-    print(f"    CT names       {summary.ct_names}")
-    print(f"  Relationships  {summary.relationships}")
-    print(f"  Evidence       {summary.evidence}")
-    print(f"  Duration       {summary.duration_seconds:.2f}s")
-    print("  ────────────────────────────────────")
+    print("  Assets")
+    print(f"    DNS addresses   {summary.dns_addresses:>5}")
+    print(f"    HTTP endpoints  {summary.http_endpoints:>5}")
+    print(f"    CT names        {summary.ct_names:>5}")
+    print(f"    Total           {summary.discoveries:>5}")
     print()
-    print("  Scan completed.")
+    print(f"  Relationships     {summary.relationships:>5}")
+    print(f"  Evidence          {summary.evidence:>5}")
+    print(f"  Duration       {summary.duration_seconds:>8.2f}s")
+    print()
+    print("  Scan complete. Detailed evidence: sh4q-output/sh4q.db")
     print()
 
 
