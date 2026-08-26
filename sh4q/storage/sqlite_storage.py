@@ -4,6 +4,7 @@ import json
 import aiosqlite
 
 from .models import Node, Relationship
+from .db import open_database
 
 
 class SQLiteStorage:
@@ -12,7 +13,7 @@ class SQLiteStorage:
 
     async def init(self) -> None:
         """Create tables if they don't exist. Call once at startup."""
-        async with aiosqlite.connect(self._db_path) as db:
+        async with open_database(self._db_path) as db:
             await db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS nodes (
@@ -40,7 +41,7 @@ class SQLiteStorage:
             await db.commit()
 
     async def save_node(self, node: Node) -> Node:
-        async with aiosqlite.connect(self._db_path) as db:
+        async with open_database(self._db_path) as db:
             await db.execute(
                 """
                 INSERT INTO nodes (id, type, value, attributes, first_seen, last_seen)
@@ -57,7 +58,7 @@ class SQLiteStorage:
         return await self.get_node(node.id)
 
     async def get_node(self, node_id: str) -> Node | None:
-        async with aiosqlite.connect(self._db_path) as db:
+        async with open_database(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM nodes WHERE id = ?", (node_id,))
             row = await cursor.fetchone()
@@ -72,7 +73,7 @@ class SQLiteStorage:
             )
 
     async def save_relationship(self, relationship: Relationship) -> Relationship:
-        async with aiosqlite.connect(self._db_path) as db:
+        async with open_database(self._db_path) as db:
             await db.execute(
                 "INSERT OR IGNORE INTO relationships "
                 "(id, from_id, to_id, type, attributes, created_at) VALUES (?, ?, ?, ?, ?, ?)",

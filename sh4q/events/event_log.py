@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import aiosqlite
 
 from .event import Event
+from sh4q.storage.db import open_database
 
 
 @dataclass(frozen=True)
@@ -27,7 +28,7 @@ class DurableEventLog:
         self._db_path = db_path
 
     async def init(self) -> None:
-        async with aiosqlite.connect(self._db_path) as db:
+        async with open_database(self._db_path) as db:
             await db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS event_log (
@@ -53,7 +54,7 @@ class DurableEventLog:
             await db.commit()
 
     async def record_pending(self, event: Event) -> None:
-        async with aiosqlite.connect(self._db_path) as db:
+        async with open_database(self._db_path) as db:
             await db.execute(
                 "INSERT INTO event_log (id, type, payload, status, created_at, updated_at) "
                 "VALUES (?, ?, ?, 'PENDING', ?, ?)",
@@ -69,7 +70,7 @@ class DurableEventLog:
 
     async def mark_failed(self, event_id: str, error: str, *, max_attempts: int = 3, retry_delay: float = 0.0) -> bool:
         next_attempt = datetime.now(timezone.utc).timestamp() + max(0.0, retry_delay)
-        async with aiosqlite.connect(self._db_path) as db:
+        async with open_database(self._db_path) as db:
             row = await (await db.execute("SELECT attempts FROM event_log WHERE id = ?", (event_id,))).fetchone()
             attempts = (row[0] if row else 0) + 1
             status = "DEAD_LETTER" if attempts >= max_attempts else "FAILED"
@@ -81,7 +82,7 @@ class DurableEventLog:
         return status == "FAILED"
 
     async def _set_status(self, event_id: str, status: str, error: str | None = None) -> None:
-        async with aiosqlite.connect(self._db_path) as db:
+        async with open_database(self._db_path) as db:
             await db.execute(
                 "UPDATE event_log SET status = ?, updated_at = ?, error = ? WHERE id = ?",
                 (status, _iso_now(), error, event_id),
@@ -89,7 +90,7 @@ class DurableEventLog:
             await db.commit()
 
     async def recover_unfinished(self) -> list[Event]:
-        async with aiosqlite.connect(self._db_path) as db:
+        async with open_database(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 "SELECT * FROM event_log WHERE status IN ('PENDING', 'PROCESSING', 'FAILED') AND (next_attempt_at IS NULL OR next_attempt_at <= ?) ORDER BY created_at ASC",

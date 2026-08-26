@@ -7,6 +7,8 @@ from typing import Protocol
 
 import aiosqlite
 
+from sh4q.storage.db import open_database
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -33,7 +35,7 @@ class SQLiteEvidenceStore:
         self._db_path = db_path
 
     async def init(self) -> None:
-        async with aiosqlite.connect(self._db_path) as db:
+        async with open_database(self._db_path) as db:
             await db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS evidence (
@@ -49,7 +51,7 @@ class SQLiteEvidenceStore:
             await db.commit()
 
     async def append(self, evidence: Evidence) -> None:
-        async with aiosqlite.connect(self._db_path) as db:
+        async with open_database(self._db_path) as db:
             await db.execute(
                 "INSERT OR IGNORE INTO evidence (id, target, plugin, kind, content, captured_at) "
                 "VALUES (?, ?, ?, ?, ?, ?)",
@@ -59,7 +61,7 @@ class SQLiteEvidenceStore:
             await db.commit()
 
     async def get(self, evidence_id: str) -> Evidence | None:
-        async with aiosqlite.connect(self._db_path) as db:
+        async with open_database(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM evidence WHERE id = ?", (evidence_id,))
             row = await cursor.fetchone()
@@ -71,7 +73,7 @@ class SQLiteEvidenceStore:
             )
 
     async def list_for_target(self, target: str) -> list[Evidence]:
-        async with aiosqlite.connect(self._db_path) as db:
+        async with open_database(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 "SELECT * FROM evidence WHERE target = ? ORDER BY captured_at ASC", (target,)
