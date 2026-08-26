@@ -11,7 +11,7 @@ async def main() -> None:
         os.remove(path)
     log = DurableEventLog(path)
     await log.init()
-    failed = Event(type="failed")
+    failed = Event(type="failed", payload={"scan_target": "example.com"})
     completed = Event(type="completed")
     await log.record_pending(failed)
     await log.mark_failed(failed.id, "deliberate", max_attempts=1)
@@ -23,6 +23,7 @@ async def main() -> None:
     assert dead_letters[0].id == failed.id
     assert dead_letters[0].error == "deliberate"
     assert len(await log.list_records()) == 2
+    assert len(await log.list_records(target="example.com")) == 1
     print("event inspection test passed")
 
 

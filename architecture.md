@@ -66,6 +66,9 @@ These are tracked follow-ups, not permission to expand scope or add active scann
 
 - **Ordered stage reporting:** the asynchronous Event Bus can print DNS, HTTP, and CT handler output after the Scheduler has started the next plugin. Add stage-completion boundaries or buffered presentation so terminal output follows scan order while event processing remains asynchronous.
 - **Plugin-attempt persistence:** Ctrl+C currently preserves already-published discovery events, but an interrupted network call is rerun from the beginning on the next scan. A future `scan_run`/`plugin_run` record should track plugin attempts, start/completion state, cancellation, and resumability. This is a later reliability enhancement, not a reason to weaken event recovery or publish partially trusted state.
+- **CT result persistence:** successful CT names are currently retained in the graph/evidence for the run, while in-memory provider caching ends when the CLI exits. A future provider-observation table should distinguish new names, previously known names, and provider unavailability across separate scans.
+- **Event attempt terminology:** event-log `attempts` counts handler failures only; it does not count Scheduler plugin executions. The CLI now labels the field as event attempts. A future `plugin_run` record should expose plugin attempts separately.
+- **Event target filtering:** `sh4q events --target <hostname>` now filters durable records by their `scan_target` payload.
 
 ### Gate 2: Reliability
 

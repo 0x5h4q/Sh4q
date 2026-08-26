@@ -32,6 +32,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Show only events with this status.",
     )
     events.add_argument("--limit", type=int, default=25)
+    events.add_argument("--target", help="Filter events by scan target.")
 
     return parser
 
@@ -91,6 +92,7 @@ def main() -> None:
         records = asyncio.run(
             DurableEventLog(str(database)).list_records(
                 status=args.status,
+                target=args.target,
                 limit=args.limit,
             )
         )
@@ -102,7 +104,7 @@ def main() -> None:
         for record in records:
             print(
                 f"  {record.status:<11} {record.type:<12} "
-                f"attempts={record.attempts:<2} {record.id}"
+                f"event-attempts={record.attempts:<2} {record.target or '-':<30} {record.id}"
             )
             if record.error:
                 print(f"    error: {record.error}")

@@ -19,6 +19,7 @@ class EventLogRecord:
     created_at: str
     updated_at: str
     next_attempt_at: str | None
+    target: str
 
 
 class DurableEventLog:
@@ -104,6 +105,7 @@ class DurableEventLog:
         self,
         *,
         status: str | None = None,
+        target: str | None = None,
         limit: int = 50,
     ) -> list[EventLogRecord]:
         query = "SELECT * FROM event_log"
@@ -111,6 +113,10 @@ class DurableEventLog:
         if status:
             query += " WHERE status = ?"
             parameters.append(status.upper())
+        if target:
+            query += " AND " if " WHERE " in query else " WHERE "
+            query += "json_extract(payload, '$.scan_target') = ?"
+            parameters.append(target)
         query += " ORDER BY updated_at DESC LIMIT ?"
         parameters.append(max(1, min(limit, 500)))
         async with aiosqlite.connect(self._db_path) as db:
@@ -126,6 +132,7 @@ class DurableEventLog:
                 created_at=row["created_at"],
                 updated_at=row["updated_at"],
                 next_attempt_at=row["next_attempt_at"],
+                target=(json.loads(row["payload"]).get("scan_target") or ""),
             )
             for row in rows
         ]
