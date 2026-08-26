@@ -87,3 +87,7 @@ A credible, defensible beta could therefore take roughly **3–5 months part-tim
 ## Release Positioning
 
 Before the safety gates pass, describe sh4q as an experimental orchestration framework. Afterward, advertise the narrower and defensible claim: **policy-controlled, resumable reconnaissance orchestration with evidence provenance**. Publish limitations and a threat model alongside benchmarks; credibility is part of the product.
+
+## Academic Research Records
+
+The academic project is maintained separately from this engineering record. Source discovery follows `docs/research_workflow.md`: OpenAlex/Crossref may collect candidate metadata, but Zotero and publisher/library verification determine what can be cited. Search manifests, literature matrices, and claim-to-source notes should be retained as reproducibility evidence.
