@@ -28,7 +28,9 @@ class HTTPPlugin(Plugin):
         async with self._client_factory() as client:
             # Finish slightly before the scheduler's plugin deadline so
             # timeout diagnostics can be published as discoveries.
-            probe_timeout = max(0.1, self.metadata.timeout * 0.9)
+            # Leave time for both probes and transport cleanup before the
+            # scheduler's hard plugin timeout expires.
+            probe_timeout = max(0.1, self.metadata.timeout * 0.7)
 
             async def probe(scheme: str) -> Discovery:
                 url = f"{scheme}://{target}"
