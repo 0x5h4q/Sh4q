@@ -46,6 +46,27 @@ async def main() -> None:
             assert "redirect denied" in str(error)
         else:
             raise AssertionError("trusted-service redirect was followed")
+
+    attempts: list[str] = []
+
+    async def fallback_handler(request: httpx.Request) -> httpx.Response:
+        attempts.append(request.url.host)
+        if request.url.host == "93.184.216.34":
+            raise httpx.ConnectError("unreachable", request=request)
+        return httpx.Response(200, request=request)
+
+    async def resolve_multiple(host: str, port: int) -> list[str]:
+        return ["93.184.216.34", "93.184.216.35"]
+
+    async with TrustedServiceHTTPClient(
+        {"api.example.test"},
+        timeout=1,
+        transport=httpx.MockTransport(fallback_handler),
+        resolver=resolve_multiple,
+    ) as client:
+        response = await client.get("https://api.example.test/v1")
+        assert response.status_code == 200
+    assert attempts == ["93.184.216.34", "93.184.216.35"]
     print("trusted service HTTP test passed")
 
 

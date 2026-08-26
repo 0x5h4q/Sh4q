@@ -100,17 +100,23 @@ class ScopedHTTPClient:
         current = str(url)
         request_extensions = dict(kwargs.pop("extensions", {}))
         for _ in range(self._max_redirects + 1):
-            pinned_ip = await self._authorize_url(current)
-            extensions = dict(request_extensions)
-            extensions["sh4q_pinned_ip"] = pinned_ip
-            try:
-                response = await self._client.get(current, extensions=extensions, **kwargs)
-            except httpx.ConnectTimeout as exc:
-                raise ScopedHTTPError(str(exc) or "connection timed out", phase="connect", address=pinned_ip) from exc
-            except httpx.ConnectError as exc:
-                raise ScopedHTTPError(str(exc) or "connection failed", phase="connect", address=pinned_ip) from exc
-            except httpx.ReadTimeout as exc:
-                raise ScopedHTTPError(str(exc) or "response timed out", phase="read", address=pinned_ip) from exc
+            addresses = await self._authorize_url(current)
+            response = None
+            last_error = None
+            for pinned_ip in addresses:
+                extensions = dict(request_extensions)
+                extensions["sh4q_pinned_ip"] = pinned_ip
+                try:
+                    response = await self._client.get(current, extensions=extensions, **kwargs)
+                    break
+                except httpx.ConnectTimeout as exc:
+                    last_error = ScopedHTTPError(str(exc) or "connection timed out", phase="connect", address=pinned_ip)
+                except httpx.ConnectError as exc:
+                    last_error = ScopedHTTPError(str(exc) or "connection failed", phase="connect", address=pinned_ip)
+                except httpx.ReadTimeout as exc:
+                    last_error = ScopedHTTPError(str(exc) or "response timed out", phase="read", address=pinned_ip)
+            if response is None:
+                raise last_error or ScopedHTTPError("HTTP request failed")
             response.extensions["sh4q_pinned_ip"] = pinned_ip
             if response.status_code not in {301, 302, 303, 307, 308}:
                 return response
@@ -120,7 +126,7 @@ class ScopedHTTPClient:
             current = urljoin(current, location)
         raise ScopedHTTPError(f"redirect limit exceeded for {url}")
 
-    async def _authorize_url(self, url: str) -> str:
+    async def _authorize_url(self, url: str) -> list[str]:
         parsed = httpx.URL(url)
         if parsed.scheme not in {"http", "https"} or not parsed.host:
             raise ScopedHTTPError(f"unsupported or invalid URL: {url}")
@@ -138,7 +144,7 @@ class ScopedHTTPClient:
             address_decision = self._scope.authorize_resolved_address(address)
             if not address_decision.allowed:
                 raise ScopedHTTPError(f"HTTP destination denied: {address_decision.reason}")
-        return addresses[0]
+        return addresses
 
     @staticmethod
     async def _resolve(host: str, port: int) -> list[str]:
@@ -187,11 +193,16 @@ class TrustedServiceHTTPClient:
             ip = ipaddress.ip_address(address)
             if not ip.is_global:
                 raise ScopedHTTPError(f"trusted service resolves to non-public address: {address}")
-        response = await self._client.get(
-            url,
-            extensions={"sh4q_pinned_ip": addresses[0]},
-            **kwargs,
-        )
+        response = None
+        last_error = None
+        for address in addresses:
+            try:
+                response = await self._client.get(url, extensions={"sh4q_pinned_ip": address}, **kwargs)
+                break
+            except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout) as exc:
+                last_error = exc
+        if response is None:
+            raise last_error or ScopedHTTPError("trusted service request failed")
         if response.is_redirect:
             raise ScopedHTTPError(f"trusted service redirect denied: {url}")
         return response
