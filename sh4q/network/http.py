@@ -9,6 +9,7 @@ from urllib.parse import urljoin
 import httpx
 
 from sh4q.scope import ScopeEngine
+from sh4q.network.limits import RequestLimiter
 
 
 class ScopedHTTPError(httpx.HTTPError):
@@ -79,8 +80,10 @@ class ScopedHTTPClient:
         transport: httpx.AsyncBaseTransport | None = None,
         resolver: Callable[[str, int], Awaitable[list[str]]] | None = None,
         verify: bool | str = True,
+        limiter: RequestLimiter | None = None,
     ):
         self._scope = scope
+        self._limiter = limiter
         self._max_redirects = max(0, max_redirects)
         self._resolver = resolver or self._resolve
         self._client = httpx.AsyncClient(
@@ -107,7 +110,7 @@ class ScopedHTTPClient:
                 extensions = dict(request_extensions)
                 extensions["sh4q_pinned_ip"] = pinned_ip
                 try:
-                    response = await self._client.get(current, extensions=extensions, **kwargs)
+                    response = await self._limited_get(current, extensions=extensions, **kwargs)
                     break
                 except httpx.ConnectTimeout as exc:
                     last_error = ScopedHTTPError(str(exc) or "connection timed out", phase="connect", address=pinned_ip)
@@ -125,6 +128,17 @@ class ScopedHTTPClient:
                 return response
             current = urljoin(current, location)
         raise ScopedHTTPError(f"redirect limit exceeded for {url}")
+
+    async def _limited_get(self, url: str, **kwargs) -> httpx.Response:
+        if self._limiter is None:
+            return await self._client.get(url, **kwargs)
+        permit = await self._limiter.acquire()
+        if permit is None:
+            raise ScopedHTTPError("request budget exhausted", phase="limit")
+        async with permit:
+            response = await self._client.get(url, **kwargs)
+            permit.succeeded()
+            return response
 
     async def _authorize_url(self, url: str) -> list[str]:
         parsed = httpx.URL(url)
@@ -163,9 +177,11 @@ class TrustedServiceHTTPClient:
         timeout: float,
         transport: httpx.AsyncBaseTransport | None = None,
         resolver: Callable[[str, int], Awaitable[list[str]]] | None = None,
+        limiter: RequestLimiter | None = None,
     ):
         self._allowed_hosts = {host.lower().rstrip(".") for host in allowed_hosts}
         self._resolver = resolver or ScopedHTTPClient._resolve
+        self._limiter = limiter
         self._client = httpx.AsyncClient(
             timeout=timeout,
             follow_redirects=False,
@@ -197,7 +213,9 @@ class TrustedServiceHTTPClient:
         last_error = None
         for address in addresses:
             try:
-                response = await self._client.get(url, extensions={"sh4q_pinned_ip": address}, **kwargs)
+                response = await self._limited_get(
+                    url, extensions={"sh4q_pinned_ip": address}, **kwargs
+                )
                 break
             except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout) as exc:
                 last_error = exc
@@ -206,3 +224,14 @@ class TrustedServiceHTTPClient:
         if response.is_redirect:
             raise ScopedHTTPError(f"trusted service redirect denied: {url}")
         return response
+
+    async def _limited_get(self, url: str, **kwargs) -> httpx.Response:
+        if self._limiter is None:
+            return await self._client.get(url, **kwargs)
+        permit = await self._limiter.acquire()
+        if permit is None:
+            raise ScopedHTTPError("request budget exhausted", phase="limit")
+        async with permit:
+            response = await self._client.get(url, **kwargs)
+            permit.succeeded()
+            return response

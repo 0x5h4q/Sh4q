@@ -153,6 +153,8 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 6. CT partial results survive provider degradation, retries, and rate limiting.
 7. Asset counts are separated from evidence and provider-status events.
 8. Equivalent URLs are canonicalised before persistence.
+9. One scan-wide request limiter now enforces concurrency, pacing, and total budget at the HTTP transport boundary.
+10. Scope validation does not consume request budget; each real redirect, fallback-IP, pagination, or retry attempt does.
 
 ## 4.4 Testing Strategy
 
@@ -166,6 +168,7 @@ Include deterministic scope tests, mocked redirect tests, reserved-address tests
 - Asset/evidence consistency.
 - Provider partial-result retention.
 - Scan duration and timeout behaviour.
+- Request admissions, budget denials, failures, and peak concurrency.
 - Test pass rate.
 
 ## 4.5.1 Research Reproducibility
@@ -174,11 +177,11 @@ Record database, query, search date, results reviewed, inclusion decisions, DOI 
 
 ## 4.6 Preliminary Results
 
-Controlled tests demonstrate blocked out-of-scope redirects, reserved-address rejection, DNS-rebinding resistance through IP pinning, preserved TLS hostname identity, URL deduplication, and retained CT partial results. A preliminary SQLite concurrency run completed 50 parallel synthetic work units in approximately 0.669 seconds and produced the expected 100 nodes, 50 relationships, 50 event-log records, and 50 evidence records without observed lock errors or lost writes. This single run is engineering evidence rather than a final benchmark; the formal evaluation should repeat the experiment and report descriptive statistics. Live-domain runs exposed realistic DNS latency, HTTP timeout, CT degradation, and rate-limit conditions. These runs informed corrections but are not a substitute for controlled evaluation.
+Controlled tests demonstrate blocked out-of-scope redirects, reserved-address rejection, DNS-rebinding resistance through IP pinning, preserved TLS hostname identity, URL deduplication, retained CT partial results, bounded request concurrency, paced admissions, and budget denial before transport contact. A preliminary SQLite concurrency run completed 50 parallel synthetic work units in approximately 0.669 seconds and produced the expected 100 nodes, 50 relationships, 50 event-log records, and 50 evidence records without observed lock errors or lost writes. This single run is engineering evidence rather than a final benchmark; the thesis evaluation must repeat the experiment several times and report mean, median, minimum, maximum, and standard deviation. Live-domain runs exposed realistic DNS latency, HTTP timeout, CT degradation, and rate-limit conditions. These runs informed corrections but are not a substitute for controlled evaluation.
 
 ## 4.7 Current Limitations
 
-Event dispatch failure handling and dead-letter states are incomplete. Configured request-rate and concurrency limits are not yet enforced. SQLite schema migration and CI are absent. Tests remain a mixture of assertions and older print-based scripts. Discovery breadth is intentionally limited. Gate 1 is functionally complete for the current DNS, HTTP, and CT paths, with follow-up hardening tracked in `architecture.md`. Stage output is now ordered by draining each plugin stage before the next begins; interrupted plugin execution is still rerun rather than resumed at plugin-attempt granularity.
+Durable event retries, dead-letter handling, recovery, and clean interruption are implemented. Request-rate, concurrency, and total-budget controls are enforced for the current HTTP and CT paths, but future adapters still require a non-bypassable controlled-network contract and richer durable request metrics. SQLite schema migration and CI are absent. Tests remain a mixture of assertions and older executable scripts. Discovery breadth is intentionally limited. Gate 1 is functionally complete for the current DNS, HTTP, and CT paths, with follow-up hardening tracked in `architecture.md`. Stage output is ordered by draining each plugin stage before the next begins; interrupted plugin execution is still rerun rather than resumed at plugin-attempt granularity.
 
 # CHAPTER FIVE: SUMMARY, RECOMMENDATIONS AND CONCLUSION
 
@@ -196,7 +199,7 @@ The project demonstrates a modular reconnaissance control plane centred on polic
 
 ## 5.3 Recommendations
 
-Complete event failure recovery, rate limiting, request accounting, trusted-service networking, database hardening, CI, and formal evaluation. Add external-tool adapters only after these controls are complete.
+Complete Gate 3 durable request accounting and adapter enforcement, then add schema migration, CI, and formal repeated evaluation. Add external-tool adapters only through the controlled execution and networking contracts.
 
 ## 5.4 Conclusion
 

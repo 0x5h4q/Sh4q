@@ -7,7 +7,7 @@ from sh4q.scope import ScopeEngine
 
 from .discovery import Discovery
 from .interface import Plugin, PluginMetadata
-from sh4q.network import ScopedHTTPClient, ScopedHTTPError
+from sh4q.network import RequestLimiter, ScopedHTTPClient, ScopedHTTPError
 
 
 class HTTPPlugin(Plugin):
@@ -18,10 +18,17 @@ class HTTPPlugin(Plugin):
         timeout=10.0,
     )
 
-    def __init__(self, scope: ScopeEngine, client_factory: Callable | None = None):
+    def __init__(
+        self,
+        scope: ScopeEngine,
+        client_factory: Callable | None = None,
+        limiter: RequestLimiter | None = None,
+    ):
         self.scope = scope
         self._client_factory = client_factory or (
-            lambda: ScopedHTTPClient(self.scope, timeout=self.metadata.timeout)
+            lambda: ScopedHTTPClient(
+                self.scope, timeout=self.metadata.timeout, limiter=limiter
+            )
         )
 
     async def execute(self, target: str) -> list[Discovery]:

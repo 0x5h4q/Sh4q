@@ -8,6 +8,7 @@ from .ct_connectors import (
 )
 from .discovery import Discovery
 from .interface import Plugin, PluginMetadata
+from sh4q.network import RequestLimiter
 
 
 class CTPlugin(Plugin):
@@ -20,10 +21,11 @@ class CTPlugin(Plugin):
     def __init__(
         self,
         connectors: list[CTConnector] | None = None,
+        limiter: RequestLimiter | None = None,
     ):
         self._connectors = connectors or [
-            CertSpotterConnector(),
-            CrtShConnector(),
+            CertSpotterConnector(limiter=limiter),
+            CrtShConnector(limiter=limiter),
         ]
         self._connector_timeout = 10.0
         self._successful_results: dict[tuple[str, str], set[str]] = {}

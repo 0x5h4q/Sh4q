@@ -57,7 +57,7 @@ Gate 1 is **functionally complete for the current DNS, HTTP, and CT paths**, but
 - route any future network-capable plugin through the same service boundary;
 - ~~replace stage-interleaved console output with ordered stage summaries~~ (implemented: scheduler drains each plugin stage before continuing);
 - expose per-probe diagnostics in the final report;
-- implement configured rate, concurrency, and request-budget controls (Gate 3);
+- extend Gate 3 metrics and reporting as new network-capable adapters are added;
 - review provider/API exceptions and private-address development mode.
 
 These are tracked follow-ups, not permission to expand scope or add active scanners before Gate 2 reliability work is complete.
@@ -78,13 +78,19 @@ These are tracked follow-ups, not permission to expand scope or add active scann
 - Isolate plugin cleanup failures.
 - Add crash/recovery tests for handler failure, duplicate delivery, and restart.
 
-Preliminary SQLite concurrency validation (2026-08-26): 50 parallel synthetic work units completed without observed lock errors or lost records, producing 100 nodes, 50 relationships, 50 durable events, and 50 evidence rows in approximately 0.669 seconds. Repeat runs and descriptive statistics remain required for academic evaluation.
+Preliminary SQLite concurrency validation (2026-08-26): 50 parallel synthetic work units completed without observed lock errors or lost records, producing 100 nodes, 50 relationships, 50 durable events, and 50 evidence rows in approximately 0.669 seconds. The thesis evaluation must repeat this test several times and report the mean, median, minimum, maximum, and standard deviation; the single run is not a formal benchmark.
 
 ### Gate 3: Enforced controls
 
 - Implement configured concurrency, request-rate, and total-request limits.
 - Define and test whether retries consume budget.
 - Add metrics for admitted, denied, retried, and blocked requests.
+
+### Gate 3 Progress (2026-08-26)
+
+The configured concurrency, requests-per-second, and total-request budget are now enforced by one scan-wide `RequestLimiter` shared by target HTTP and trusted CT clients. Every real HTTP transport attempt consumes budget, including redirect hops, fallback-IP attempts, CT pagination, and later plugin retries. Scope or address-policy denial consumes no request budget because no transport contact occurs. Cancellation while waiting for admission refunds the reserved budget unit.
+
+The scan summary reports admitted, budget-denied, completed, failed, and peak-concurrency counts. Deterministic fake-transport tests verify the concurrency ceiling, pacing, budget exhaustion before transport contact, fallback-attempt accounting, metrics, and zero budget use for denied scope. Gate 3 remains open until retry/blocked terminology is fully represented in durable metrics and adapter contracts prevent future tools from bypassing admission.
 
 ### Gate 4: Engineering quality
 
