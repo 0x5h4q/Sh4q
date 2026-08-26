@@ -46,6 +46,22 @@ Discoveries should distinguish confidence states such as `DISCOVERED`, `RESOLVED
 
 Tests must use local fake DNS/HTTP servers and assert that unauthorized redirects, rebinding, ports, and reserved IPs are never contacted.
 
+### Gate 1 Exit Review (2026-08-26)
+
+Implemented and regression-tested: initial target authorization; hostname normalization; port checks; reserved/private-address policy; hop-by-hop redirect validation; approved-IP connection pinning; original Host/TLS identity preservation; multi-address fallback; trusted CT service host policy; redirect denial for trusted services; URL canonicalisation; and CT partial-result preservation.
+
+Gate 1 is **functionally complete for the current DNS, HTTP, and CT paths**, but not a claim of production hardening. Before release, retain these follow-up issues:
+
+- add explicit boundary tests for malformed URLs, redirect loops, denied ports, resolution failures, and all supported IPv4/IPv6 edge cases;
+- verify IP pinning against supported HTTPX versions and a local multi-host TLS setup;
+- route any future network-capable plugin through the same service boundary;
+- replace stage-interleaved console output with ordered stage summaries;
+- expose per-probe diagnostics in the final report;
+- implement configured rate, concurrency, and request-budget controls (Gate 3);
+- review provider/API exceptions and private-address development mode.
+
+These are tracked follow-ups, not permission to expand scope or add active scanners before Gate 2 reliability work is complete.
+
 ### Gate 2: Reliability
 
 - Make event dispatch exception-safe; always call `task_done()`.

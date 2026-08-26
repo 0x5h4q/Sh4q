@@ -178,7 +178,7 @@ Controlled tests demonstrate blocked out-of-scope redirects, reserved-address re
 
 ## 4.7 Current Limitations
 
-Event dispatch failure handling and dead-letter states are incomplete. Configured request-rate and concurrency limits are not yet enforced. CT connectors do not yet use the shared trusted-service network policy. SQLite schema migration and CI are absent. Tests remain a mixture of assertions and older print-based scripts. Discovery breadth is intentionally limited.
+Event dispatch failure handling and dead-letter states are incomplete. Configured request-rate and concurrency limits are not yet enforced. SQLite schema migration and CI are absent. Tests remain a mixture of assertions and older print-based scripts. Discovery breadth is intentionally limited. Gate 1 is functionally complete for the current DNS, HTTP, and CT paths, with follow-up hardening tracked in `architecture.md`.
 
 # CHAPTER FIVE: SUMMARY, RECOMMENDATIONS AND CONCLUSION
 
