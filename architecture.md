@@ -94,6 +94,14 @@ The scan summary reports admitted, budget-denied, completed, failed, and peak-co
 
 Each completed or interrupted scan now also writes a `request_metrics` evidence record containing the configured limits, observed counters, peak concurrency, duration, and outcome. This preserves the summary for later audit without introducing the deferred `scan_run` schema prematurely.
 
+The first adapter contract is now defined in `sh4q/adapters/`. Future external tools receive an `AdapterContext` containing the scope engine, scan limiter, and output directory, and must construct an argument array rather than a shell string. A controlled subprocess runner is still required before any real adapter is enabled; it will enforce timeouts, output limits, environment sanitisation, exit-status handling, tool-version capture, and durable evidence capture.
+
+### Technology and Readiness Decision (2026-08-27)
+
+Python remains the implementation language for the academic project and MVP. It is adequate for the present asynchronous I/O workload and provides rapid development through asyncio, HTTPX, Pydantic, SQLite support, and the security-tool ecosystem. Go would improve single-binary distribution, memory use, compile-time checking, and high-concurrency service deployment, but would not automatically correct scope, redirect, evidence, retry, or adapter-design defects. Rewriting now would require revalidating every safety and reliability guarantee without evidence that Python is the limiting factor. A Go worker or rewrite should be considered only after profiling a stable specification demonstrates a real runtime or distribution constraint.
+
+Current readiness is: strong academic/MVP architecture, credible but early orchestration core, and a public research prototype rather than a production reconFTW replacement. A credible public MVP still requires the controlled adapter runner, deterministic standard tests, CI, threat model, limitations, durable scan/plugin identities, and repeated evaluation. These decisions and their evidence must remain understandable enough for the author to defend orally; documentation should explain not only what was built, but why each boundary and trade-off exists.
+
 ### Gate 4: Engineering quality
 
 - Replace print-only tests with assertions and deterministic fakes.

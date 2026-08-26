@@ -156,6 +156,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 9. One scan-wide request limiter now enforces concurrency, pacing, and total budget at the HTTP transport boundary.
 10. Scope validation does not consume request budget; each real redirect, fallback-IP, pagination, or retry attempt does.
 11. Request-limit configuration and observed counters are persisted as a `request_metrics` evidence record for each scan outcome.
+12. External-tool integration begins with a restricted adapter contract using shared policy services and argument arrays rather than shell command strings.
 
 ## 4.4 Testing Strategy
 
@@ -201,6 +202,8 @@ The project demonstrates a modular reconnaissance control plane centred on polic
 ## 5.3 Recommendations
 
 Complete Gate 3 durable request accounting and adapter enforcement, then add schema migration, CI, and formal repeated evaluation. Add external-tool adapters only through the controlled execution and networking contracts.
+
+Python was retained for the academic implementation because the system is currently I/O-bound and benefits from asyncio, HTTPX, Pydantic, SQLite support, and rapid security-tool integration. Go offers stronger binary distribution and runtime efficiency, but a rewrite would not itself solve scope-policy, evidence, retry, or adapter correctness and would require complete regression revalidation. Reconsider the language only after profiling demonstrates a concrete limitation.
 
 ## 5.4 Conclusion
 
