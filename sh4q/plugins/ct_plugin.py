@@ -85,6 +85,8 @@ class CTPlugin(Plugin):
 
         print("CT providers:")
         for source_name, hostnames, error, cached in results:
+            if cached:
+                continue
             if error is None:
                 suffix = " (preserved)" if cached else ""
                 print(f"  {source_name:<14} success      {len(hostnames)} names{suffix}")

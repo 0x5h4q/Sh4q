@@ -6,6 +6,16 @@ from sh4q.storage import Node, Relationship, StorageRepository
 from sh4q.storage.evidence import Evidence, EvidenceStore
 
 
+def _canonical_url(value: str) -> str:
+    url = HttpURL(value)
+    scheme = url.scheme.lower()
+    host = (url.host or "").lower().rstrip(".")
+    default_port = (scheme == "https" and url.port == 443) or (scheme == "http" and url.port == 80)
+    authority = host if url.port is None or default_port else f"{host}:{url.port}"
+    path = url.path.rstrip("/") or "/"
+    return f"{scheme}://{authority}{path}" + (f"?{url.query.decode()}" if url.query else "")
+
+
 def make_discovery_handler(
     scope: ScopeEngine,
     storage: StorageRepository,
@@ -60,7 +70,7 @@ def make_discovery_handler(
             print(f"  SAVED: {domain} --RESOLVES_TO--> {ip}")
 
         elif kind == "http_probe":
-            final_url = data["final_url"]
+            final_url = _canonical_url(data["final_url"])
             host = HttpURL(final_url).host
 
             decision = scope.authorize(host)
