@@ -9,7 +9,11 @@ from sh4q.plugins.ct_plugin import CTPlugin
 class SuccessfulConnector(CTConnector):
     name = "certspotter"
 
+    def __init__(self):
+        self.calls = 0
+
     async def fetch_hostnames(self, target: str, timeout: float) -> list[str]:
+        self.calls += 1
         return [f"www.{target}", f"portal.{target}"]
 
 
@@ -18,6 +22,19 @@ class DegradedConnector(CTConnector):
 
     async def fetch_hostnames(self, target: str, timeout: float) -> list[str]:
         raise CTConnectorError("HTTP 404", retryable=False)
+
+
+class FlakyConnector(CTConnector):
+    name = "flaky"
+
+    def __init__(self):
+        self.calls = 0
+
+    async def fetch_hostnames(self, target: str, timeout: float) -> list[str]:
+        self.calls += 1
+        if self.calls == 1:
+            raise CTConnectorError("HTTP 502", retryable=True)
+        return [f"api.{target}"]
 
 
 async def main() -> None:
@@ -42,6 +59,22 @@ async def main() -> None:
     assert statuses["crt.sh"]["status"] == "degraded"
     assert statuses["crt.sh"]["error"] == "HTTP 404"
     assert sum(item.kind == "subdomain_found" for item in discoveries) == 2
+
+    successful = SuccessfulConnector()
+    flaky = FlakyConnector()
+    retrying = CTPlugin(connectors=[successful, flaky])
+    first = await retrying.execute("example.com")
+    assert any(item.data.get("retryable") is True for item in first)
+    second = await retrying.execute("example.com")
+    assert successful.calls == 1
+    assert flaky.calls == 2
+    assert sum(item.kind == "subdomain_found" for item in second) == 3
+    assert any(
+        item.kind == "ct_provider_status"
+        and item.data["source"] == "certspotter"
+        and item.data["preserved"] is True
+        for item in second
+    )
     print("CT provider reporting test passed")
 
 

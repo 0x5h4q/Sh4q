@@ -23,6 +23,9 @@ class ScanSummary:
     scope_allowed: bool
     scope_reason: str
     discoveries: int
+    dns_addresses: int
+    http_endpoints: int
+    ct_names: int
     relationships: int
     evidence: int
     recovered_events: int
@@ -52,16 +55,14 @@ async def run_scan(target: str, config_path: str | None = None) -> ScanSummary:
 
     bus = EventBus(event_log=event_log)
 
-    discovery_count = 0
-    stats: dict = {"relationships": 0}
-
-    async def count_discoveries(event) -> None:
-        nonlocal discovery_count
-        discovery_count += 1
-
+    stats: dict = {
+        "relationships": 0,
+        "dns_addresses": 0,
+        "http_endpoints": 0,
+        "ct_names": 0,
+    }
 
     bus.subscribe("discovery", make_discovery_handler(scope, storage, evidence_store, stats=stats))
-    bus.subscribe("discovery", count_discoveries)
     recovered = await bus.recover()
 
     bus.start()
@@ -78,7 +79,14 @@ async def run_scan(target: str, config_path: str | None = None) -> ScanSummary:
         target=target,
         scope_allowed=decision.allowed,
         scope_reason=decision.reason,
-        discoveries=discovery_count,
+        discoveries=(
+            stats["dns_addresses"]
+            + stats["http_endpoints"]
+            + stats["ct_names"]
+        ),
+        dns_addresses=stats["dns_addresses"],
+        http_endpoints=stats["http_endpoints"],
+        ct_names=stats["ct_names"],
         relationships=stats["relationships"],
         evidence=len(evidence_records),
         recovered_events=recovered,

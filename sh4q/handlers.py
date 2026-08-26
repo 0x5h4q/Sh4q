@@ -55,6 +55,7 @@ def make_discovery_handler(
 
             if stats is not None:
                 stats["relationships"] = stats.get("relationships", 0) + 1
+                stats["dns_addresses"] = stats.get("dns_addresses", 0) + 1
 
             print(f"  SAVED: {domain} --RESOLVES_TO--> {ip}")
 
@@ -87,6 +88,7 @@ def make_discovery_handler(
 
             if stats is not None:
                 stats["relationships"] = stats.get("relationships", 0) + 1
+                stats["http_endpoints"] = stats.get("http_endpoints", 0) + 1
 
             print(f"  SAVED: {host} --SERVES--> {final_url} [{data['status']}]")
 
@@ -118,6 +120,7 @@ def make_discovery_handler(
 
             if stats is not None:
                 stats["relationships"] = stats.get("relationships", 0) + 1
+                stats["ct_names"] = stats.get("ct_names", 0) + 1
 
         elif kind == "ct_provider_status":
             # CTPlugin prints one compact provider table. The event remains
