@@ -26,6 +26,9 @@ class HTTPPlugin(Plugin):
 
     async def execute(self, target: str) -> list[Discovery]:
         async with self._client_factory() as client:
+            # Finish slightly before the scheduler's plugin deadline so
+            # timeout diagnostics can be published as discoveries.
+            probe_timeout = max(0.1, self.metadata.timeout * 0.9)
 
             async def probe(scheme: str) -> Discovery:
                 url = f"{scheme}://{target}"
@@ -42,6 +45,7 @@ class HTTPPlugin(Plugin):
                             "status": response.status_code,
                             "server": response.headers.get("server", ""),
                             "duration_seconds": round(time.monotonic() - started, 3),
+                            "address": getattr(response, "extensions", {}).get("sh4q_pinned_ip"),
                         },
                     )
 
@@ -58,11 +62,27 @@ class HTTPPlugin(Plugin):
                             "error": str(e),
                             "phase": getattr(e, "phase", "http"),
                             "duration_seconds": round(time.monotonic() - started, 3),
+                            "address": getattr(e, "address", None),
+                        },
+                    )
+
+            async def bounded_probe(scheme: str) -> Discovery:
+                try:
+                    return await asyncio.wait_for(probe(scheme), timeout=probe_timeout)
+                except asyncio.TimeoutError:
+                    url = f"{scheme}://{target}"
+                    return Discovery(
+                        kind="http_error",
+                        data={
+                            "url": url,
+                            "error": "request timed out",
+                            "phase": "overall",
+                            "timeout": probe_timeout,
                         },
                     )
 
             discoveries = await asyncio.gather(
-                *(asyncio.wait_for(probe(scheme), timeout=self.metadata.timeout) for scheme in ("https", "http"))
+                *(bounded_probe(scheme) for scheme in ("https", "http"))
             )
 
         unique: dict[tuple, Discovery] = {}

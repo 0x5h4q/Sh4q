@@ -13,9 +13,10 @@ from sh4q.scope import ScopeEngine
 class ScopedHTTPError(httpx.HTTPError):
     """Raised when an HTTP destination is outside the active policy."""
 
-    def __init__(self, message: str, *, phase: str = "policy"):
+    def __init__(self, message: str, *, phase: str = "policy", address: str | None = None):
         super().__init__(message)
         self.phase = phase
+        self.address = address
 
 
 class _PinnedIPTransport(httpx.AsyncBaseTransport):
@@ -104,11 +105,12 @@ class ScopedHTTPClient:
             try:
                 response = await self._client.get(current, extensions=extensions, **kwargs)
             except httpx.ConnectTimeout as exc:
-                raise ScopedHTTPError(str(exc) or "connection timed out", phase="connect") from exc
+                raise ScopedHTTPError(str(exc) or "connection timed out", phase="connect", address=pinned_ip) from exc
             except httpx.ConnectError as exc:
-                raise ScopedHTTPError(str(exc) or "connection failed", phase="connect") from exc
+                raise ScopedHTTPError(str(exc) or "connection failed", phase="connect", address=pinned_ip) from exc
             except httpx.ReadTimeout as exc:
-                raise ScopedHTTPError(str(exc) or "response timed out", phase="read") from exc
+                raise ScopedHTTPError(str(exc) or "response timed out", phase="read", address=pinned_ip) from exc
+            response.extensions["sh4q_pinned_ip"] = pinned_ip
             if response.status_code not in {301, 302, 303, 307, 308}:
                 return response
             location = response.headers.get("location")

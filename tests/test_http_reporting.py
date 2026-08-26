@@ -24,6 +24,11 @@ class FakeClient:
         raise asyncio.TimeoutError
 
 
+class SlowClient(FakeClient):
+    async def get(self, url: str):
+        await asyncio.sleep(1)
+
+
 async def main() -> None:
     scope = ScopeEngine(Sh4qConfig(**{"scope": {"targets": ["example.com"]}}))
     plugin = HTTPPlugin(scope, client_factory=FakeClient)
@@ -32,6 +37,16 @@ async def main() -> None:
     assert any(item.kind == "http_error" and item.data["url"] == "http://example.com" for item in discoveries)
     assert _canonical_url("https://Example.com:443/") == "https://example.com/"
     assert _canonical_url("http://example.com:8080/a///?x=1") == "http://example.com:8080/a?x=1"
+
+    original_timeout = HTTPPlugin.metadata.timeout
+    try:
+        slow_plugin = HTTPPlugin(scope, client_factory=SlowClient)
+        slow_plugin.metadata.timeout = 0.2
+        slow = await slow_plugin.execute("example.com")
+        assert len([item for item in slow if item.kind == "http_error"]) == 2
+        assert all(item.data["phase"] == "overall" for item in slow)
+    finally:
+        HTTPPlugin.metadata.timeout = original_timeout
     print("HTTP per-scheme reporting test passed")
 
 
