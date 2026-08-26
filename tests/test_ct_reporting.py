@@ -46,7 +46,7 @@ async def main() -> None:
     rendered = output.getvalue()
     assert "CT providers:" in rendered
     assert "certspotter    success      2 names" in rendered
-    assert "crt.sh         degraded     HTTP 404" in rendered
+    assert "crt.sh         degraded     0 names retained; HTTP 404" in rendered
     assert "SAVED:" not in rendered
 
     statuses = {
@@ -84,13 +84,24 @@ async def main() -> None:
 
         async def fetch_hostnames(self, target: str, timeout: float) -> list[str]:
             self.calls += 1
-            raise CTConnectorError("Retry-After: 60s", retryable=False, rate_limited=True)
+            raise CTConnectorError(
+                "Retry-After: 60s",
+                retryable=False,
+                rate_limited=True,
+                partial_hostnames={f"limited.{target}"},
+            )
 
     limited = LimitedConnector()
     limited_plugin = CTPlugin(connectors=[limited])
-    await limited_plugin.execute("example.com")
+    limited_output = io.StringIO()
+    with contextlib.redirect_stdout(limited_output):
+        limited_first = await limited_plugin.execute("example.com")
     await limited_plugin.execute("example.com")
     assert limited.calls == 1
+    assert "rate-limited 1 names retained" in limited_output.getvalue()
+    limited_status = next(item for item in limited_first if item.kind == "ct_provider_status")
+    assert limited_status.data["status"] == "partial_rate_limited"
+    assert limited_status.data["names"] == 1
     print("CT provider reporting test passed")
 
 

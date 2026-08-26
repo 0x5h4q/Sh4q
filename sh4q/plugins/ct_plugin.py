@@ -89,14 +89,20 @@ class CTPlugin(Plugin):
                 suffix = " (preserved)" if cached else ""
                 print(f"  {source_name:<14} success      {len(hostnames)} names{suffix}")
             elif error.rate_limited:
-                print(f"  {source_name:<14} rate-limited {str(error)}")
+                print(
+                    f"  {source_name:<14} rate-limited "
+                    f"{len(hostnames)} names retained; {str(error)}"
+                )
             elif hostnames:
                 print(
                     f"  {source_name:<14} partial      "
                     f"{len(hostnames)} names; {str(error)}"
                 )
             else:
-                print(f"  {source_name:<14} degraded     {str(error)}")
+                print(
+                    f"  {source_name:<14} degraded     "
+                    f"0 names retained; {str(error)}"
+                )
 
         discoveries: list[Discovery] = []
 
@@ -104,7 +110,7 @@ class CTPlugin(Plugin):
             if error is None:
                 status = "success"
             elif error.rate_limited:
-                status = "rate_limited"
+                status = "partial_rate_limited" if hostnames else "rate_limited"
             elif hostnames:
                 status = "partial"
             else:
