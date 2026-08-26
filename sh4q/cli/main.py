@@ -47,8 +47,9 @@ def render_summary(summary) -> None:
     print(f"  Relationships     {summary.relationships:>5}")
     print(f"  Evidence          {summary.evidence:>5}")
     print(f"  Duration       {summary.duration_seconds:>8.2f}s")
+    print(f"  Database       {summary.database_path}")
     print()
-    print("  Scan complete. Detailed evidence: sh4q-output/sh4q.db")
+    print("  Scan complete.")
     print()
 
 

@@ -30,6 +30,7 @@ class ScanSummary:
     evidence: int
     recovered_events: int
     duration_seconds: float
+    database_path: str
 
 
 def _default_config(target: str) -> Sh4qConfig:
@@ -91,4 +92,5 @@ async def run_scan(target: str, config_path: str | None = None) -> ScanSummary:
         evidence=len(evidence_records),
         recovered_events=recovered,
         duration_seconds=time.monotonic() - start,
+        database_path=db_path,
     )

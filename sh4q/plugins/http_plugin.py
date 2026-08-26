@@ -1,4 +1,5 @@
 import asyncio
+import time
 from collections.abc import Callable
 
 import httpx
@@ -28,6 +29,7 @@ class HTTPPlugin(Plugin):
 
             async def probe(scheme: str) -> Discovery:
                 url = f"{scheme}://{target}"
+                started = time.monotonic()
 
                 try:
                     response = await client.get(url)
@@ -39,13 +41,14 @@ class HTTPPlugin(Plugin):
                             "final_url": str(response.url),
                             "status": response.status_code,
                             "server": response.headers.get("server", ""),
+                            "duration_seconds": round(time.monotonic() - started, 3),
                         },
                     )
 
                 except asyncio.TimeoutError:
                     return Discovery(
                         kind="http_error",
-                        data={"url": url, "error": "request timed out", "timeout": self.metadata.timeout},
+                        data={"url": url, "error": "request timed out", "phase": "overall", "timeout": self.metadata.timeout, "duration_seconds": round(time.monotonic() - started, 3)},
                     )
                 except (httpx.HTTPError, ScopedHTTPError) as e:
                     return Discovery(
@@ -53,6 +56,8 @@ class HTTPPlugin(Plugin):
                         data={
                             "url": url,
                             "error": str(e),
+                            "phase": getattr(e, "phase", "http"),
+                            "duration_seconds": round(time.monotonic() - started, 3),
                         },
                     )
 

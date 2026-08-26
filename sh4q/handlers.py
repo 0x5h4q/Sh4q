@@ -137,7 +137,9 @@ def make_discovery_handler(
                 print(f"  CT RATE LIMITED: {source}")
 
         elif kind in ("http_error", "dns_error", "ct_error"):
-            print(f"  FAILED  {kind}: {data.get('error', 'unknown error')}")
+            phase = data.get("phase")
+            suffix = f" [{phase}]" if phase else ""
+            print(f"  FAILED  {kind}{suffix}: {data.get('error', 'unknown error')}")
 
         else:
             print(f"  (no handler yet for discovery kind={kind!r})")
