@@ -275,4 +275,9 @@ class Scheduler:
                     )
                 )
 
+            # Keep terminal output and stage state ordered while preserving
+            # asynchronous handler execution within the stage.
+            await self._bus.drain()
+            print(f"STAGE COMPLETE {plugin.metadata.name}")
+
         return decision

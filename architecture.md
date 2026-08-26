@@ -55,7 +55,7 @@ Gate 1 is **functionally complete for the current DNS, HTTP, and CT paths**, but
 - add explicit boundary tests for malformed URLs, redirect loops, denied ports, resolution failures, and all supported IPv4/IPv6 edge cases;
 - verify IP pinning against supported HTTPX versions and a local multi-host TLS setup;
 - route any future network-capable plugin through the same service boundary;
-- replace stage-interleaved console output with ordered stage summaries;
+- ~~replace stage-interleaved console output with ordered stage summaries~~ (implemented: scheduler drains each plugin stage before continuing);
 - expose per-probe diagnostics in the final report;
 - implement configured rate, concurrency, and request-budget controls (Gate 3);
 - review provider/API exceptions and private-address development mode.

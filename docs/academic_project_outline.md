@@ -178,7 +178,7 @@ Controlled tests demonstrate blocked out-of-scope redirects, reserved-address re
 
 ## 4.7 Current Limitations
 
-Event dispatch failure handling and dead-letter states are incomplete. Configured request-rate and concurrency limits are not yet enforced. SQLite schema migration and CI are absent. Tests remain a mixture of assertions and older print-based scripts. Discovery breadth is intentionally limited. Gate 1 is functionally complete for the current DNS, HTTP, and CT paths, with follow-up hardening tracked in `architecture.md`. Asynchronous stage output may appear out of order, and interrupted plugin execution is rerun rather than resumed at plugin-attempt granularity; both are documented deferred enhancements.
+Event dispatch failure handling and dead-letter states are incomplete. Configured request-rate and concurrency limits are not yet enforced. SQLite schema migration and CI are absent. Tests remain a mixture of assertions and older print-based scripts. Discovery breadth is intentionally limited. Gate 1 is functionally complete for the current DNS, HTTP, and CT paths, with follow-up hardening tracked in `architecture.md`. Stage output is now ordered by draining each plugin stage before the next begins; interrupted plugin execution is still rerun rather than resumed at plugin-attempt granularity.
 
 # CHAPTER FIVE: SUMMARY, RECOMMENDATIONS AND CONCLUSION
 
