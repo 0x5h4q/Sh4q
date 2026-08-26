@@ -2,8 +2,10 @@
 import argparse
 import asyncio
 import sys
+from pathlib import Path
 
 from sh4q.application import run_scan
+from sh4q.events.event_log import DurableEventLog
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -17,6 +19,19 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Path to a YAML config file. If omitted, scope defaults to just the target itself (and its subdomains) on ports 80/443.",
     )
+
+    events = subparsers.add_parser("events", help="Inspect durable event state")
+    events.add_argument(
+        "--database",
+        default="./sh4q-output/sh4q.db",
+        help="Path to the Sh4q SQLite database.",
+    )
+    events.add_argument(
+        "--status",
+        choices=["PENDING", "PROCESSING", "FAILED", "DEAD_LETTER", "COMPLETED"],
+        help="Show only events with this status.",
+    )
+    events.add_argument("--limit", type=int, default=25)
 
     return parser
 
@@ -68,6 +83,30 @@ def main() -> None:
             sys.exit(130)
         render_summary(summary)
         sys.exit(0 if summary.scope_allowed else 1)
+
+    if args.command == "events":
+        database = Path(args.database)
+        if not database.exists():
+            parser.error(f"database not found: {database}")
+        records = asyncio.run(
+            DurableEventLog(str(database)).list_records(
+                status=args.status,
+                limit=args.limit,
+            )
+        )
+        print()
+        print("  SH4Q EVENT LOG")
+        print("  ===============")
+        if not records:
+            print("  No matching events.")
+        for record in records:
+            print(
+                f"  {record.status:<11} {record.type:<12} "
+                f"attempts={record.attempts:<2} {record.id}"
+            )
+            if record.error:
+                print(f"    error: {record.error}")
+        print()
 
 
 if __name__ == "__main__":

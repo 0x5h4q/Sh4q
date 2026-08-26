@@ -1,11 +1,24 @@
 
 
 import json
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import aiosqlite
 
 from .event import Event
+
+
+@dataclass(frozen=True)
+class EventLogRecord:
+    id: str
+    type: str
+    status: str
+    attempts: int
+    error: str | None
+    created_at: str
+    updated_at: str
+    next_attempt_at: str | None
 
 
 class DurableEventLog:
@@ -86,6 +99,36 @@ class DurableEventLog:
                 Event(id=row["id"], type=row["type"], payload=json.loads(row["payload"]), timestamp=row["created_at"])
                 for row in rows
             ]
+
+    async def list_records(
+        self,
+        *,
+        status: str | None = None,
+        limit: int = 50,
+    ) -> list[EventLogRecord]:
+        query = "SELECT * FROM event_log"
+        parameters: list[object] = []
+        if status:
+            query += " WHERE status = ?"
+            parameters.append(status.upper())
+        query += " ORDER BY updated_at DESC LIMIT ?"
+        parameters.append(max(1, min(limit, 500)))
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            rows = await (await db.execute(query, parameters)).fetchall()
+        return [
+            EventLogRecord(
+                id=row["id"],
+                type=row["type"],
+                status=row["status"],
+                attempts=row["attempts"],
+                error=row["error"],
+                created_at=row["created_at"],
+                updated_at=row["updated_at"],
+                next_attempt_at=row["next_attempt_at"],
+            )
+            for row in rows
+        ]
 
 
 def _iso_now() -> str:
