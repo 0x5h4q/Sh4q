@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import Callable
 
 import httpx
 from sh4q.scope import ScopeEngine
@@ -16,11 +17,14 @@ class HTTPPlugin(Plugin):
         timeout=10.0,
     )
 
-    def __init__(self, scope: ScopeEngine):
+    def __init__(self, scope: ScopeEngine, client_factory: Callable | None = None):
         self.scope = scope
+        self._client_factory = client_factory or (
+            lambda: ScopedHTTPClient(self.scope, timeout=self.metadata.timeout)
+        )
 
     async def execute(self, target: str) -> list[Discovery]:
-        async with ScopedHTTPClient(self.scope, timeout=self.metadata.timeout) as client:
+        async with self._client_factory() as client:
 
             async def probe(scheme: str) -> Discovery:
                 url = f"{scheme}://{target}"
@@ -38,6 +42,11 @@ class HTTPPlugin(Plugin):
                         },
                     )
 
+                except asyncio.TimeoutError:
+                    return Discovery(
+                        kind="http_error",
+                        data={"url": url, "error": "request timed out", "timeout": self.metadata.timeout},
+                    )
                 except (httpx.HTTPError, ScopedHTTPError) as e:
                     return Discovery(
                         kind="http_error",
@@ -48,8 +57,7 @@ class HTTPPlugin(Plugin):
                     )
 
             discoveries = await asyncio.gather(
-                probe("https"),
-                probe("http"),
+                *(asyncio.wait_for(probe(scheme), timeout=self.metadata.timeout) for scheme in ("https", "http"))
             )
 
         unique: dict[tuple, Discovery] = {}
