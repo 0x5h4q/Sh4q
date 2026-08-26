@@ -21,10 +21,14 @@ class DurableEventLog:
                     payload TEXT NOT NULL,
                     status TEXT NOT NULL,
                     created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
+                    updated_at TEXT NOT NULL,
+                    error TEXT
                 )
                 """
             )
+            columns = await (await db.execute("PRAGMA table_info(event_log)")).fetchall()
+            if not any(row[1] == "error" for row in columns):
+                await db.execute("ALTER TABLE event_log ADD COLUMN error TEXT")
             await db.commit()
 
     async def record_pending(self, event: Event) -> None:
@@ -42,11 +46,14 @@ class DurableEventLog:
     async def mark_completed(self, event_id: str) -> None:
         await self._set_status(event_id, "COMPLETED")
 
-    async def _set_status(self, event_id: str, status: str) -> None:
+    async def mark_failed(self, event_id: str, error: str) -> None:
+        await self._set_status(event_id, "FAILED", error=error)
+
+    async def _set_status(self, event_id: str, status: str, error: str | None = None) -> None:
         async with aiosqlite.connect(self._db_path) as db:
             await db.execute(
-                "UPDATE event_log SET status = ?, updated_at = ? WHERE id = ?",
-                (status, _iso_now(), event_id),
+                "UPDATE event_log SET status = ?, updated_at = ?, error = ? WHERE id = ?",
+                (status, _iso_now(), error, event_id),
             )
             await db.commit()
 

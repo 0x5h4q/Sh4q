@@ -36,13 +36,25 @@ class EventBus:
     async def _dispatch_loop(self) -> None:
         while True:
             event = await self._queue.get()
-            if self._event_log:
-                await self._event_log.mark_processing(event.id)
-            handlers = self._subscribers.get(event.type, [])
-            await asyncio.gather(*(handler(event) for handler in handlers))
-            if self._event_log:
-                await self._event_log.mark_completed(event.id)
-            self._queue.task_done()
+            try:
+                if self._event_log:
+                    await self._event_log.mark_processing(event.id)
+                handlers = self._subscribers.get(event.type, [])
+                await asyncio.gather(*(handler(event) for handler in handlers))
+                if self._event_log:
+                    await self._event_log.mark_completed(event.id)
+            except asyncio.CancelledError:
+                raise
+            except Exception as error:
+                if self._event_log:
+                    await self._event_log.mark_failed(
+                        event.id,
+                        f"{type(error).__name__}: {error}",
+                    )
+                else:
+                    print(f"EVENT FAILED {event.id}: {error}")
+            finally:
+                self._queue.task_done()
 
     def start(self) -> None:
         "Start the background dispatcher. Call once, at engine startup."

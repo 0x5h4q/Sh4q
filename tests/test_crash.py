@@ -14,7 +14,7 @@ async def main():
     if os.path.exists(db_path):
         os.remove(db_path)
 
-    cfg = Sh4qConfig(**{"scope": {"targets": ["example.com", "10.0.0.0/24"]}})
+    cfg = Sh4qConfig(**{"scope": {"targets": ["example.com", "10.0.0.0/24"], "allow_private_addresses": True}})
     scope = ScopeEngine(cfg)
     storage = SQLiteStorage(db_path)
     await storage.init()
