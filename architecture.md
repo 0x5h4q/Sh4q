@@ -118,6 +118,8 @@ First-class scan identity has begun with a durable `scan_runs` table and `sh4q s
 
 New evidence and accepted asset relationships now carry scan ownership through `scan_run_id` and the `scan_assets` observation table. The global graph remains deduplicated, while per-scan observations remain queryable. Scan summaries print the run ID, and users can request `sh4q results --scan <id>` or `sh4q results --latest` (optionally with `--target`). Pre-migration data remains available through historical target views but cannot appear in exact run views.
 
+Scan-specific JSON and CSV export is now available through `sh4q export`. Export requires `--scan` or `--latest`, reads the complete scan-owned asset set without the interactive display limit, includes source-plugin provenance, and refuses to overwrite an existing file unless `--force` is supplied. HTML reporting remains future Gate 4 work.
+
 Adapter breadth remains intentionally one tool: Subfinder proves the external-tool contract, execution evidence, Gate 2 output validation, and discovered-DNS hand-off. The next passive adapter should be added after scan ownership and result export are stable, so it reuses a proven contract rather than introducing another parallel data path.
 
 Target filtering is applied before the result limit. An early implementation limited the global node table first and then filtered in Python, causing the same target query to return 73 rows at limit 100 and 116 at limit 200. Domain filtering now occurs in SQL and URL filtering applies its limit only after hostname matching, so `--limit` consistently means matching results.

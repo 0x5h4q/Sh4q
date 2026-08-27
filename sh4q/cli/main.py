@@ -7,8 +7,9 @@ from pathlib import Path
 from sh4q.application import run_scan
 from sh4q.adapters import AdapterExecutionError
 from sh4q.events.event_log import DurableEventLog
-from sh4q.storage.scan_runs import latest_scan, list_scans
+from sh4q.storage.scan_runs import get_scan, latest_scan, list_scans
 from sh4q.application.results import list_assets, list_failures
+from sh4q.application.exporter import export_scan
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -55,6 +56,16 @@ def build_parser() -> argparse.ArgumentParser:
     scans = subparsers.add_parser("scans", help="List recorded scan runs")
     scans.add_argument("--database", default="./sh4q-output/sh4q.db")
     scans.add_argument("--limit", type=int, default=50)
+
+    export = subparsers.add_parser("export", help="Export one scan to JSON or CSV")
+    export.add_argument("--database", default="./sh4q-output/sh4q.db")
+    export.add_argument("--format", choices=["json", "csv"], required=True)
+    export.add_argument("--output", type=Path, required=True)
+    export.add_argument("--target", help="Select the latest scan for this target")
+    export_selection = export.add_mutually_exclusive_group(required=True)
+    export_selection.add_argument("--scan", help="Export one scan run ID")
+    export_selection.add_argument("--latest", action="store_true", help="Export the latest scan")
+    export.add_argument("--force", action="store_true", help="Overwrite an existing output file")
 
     return parser
 
@@ -195,6 +206,24 @@ def main() -> None:
         for run in list_scans(str(database), args.limit):
             print(f"  {run.status:<11} {run.target:<35} {run.started_at}  {run.id}")
         print()
+        return
+
+    if args.command == "export":
+        database = Path(args.database)
+        if not database.exists():
+            parser.error(f"database not found: {database}")
+        run = get_scan(str(database), args.scan) if args.scan else latest_scan(
+            str(database), args.target
+        )
+        if run is None:
+            parser.error("no matching scan run was found")
+        try:
+            count = export_scan(
+                str(database), run, format=args.format, output=args.output, force=args.force
+            )
+        except FileExistsError as error:
+            parser.error(f"{error}; pass --force to overwrite it")
+        print(f"\n  Exported {count} asset(s) from scan {run.id} to {args.output}\n")
         return
 
 

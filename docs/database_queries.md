@@ -72,6 +72,11 @@ sh4q scans --limit 20
 sh4q results --latest --type domain
 sh4q results --latest --target example.com
 sh4q results --scan <scan-id> --type ip
+sh4q export --latest --format json --output latest.json
+sh4q export --latest --target example.com --format csv --output example.csv
+sh4q export --scan <scan-id> --format json --output scan.json
 ```
 
 It lists run IDs, targets, timestamps, and status. New scans attach evidence and accepted asset relationships to the run ID, enabling exact `results --scan <id>` and `results --latest` views. Scans created before this migration have no run ownership and remain accessible only through historical target filtering.
+
+Exports require an exact scan selection through `--scan` or `--latest`. JSON includes scan metadata, structured attributes, asset values, and source plugins. CSV provides one asset per row for spreadsheets. Existing files are protected; use `--force` only when replacement is intentional. Pre-migration scans cannot be exported as exact runs because they have no scan ownership.

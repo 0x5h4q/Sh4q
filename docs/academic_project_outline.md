@@ -171,6 +171,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 24. Result limiting now occurs after target matching; a discovered pagination defect previously produced inconsistent counts when filtering a global limited row set.
 25. Durable scan-run identity records target, start/completion time, and outcome for new executions. Historical runs are not backfilled with guessed identities; evidence and asset ownership migration remains the next step.
 26. New evidence and accepted graph relationships now retain scan-run ownership, allowing exact run and latest-run result views while preserving the deduplicated global asset graph.
+27. Exact scan exports support structured JSON and spreadsheet-compatible CSV, include scan metadata and source provenance, avoid interactive result limits, and protect existing files from accidental overwrite.
 
 ## 4.4 Testing Strategy
 

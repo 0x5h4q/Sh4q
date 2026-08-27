@@ -48,3 +48,12 @@ def latest_scan(database: str, target: str | None = None) -> ScanRun | None:
     with sqlite3.connect(database) as db:
         row = db.execute(query, params).fetchone()
     return ScanRun(*row) if row else None
+
+
+def get_scan(database: str, scan_id: str) -> ScanRun | None:
+    with sqlite3.connect(database) as db:
+        row = db.execute(
+            "SELECT id, target, started_at, completed_at, status FROM scan_runs WHERE id = ?",
+            (scan_id,),
+        ).fetchone()
+    return ScanRun(*row) if row else None
