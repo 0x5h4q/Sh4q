@@ -167,6 +167,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 20. A later zero-result run was traced through execution evidence to a Subfinder process timeout rather than a genuine absence of findings. Explicit adapter-failure reporting, a bounded 120-second allowance, and source-specific stage hand-off were added.
 21. Large-run reporting now separates current-scan evidence from historical stored evidence, labels native request metrics accurately, and reports discovered-DNS failures for reproducible performance analysis.
 22. A first non-SQL `results` interface lists stored domains, IPs, URLs, and target-filtered failures. Exact per-scan asset views remain dependent on first-class scan-run ownership.
+23. Asset target filtering uses exact-domain/subdomain boundaries; target IP views traverse stored resolution relationships rather than mixing unrelated database assets.
 
 ## 4.4 Testing Strategy
 

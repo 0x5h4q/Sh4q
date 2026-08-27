@@ -55,9 +55,11 @@ The first non-SQL view is now available:
 
 ```bash
 sh4q results --type domain --limit 100
+sh4q results --type domain --target example.com
 sh4q results --type ip
+sh4q results --type ip --target example.com
 sh4q results --type url
 sh4q results --failures --target example.com
 ```
 
-Asset rows are currently global to the database because nodes do not yet carry a scan identifier. Failure evidence can be filtered by target. First-class `scan_run` records are required before `--latest` and exact per-scan asset views can be implemented correctly.
+Asset target filtering matches the exact root domain and its subdomains. IP filtering follows stored `RESOLVES_TO` relationships from matching domains. These are historical target views across the database, not exact per-scan views. First-class `scan_run` records are required before `--latest` and exact per-scan asset views can be implemented correctly.

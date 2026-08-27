@@ -46,7 +46,7 @@ def build_parser() -> argparse.ArgumentParser:
     results.add_argument("--type", choices=["domain", "ip", "url"])
     results.add_argument("--limit", type=int, default=100)
     results.add_argument("--failures", action="store_true", help="Show recorded errors and provider failures")
-    results.add_argument("--target", help="Filter failures by scan target")
+    results.add_argument("--target", help="Filter assets or failures by root target")
 
     return parser
 
@@ -160,7 +160,9 @@ def main() -> None:
             if not rows:
                 print("  No recorded failures.")
         else:
-            rows = list_assets(str(database), asset_type=args.type, limit=args.limit)
+            rows = list_assets(
+                str(database), asset_type=args.type, target=args.target, limit=args.limit
+            )
             for row in rows:
                 print(f"  {row.type:<8} {row.value}")
             print(f"\n  Showing {len(rows)} asset(s). Use --limit to increase the view.")
