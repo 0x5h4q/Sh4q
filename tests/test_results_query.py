@@ -1,0 +1,27 @@
+import json
+import sqlite3
+import tempfile
+from pathlib import Path
+
+from sh4q.application.results import list_assets, list_failures
+
+
+with tempfile.TemporaryDirectory() as directory:
+    database = str(Path(directory) / "results.db")
+    with sqlite3.connect(database) as db:
+        db.execute("CREATE TABLE nodes (type TEXT, value TEXT, attributes TEXT)")
+        db.execute("CREATE TABLE evidence (target TEXT, plugin TEXT, kind TEXT, content TEXT, captured_at TEXT)")
+        db.executemany("INSERT INTO nodes VALUES (?, ?, ?)", [
+            ("domain", "api.example.com", "{}"),
+            ("ip", "93.184.216.34", "{}"),
+        ])
+        db.execute(
+            "INSERT INTO evidence VALUES (?, ?, ?, ?, ?)",
+            ("example.com", "dns", "dns_error", json.dumps({"error": "failed"}), "2026-01-01"),
+        )
+
+    domains = list_assets(database, asset_type="domain")
+    assert [row.value for row in domains] == ["api.example.com"]
+    failures = list_failures(database, target="example.com")
+    assert failures[0][0:2] == ("dns", "dns_error")
+print("results query test passed")

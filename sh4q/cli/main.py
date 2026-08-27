@@ -7,6 +7,7 @@ from pathlib import Path
 from sh4q.application import run_scan
 from sh4q.adapters import AdapterExecutionError
 from sh4q.events.event_log import DurableEventLog
+from sh4q.application.results import list_assets, list_failures
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -39,6 +40,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     events.add_argument("--limit", type=int, default=25)
     events.add_argument("--target", help="Filter events by scan target.")
+
+    results = subparsers.add_parser("results", help="View stored assets without writing SQL")
+    results.add_argument("--database", default="./sh4q-output/sh4q.db")
+    results.add_argument("--type", choices=["domain", "ip", "url"])
+    results.add_argument("--limit", type=int, default=100)
+    results.add_argument("--failures", action="store_true", help="Show recorded errors and provider failures")
+    results.add_argument("--target", help="Filter failures by scan target")
 
     return parser
 
@@ -136,6 +144,28 @@ def main() -> None:
             if record.error:
                 print(f"    error: {record.error}")
         print()
+        return
+
+    if args.command == "results":
+        database = Path(args.database)
+        if not database.exists():
+            parser.error(f"database not found: {database}")
+        print()
+        print("  SH4Q RESULTS")
+        print("  ============")
+        if args.failures:
+            rows = list_failures(str(database), target=args.target, limit=args.limit)
+            for plugin, kind, content in rows:
+                print(f"  {plugin:<14} {kind:<24} {content}")
+            if not rows:
+                print("  No recorded failures.")
+        else:
+            rows = list_assets(str(database), asset_type=args.type, limit=args.limit)
+            for row in rows:
+                print(f"  {row.type:<8} {row.value}")
+            print(f"\n  Showing {len(rows)} asset(s). Use --limit to increase the view.")
+        print()
+        return
 
 
 if __name__ == "__main__":

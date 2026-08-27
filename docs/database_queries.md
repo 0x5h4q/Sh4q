@@ -50,3 +50,14 @@ Exit with `.quit`.
 ## Planned Non-SQL Interface
 
 Ordinary users should not need SQL. Planned interfaces include `sh4q results` with target/type/source filters, JSON and CSV export, and a self-contained HTML report showing assets, provenance, failures, and scan metrics.
+
+The first non-SQL view is now available:
+
+```bash
+sh4q results --type domain --limit 100
+sh4q results --type ip
+sh4q results --type url
+sh4q results --failures --target example.com
+```
+
+Asset rows are currently global to the database because nodes do not yet carry a scan identifier. Failure evidence can be filtered by target. First-class `scan_run` records are required before `--latest` and exact per-scan asset views can be implemented correctly.
