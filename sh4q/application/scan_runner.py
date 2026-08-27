@@ -20,6 +20,7 @@ from sh4q.scheduler import Scheduler
 from sh4q.scope import ScopeEngine
 from sh4q.storage import SQLiteStorage
 from sh4q.storage.evidence import SQLiteEvidenceStore
+from sh4q.storage.scan_runs import create_scan, finish_scan
 from sh4q.application.request_metrics import persist_request_metrics
 from sh4q.adapters import (
     AdapterContext,
@@ -88,6 +89,7 @@ async def run_scan(
     await evidence_store.init()
     event_log = DurableEventLog(db_path)
     await event_log.init()
+    scan_run = create_scan(db_path, target)
 
     bus = EventBus(event_log=event_log)
 
@@ -153,6 +155,7 @@ async def run_scan(
             duration_seconds=time.monotonic() - start,
             outcome=outcome,
         )
+        finish_scan(db_path, scan_run.id, "COMPLETED" if outcome == "completed" else "INTERRUPTED")
 
     evidence_records = await evidence_store.list_for_target(target)
     scan_evidence_records = await evidence_store.list_for_target(

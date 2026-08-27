@@ -7,6 +7,7 @@ from pathlib import Path
 from sh4q.application import run_scan
 from sh4q.adapters import AdapterExecutionError
 from sh4q.events.event_log import DurableEventLog
+from sh4q.storage.scan_runs import list_scans
 from sh4q.application.results import list_assets, list_failures
 
 
@@ -47,6 +48,10 @@ def build_parser() -> argparse.ArgumentParser:
     results.add_argument("--limit", type=int, default=100)
     results.add_argument("--failures", action="store_true", help="Show recorded errors and provider failures")
     results.add_argument("--target", help="Filter assets or failures by root target")
+
+    scans = subparsers.add_parser("scans", help="List recorded scan runs")
+    scans.add_argument("--database", default="./sh4q-output/sh4q.db")
+    scans.add_argument("--limit", type=int, default=50)
 
     return parser
 
@@ -166,6 +171,16 @@ def main() -> None:
             for row in rows:
                 print(f"  {row.type:<8} {row.value}")
             print(f"\n  Showing {len(rows)} asset(s). Use --limit to increase the view.")
+        print()
+        return
+
+    if args.command == "scans":
+        database = Path(args.database)
+        if not database.exists():
+            parser.error(f"database not found: {database}")
+        print("\n  SH4Q SCAN RUNS\n  ============== ")
+        for run in list_scans(str(database), args.limit):
+            print(f"  {run.status:<11} {run.target:<35} {run.started_at}  {run.id}")
         print()
         return
 

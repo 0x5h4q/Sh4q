@@ -60,6 +60,15 @@ sh4q results --type ip
 sh4q results --type ip --target example.com
 sh4q results --type url
 sh4q results --failures --target example.com
+sh4q scans
 ```
 
 Asset target filtering matches the exact root domain and its subdomains. IP filtering follows stored `RESOLVES_TO` relationships from matching domains. These are historical target views across the database, not exact per-scan views. First-class `scan_run` records are required before `--latest` and exact per-scan asset views can be implemented correctly.
+
+The first scan-run view is now available:
+
+```bash
+sh4q scans --limit 20
+```
+
+It lists run IDs, targets, timestamps, and status. Exact `results --scan <id>` filtering remains pending until evidence and asset ownership are migrated to carry the run ID.

@@ -169,6 +169,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 22. A first non-SQL `results` interface lists stored domains, IPs, URLs, and target-filtered failures. Exact per-scan asset views remain dependent on first-class scan-run ownership.
 23. Asset target filtering uses exact-domain/subdomain boundaries; target IP views traverse stored resolution relationships rather than mixing unrelated database assets.
 24. Result limiting now occurs after target matching; a discovered pagination defect previously produced inconsistent counts when filtering a global limited row set.
+25. Durable scan-run identity records target, start/completion time, and outcome for new executions. Historical runs are not backfilled with guessed identities; evidence and asset ownership migration remains the next step.
 
 ## 4.4 Testing Strategy
 
