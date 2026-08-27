@@ -106,6 +106,8 @@ A live authorised `--sub` run returned 884 Subfinder hostname observations along
 
 The discovered-DNS stage is now an explicit passive phase after Subfinder. It scope-checks each hostname before resolver contact, resolves approved names with bounded concurrency, preserves resolution failures, and applies reserved-address policy before storing IP assets. This ordering matters: an out-of-scope name must not be resolved merely because it was emitted by a tool. Discovered HTTP probing remains a separate future opt-in phase.
 
+A live `--sub` run showed that resolving hundreds of names as one scheduler batch could hit the stage deadline, trigger three whole-batch retries, take over eight minutes, and lose partial results. The resolver now applies a per-name timeout, bounded concurrency, and cancellation-safe partial-result handling; output is capped to a compact sample while full DNS evidence remains durable. This incident and correction are retained as a reliability finding.
+
 Product end goal: Sh4q is a policy and evidence control plane for authorised attack-surface discovery. It coordinates specialised tools, prevents out-of-scope findings from becoming trusted assets, records what each tool actually observed, and produces a reproducible inventory that security teams can review. For a mobile-application-security practitioner, the same model could later govern an organisation's domains, APIs, certificate names, cloud endpoints, and mobile backend hosts without treating every tool result as automatically trustworthy.
 
 ### Technology and Readiness Decision (2026-08-27)

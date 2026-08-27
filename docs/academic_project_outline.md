@@ -163,6 +163,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 16. The first real adapter is a passive, opt-in Subfinder integration exposed as `--sub`, with fixed arguments, an isolated configuration home, controlled execution evidence, deduplication, and Gate 2 validation. An offline scheduler test validates the complete orchestration path without internet access.
 17. A live adapter run exposed overlap inflation between CT and Subfinder observations. Per-source counts are retained, but total assets and relationships now use unique identifiers; enumerated hostnames are not described as live endpoints without later resolution or probing.
 18. Approved Subfinder names now enter a bounded discovered-DNS stage only after pre-resolution scope authorization; reserved resolved addresses are denied before asset storage. HTTP probing of discovered names remains a separate risk-controlled phase.
+19. A live large-batch run exposed timeout/retry amplification and partial-result loss in discovered DNS. Per-name timeouts, bounded concurrency, partial preservation, and compact reporting were added; the formal evaluation should measure these under controlled loads.
 
 ## 4.4 Testing Strategy
 

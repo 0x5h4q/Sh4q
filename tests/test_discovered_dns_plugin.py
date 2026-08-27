@@ -30,6 +30,13 @@ async def main():
         "discovered_dns_error",
     ]
     assert peak == 1
+    async def slow(name):
+        await asyncio.sleep(1)
+        return ["93.184.216.34"]
+    timed = DiscoveredDNSPlugin(max_names=1, resolver=slow, per_name_timeout=0.01)
+    timed.accept_discoveries([Discovery("subdomain_found", {"hostname": "api.example.com"})])
+    timeout_results = await timed.execute("example.com")
+    assert timeout_results[0].data["error"] == "resolution timed out"
     print("discovered DNS plugin test passed")
 
 

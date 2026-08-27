@@ -22,6 +22,16 @@ def make_discovery_handler(
     evidence_store: EvidenceStore,
     stats: dict | None = None,
 ):
+    display_counts: dict[str, int] = {}
+
+    def display_bounded(category: str, message: str, limit: int = 10) -> None:
+        count = display_counts.get(category, 0) + 1
+        display_counts[category] = count
+        if count <= limit:
+            print(message)
+        elif count == limit + 1:
+            print(f"  ... additional {category} results suppressed; full details remain in evidence")
+
     def record_asset(counter: str, asset_id: str, relationship_id: str) -> bool:
         if stats is None:
             return True
@@ -97,10 +107,13 @@ def make_discovery_handler(
             relationship = Relationship(from_id=domain_node.id, to_id=ip_node.id, type="RESOLVES_TO")
             await storage.save_relationship(relationship)
             record_asset("resolved_discovered_addresses", domain_node.id, relationship.id)
-            print(f"  SAVED: {domain} --RESOLVES_TO--> {ip}")
+            display_bounded("discovered DNS success", f"  SAVED: {domain} --RESOLVES_TO--> {ip}")
 
         elif kind == "discovered_dns_error":
-            print(f"  FAILED  discovered_dns_error: {data.get('domain')}: {data.get('error', 'unknown error')}")
+            display_bounded(
+                "discovered DNS failure",
+                f"  FAILED  discovered_dns_error: {data.get('domain')}: {data.get('error', 'unknown error')}",
+            )
 
         elif kind == "http_probe":
             final_url = _canonical_url(data["final_url"])
