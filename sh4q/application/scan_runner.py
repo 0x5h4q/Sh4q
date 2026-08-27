@@ -12,6 +12,7 @@ from sh4q.events.event_log import DurableEventLog
 from sh4q.handlers import make_discovery_handler
 from sh4q.network import RequestLimiter
 from sh4q.plugins.ct_plugin import CTPlugin
+from sh4q.plugins.discovered_dns_plugin import DiscoveredDNSPlugin
 from sh4q.plugins.dns_plugin import DNSPlugin
 from sh4q.plugins.http_plugin import HTTPPlugin
 from sh4q.scheduler import Scheduler
@@ -38,6 +39,7 @@ class ScanSummary:
     http_endpoints: int
     ct_names: int
     adapter_names: int
+    resolved_discovered_addresses: int
     relationships: int
     evidence: int
     recovered_events: int
@@ -90,6 +92,7 @@ async def run_scan(
         "ct_names": 0,
         "adapter_names": 0,
         "discoveries": 0,
+        "resolved_discovered_addresses": 0,
     }
 
     bus.subscribe("discovery", make_discovery_handler(scope, storage, evidence_store, stats=stats))
@@ -118,6 +121,7 @@ async def run_scan(
                     ),
                 )
             )
+            plugins.append(DiscoveredDNSPlugin(scope=scope))
         scheduler = Scheduler(
             plugins=plugins,
             scope=scope,
@@ -153,6 +157,7 @@ async def run_scan(
         http_endpoints=stats["http_endpoints"],
         ct_names=stats["ct_names"],
         adapter_names=stats["adapter_names"],
+        resolved_discovered_addresses=stats["resolved_discovered_addresses"],
         relationships=stats["relationships"],
         evidence=len(evidence_records),
         recovered_events=recovered,

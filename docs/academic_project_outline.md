@@ -162,6 +162,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 15. The native Python request limiter is not misrepresented as control over packets generated inside external tools; stronger enforcement requires tool-specific restrictions and eventual OS-level containment.
 16. The first real adapter is a passive, opt-in Subfinder integration exposed as `--sub`, with fixed arguments, an isolated configuration home, controlled execution evidence, deduplication, and Gate 2 validation. An offline scheduler test validates the complete orchestration path without internet access.
 17. A live adapter run exposed overlap inflation between CT and Subfinder observations. Per-source counts are retained, but total assets and relationships now use unique identifiers; enumerated hostnames are not described as live endpoints without later resolution or probing.
+18. Approved Subfinder names now enter a bounded discovered-DNS stage only after pre-resolution scope authorization; reserved resolved addresses are denied before asset storage. HTTP probing of discovered names remains a separate risk-controlled phase.
 
 ## 4.4 Testing Strategy
 
@@ -213,6 +214,8 @@ Python was retained for the academic implementation because the system is curren
 ## 5.4 Conclusion
 
 Sh4q provides a defensible foundation for authorised, auditable reconnaissance orchestration. Its contribution is not superior enumeration breadth but the central enforcement and evidence architecture through which specialised discovery tools can be coordinated safely.
+
+The intended product is a policy and evidence control plane for attack-surface discovery. It can coordinate domain, API, certificate, cloud, and future mobile-backend discovery tools while preserving provenance and preventing unverified or out-of-scope observations from becoming trusted inventory.
 
 ## Appendices to Prepare
 

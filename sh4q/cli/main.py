@@ -65,6 +65,7 @@ def render_summary(summary) -> None:
     print(f"    HTTP endpoints  {summary.http_endpoints:>5}")
     print(f"    CT names        {summary.ct_names:>5}")
     print(f"    Adapter names   {summary.adapter_names:>5}")
+    print(f"    Resolved names  {summary.resolved_discovered_addresses:>5}")
     print(f"    Total           {summary.discoveries:>5}")
     print()
     print(f"  Relationships     {summary.relationships:>5}")

@@ -79,6 +79,29 @@ def make_discovery_handler(
             if record_asset("dns_addresses", ip_node.id, relationship.id):
                 print(f"  SAVED: {domain} --RESOLVES_TO--> {ip}")
 
+        elif kind == "discovered_dns_resolution":
+            domain = data["domain"]
+            ip = data["ip"]
+            decision = scope.authorize(domain)
+            if not decision.allowed:
+                print(f"  GATE 2 DENY: {domain} -> {decision.reason} (not persisted as an asset)")
+                return
+            address_decision = scope.authorize_resolved_address(ip)
+            if not address_decision.allowed:
+                print(f"  GATE 2 DENY: {ip} -> {address_decision.reason} (not persisted as an asset)")
+                return
+            domain_node = Node(type="domain", value=domain)
+            ip_node = Node(type="ip", value=ip)
+            await storage.save_node(domain_node)
+            await storage.save_node(ip_node)
+            relationship = Relationship(from_id=domain_node.id, to_id=ip_node.id, type="RESOLVES_TO")
+            await storage.save_relationship(relationship)
+            record_asset("resolved_discovered_addresses", domain_node.id, relationship.id)
+            print(f"  SAVED: {domain} --RESOLVES_TO--> {ip}")
+
+        elif kind == "discovered_dns_error":
+            print(f"  FAILED  discovered_dns_error: {data.get('domain')}: {data.get('error', 'unknown error')}")
+
         elif kind == "http_probe":
             final_url = _canonical_url(data["final_url"])
             host = HttpURL(final_url).host

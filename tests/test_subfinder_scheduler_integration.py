@@ -9,6 +9,7 @@ from sh4q.events import EventBus
 from sh4q.handlers import make_discovery_handler
 from sh4q.scheduler import Scheduler
 from sh4q.scope import ScopeEngine
+from sh4q.plugins.discovered_dns_plugin import DiscoveredDNSPlugin
 
 
 class OfflineSubfinderAdapter(SubfinderAdapter):
@@ -79,8 +80,16 @@ async def main() -> None:
             AdapterContext(scope, Path(directory)),
             ControlledProcessRunner({sys.executable}),
         )
+        async def resolve(name):
+            if name == "api.example.com":
+                return ["93.184.216.34"]
+            if name == "portal.example.com":
+                return ["127.0.0.1"]
+            return []
+
+        discovered_dns = DiscoveredDNSPlugin(resolver=resolve, scope=scope)
         try:
-            decision = await Scheduler([plugin], scope, bus).run("example.com")
+            decision = await Scheduler([plugin, discovered_dns], scope, bus).run("example.com")
             await bus.drain()
         finally:
             await bus.shutdown()
@@ -89,8 +98,10 @@ async def main() -> None:
     assert "domain:api.example.com" in storage.nodes
     assert "domain:portal.example.com" in storage.nodes
     assert "domain:evil.test" not in storage.nodes
-    assert len(storage.relationships) == 2
-    assert len(evidence.records) == 4
+    assert "ip:93.184.216.34" in storage.nodes
+    assert "ip:127.0.0.1" not in storage.nodes
+    assert len(storage.relationships) == 3
+    assert len(evidence.records) == 6
     assert set(event_log.statuses.values()) == {"COMPLETED"}
     print("offline Subfinder scheduler integration test passed")
 

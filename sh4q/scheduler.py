@@ -262,6 +262,11 @@ class Scheduler:
             #                   Publish discoveries
             # -----------------------------------------------------
 
+            for candidate in self._plugins:
+                accept = getattr(candidate, "accept_discoveries", None)
+                if accept is not None:
+                    accept(discoveries)
+
             for discovery in discoveries:
                 await self._bus.publish(
                     Event(
