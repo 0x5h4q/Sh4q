@@ -15,7 +15,7 @@ class ExternalAdapterPlugin(Plugin):
         context: AdapterContext,
         runner: ControlledProcessRunner,
         *,
-        timeout: float = 30.0,
+        timeout: float = 120.0,
     ):
         self.adapter = adapter
         self.context = context

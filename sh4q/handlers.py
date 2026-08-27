@@ -176,8 +176,22 @@ def make_discovery_handler(
             return
 
         elif kind == "adapter_execution":
-            # Raw execution details are already preserved as evidence. Keep
-            # terminal output compact; parsed discoveries are reported below.
+            if data.get("timed_out"):
+                print(
+                    f"  FAILED  {data.get('adapter', 'adapter')}: "
+                    f"execution timed out after {data.get('duration_seconds', '?')}s"
+                )
+            elif data.get("output_limited"):
+                print(f"  FAILED  {data.get('adapter', 'adapter')}: output limit exceeded")
+            elif data.get("returncode") != 0:
+                detail = (data.get("stderr") or "").strip().splitlines()
+                suffix = f": {detail[0]}" if detail else ""
+                print(
+                    f"  FAILED  {data.get('adapter', 'adapter')}: "
+                    f"exit {data.get('returncode')}{suffix}"
+                )
+            elif not (data.get("stdout") or "").strip():
+                print(f"  {data.get('adapter', 'adapter')}: completed with no output")
             return
 
         elif kind == "ct_rate_limited":

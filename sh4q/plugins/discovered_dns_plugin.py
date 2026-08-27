@@ -34,7 +34,11 @@ class DiscoveredDNSPlugin(Plugin):
         self._scope = scope
         self._per_name_timeout = max(0.1, per_name_timeout)
 
-    def accept_discoveries(self, discoveries: list[Discovery]) -> None:
+    def accept_discoveries(
+        self, discoveries: list[Discovery], source_plugin: str | None = None
+    ) -> None:
+        if source_plugin != "subfinder":
+            return
         names = {
             item.data.get("hostname", "").lower().rstrip(".")
             for item in discoveries
