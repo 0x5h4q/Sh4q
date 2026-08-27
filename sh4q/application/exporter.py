@@ -8,6 +8,10 @@ from pathlib import Path
 from sh4q.storage.scan_runs import ScanRun
 
 
+class ScanOwnershipUnavailableError(Exception):
+    pass
+
+
 def export_scan(
     database: str,
     run: ScanRun,
@@ -16,9 +20,6 @@ def export_scan(
     output: Path,
     force: bool = False,
 ) -> int:
-    if output.exists() and not force:
-        raise FileExistsError(f"output already exists: {output}")
-    output.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(database) as db:
         rows = db.execute(
             """SELECT n.type, n.value, n.attributes,
@@ -29,6 +30,17 @@ def export_scan(
             ORDER BY n.type, n.value""",
             (run.id,),
         ).fetchall()
+        evidence_count = db.execute(
+            "SELECT COUNT(*) FROM evidence WHERE scan_run_id = ?", (run.id,)
+        ).fetchone()[0]
+    if not rows and evidence_count:
+        raise ScanOwnershipUnavailableError(
+            f"scan {run.id} contains {evidence_count} evidence record(s) but no "
+            "scan-owned assets; it predates the asset-ownership migration"
+        )
+    if output.exists() and not force:
+        raise FileExistsError(f"output already exists: {output}")
+    output.parent.mkdir(parents=True, exist_ok=True)
     assets = [
         {
             "type": row[0],

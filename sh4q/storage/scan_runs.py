@@ -15,6 +15,18 @@ class ScanRun:
     status: str
 
 
+def scan_asset_count(database: str, scan_id: str) -> int:
+    with sqlite3.connect(database) as db:
+        table = db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='scan_assets'"
+        ).fetchone()
+        if table is None:
+            return 0
+        return db.execute(
+            "SELECT COUNT(*) FROM scan_assets WHERE scan_run_id = ?", (scan_id,)
+        ).fetchone()[0]
+
+
 def create_scan(database: str, target: str) -> ScanRun:
     started = datetime.now(timezone.utc).isoformat()
     run = ScanRun(uuid4().hex, target, started, None, "RUNNING")
@@ -38,12 +50,19 @@ def list_scans(database: str, limit: int = 50) -> list[ScanRun]:
     return [ScanRun(*row) for row in rows]
 
 
-def latest_scan(database: str, target: str | None = None) -> ScanRun | None:
+def latest_scan(
+    database: str, target: str | None = None, *, completed_only: bool = True
+) -> ScanRun | None:
     query = "SELECT id, target, started_at, completed_at, status FROM scan_runs"
     params = []
+    conditions = []
+    if completed_only:
+        conditions.append("status = 'COMPLETED'")
     if target:
-        query += " WHERE target = ?"
+        conditions.append("target = ?")
         params.append(target)
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
     query += " ORDER BY started_at DESC LIMIT 1"
     with sqlite3.connect(database) as db:
         row = db.execute(query, params).fetchone()

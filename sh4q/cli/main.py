@@ -7,9 +7,9 @@ from pathlib import Path
 from sh4q.application import run_scan
 from sh4q.adapters import AdapterExecutionError
 from sh4q.events.event_log import DurableEventLog
-from sh4q.storage.scan_runs import get_scan, latest_scan, list_scans
+from sh4q.storage.scan_runs import get_scan, latest_scan, list_scans, scan_asset_count
 from sh4q.application.results import list_assets, list_failures
-from sh4q.application.exporter import export_scan
+from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -204,7 +204,11 @@ def main() -> None:
             parser.error(f"database not found: {database}")
         print("\n  SH4Q SCAN RUNS\n  ============== ")
         for run in list_scans(str(database), args.limit):
-            print(f"  {run.status:<11} {run.target:<35} {run.started_at}  {run.id}")
+            assets = scan_asset_count(str(database), run.id)
+            print(
+                f"  {run.status:<11} assets={assets:<5} {run.target:<35} "
+                f"{run.started_at}  {run.id}"
+            )
         print()
         return
 
@@ -223,6 +227,8 @@ def main() -> None:
             )
         except FileExistsError as error:
             parser.error(f"{error}; pass --force to overwrite it")
+        except ScanOwnershipUnavailableError as error:
+            parser.error(f"{error}; run a new scan before exporting exact assets")
         print(f"\n  Exported {count} asset(s) from scan {run.id} to {args.output}\n")
         return
 

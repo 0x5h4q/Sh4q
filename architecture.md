@@ -120,6 +120,8 @@ New evidence and accepted asset relationships now carry scan ownership through `
 
 Scan-specific JSON and CSV export is now available through `sh4q export`. Export requires `--scan` or `--latest`, reads the complete scan-owned asset set without the interactive display limit, includes source-plugin provenance, and refuses to overwrite an existing file unless `--force` is supplied. HTML reporting remains future Gate 4 work.
 
+Migration-era scans can contain scan-owned evidence but no `scan_assets` observations. Export now reports this condition explicitly rather than producing a misleading empty file. `--latest` selects the latest completed run, while `sh4q scans` continues to expose unfinished `RUNNING` records for audit and recovery.
+
 Adapter breadth remains intentionally one tool: Subfinder proves the external-tool contract, execution evidence, Gate 2 output validation, and discovered-DNS hand-off. The next passive adapter should be added after scan ownership and result export are stable, so it reuses a proven contract rather than introducing another parallel data path.
 
 Target filtering is applied before the result limit. An early implementation limited the global node table first and then filtered in Python, causing the same target query to return 73 rows at limit 100 and 116 at limit 200. Domain filtering now occurs in SQL and URL filtering applies its limit only after hostname matching, so `--limit` consistently means matching results.

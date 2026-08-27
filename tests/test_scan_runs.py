@@ -13,4 +13,7 @@ with tempfile.TemporaryDirectory() as directory:
     assert saved.status == "COMPLETED"
     assert latest_scan(database).id == run.id
     assert latest_scan(database, "example.com").id == run.id
+    unfinished = create_scan(database, "example.com")
+    assert latest_scan(database).id == run.id
+    assert latest_scan(database, completed_only=False).id == unfinished.id
 print("scan runs test passed")
