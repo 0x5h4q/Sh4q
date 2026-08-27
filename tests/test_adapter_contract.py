@@ -2,7 +2,6 @@ from pathlib import Path
 
 from sh4q.adapters import AdapterContext, ExternalToolAdapter
 from sh4q.config import Sh4qConfig
-from sh4q.network import RequestLimiter
 from sh4q.scope import ScopeEngine
 
 
@@ -14,7 +13,7 @@ class ExampleAdapter(ExternalToolAdapter):
 
 
 config = Sh4qConfig(**{"scope": {"targets": ["example.com"]}})
-context = AdapterContext(ScopeEngine(config), RequestLimiter(1, 10, 5), Path("out"))
+context = AdapterContext(ScopeEngine(config), Path("out"))
 argv = ExampleAdapter().build_argv("example.com", context)
 assert isinstance(argv, tuple)
 assert argv[0] == "example-tool"

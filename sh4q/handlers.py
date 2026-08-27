@@ -137,6 +137,11 @@ def make_discovery_handler(
             # durable evidence, but does not add duplicate console output.
             return
 
+        elif kind == "adapter_execution":
+            # Raw execution details are already preserved as evidence. Keep
+            # terminal output compact; parsed discoveries are reported below.
+            return
+
         elif kind == "ct_rate_limited":
             source = data.get("source") or source_plugin or "unknown"
             retry_after = data.get("retry_after")

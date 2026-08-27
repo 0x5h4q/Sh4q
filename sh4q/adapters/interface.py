@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
 
-from sh4q.network import RequestLimiter
+from sh4q.plugins.discovery import Discovery
 from sh4q.scope import ScopeEngine
 
 
@@ -13,7 +13,6 @@ class AdapterContext:
     """Shared controls an external-tool adapter is allowed to use."""
 
     scope: ScopeEngine
-    limiter: RequestLimiter
     output_directory: Path
 
 
@@ -22,7 +21,16 @@ class ExternalToolAdapter:
 
     name: str
     version: str = "0.1.0"
+    executable: str
+    version_arguments: Sequence[str] = ("--version",)
 
     def build_argv(self, target: str, context: AdapterContext) -> Sequence[str]:
         """Return process arguments, never a shell command string."""
         raise NotImplementedError
+
+    def parse_stdout(self, target: str, stdout: str) -> list[Discovery]:
+        raise NotImplementedError
+
+    def evidence_argv(self, argv: Sequence[str]) -> list[str]:
+        """Return a secret-safe command representation for durable evidence."""
+        return [argv[0], "<arguments redacted>"]

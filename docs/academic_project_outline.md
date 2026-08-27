@@ -158,6 +158,8 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 11. Request-limit configuration and observed counters are persisted as a `request_metrics` evidence record for each scan outcome.
 12. External-tool integration begins with a restricted adapter contract using shared policy services and argument arrays rather than shell command strings.
 13. A controlled subprocess runner bounds executable choice, environment, runtime, output, cancellation, and process cleanup before adapter output is accepted.
+14. Adapter execution details and raw output are preserved as evidence, while parsed assets pass through the existing Gate 2 policy before graph storage.
+15. The native Python request limiter is not misrepresented as control over packets generated inside external tools; stronger enforcement requires tool-specific restrictions and eventual OS-level containment.
 
 ## 4.4 Testing Strategy
 
