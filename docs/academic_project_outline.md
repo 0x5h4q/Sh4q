@@ -173,6 +173,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 26. New evidence and accepted graph relationships now retain scan-run ownership, allowing exact run and latest-run result views while preserving the deduplicated global asset graph.
 27. Exact scan exports support structured JSON and spreadsheet-compatible CSV, include scan metadata and source provenance, avoid interactive result limits, and protect existing files from accidental overwrite.
 28. Export detects migration-era runs that lack asset ownership and refuses misleading empty output; latest-run selection excludes unfinished executions while retaining them in the audit list.
+29. A live migration validation found and corrected a scan-ownership handler defect: counters could report accepted assets before per-scan ownership persistence succeeded. Exact results and export exposed the inconsistency; ownership is now written before counters are updated, with regression coverage. The affected historical run is excluded from exact export rather than guessed or backfilled.
 
 ## 4.4 Testing Strategy
 
