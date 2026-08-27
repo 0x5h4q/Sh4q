@@ -110,6 +110,10 @@ A live `--sub` run showed that resolving hundreds of names as one scheduler batc
 
 A subsequent run reported zero adapter names because Subfinder was terminated at the original 30-second process limit; durable evidence showed `timed_out=true` and return code `-15`. Adapter failures are now printed explicitly instead of appearing as successful zero-result stages, the passive Subfinder allowance is 120 seconds, and discovered-DNS accepts hand-off data only from the Subfinder stage so later empty stages cannot erase its input.
 
+The large-run report now separates evidence produced in the current scan from historical evidence retained in the database, labels request counters as native HTTP/CT metrics (not Subfinder's opaque provider traffic), and reports discovered-DNS failures alongside resolved names. These distinctions prevent cumulative storage and external-tool activity from being mistaken for current-scan performance.
+
+Non-SQL usability remains planned work: add `sh4q results` filters for domains, IPs, URLs, source, status, and target; add JSON/CSV exports; and later add an HTML report. SQLite remains the source of record, but ordinary users should not need to write queries.
+
 Product end goal: Sh4q is a policy and evidence control plane for authorised attack-surface discovery. It coordinates specialised tools, prevents out-of-scope findings from becoming trusted assets, records what each tool actually observed, and produces a reproducible inventory that security teams can review. For a mobile-application-security practitioner, the same model could later govern an organisation's domains, APIs, certificate names, cloud endpoints, and mobile backend hosts without treating every tool result as automatically trustworthy.
 
 ### Technology and Readiness Decision (2026-08-27)

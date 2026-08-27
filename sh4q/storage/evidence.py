@@ -27,7 +27,9 @@ class Evidence:
 class EvidenceStore(Protocol):
     async def append(self, evidence: Evidence) -> None: ...
     async def get(self, evidence_id: str) -> Evidence | None: ...
-    async def list_for_target(self, target: str) -> list[Evidence]: ...
+    async def list_for_target(
+        self, target: str, *, captured_after: str | None = None
+    ) -> list[Evidence]: ...
 
 
 class SQLiteEvidenceStore:
@@ -72,12 +74,18 @@ class SQLiteEvidenceStore:
                 content=json.loads(row["content"]), captured_at=row["captured_at"],
             )
 
-    async def list_for_target(self, target: str) -> list[Evidence]:
+    async def list_for_target(self, target: str, *, captured_after: str | None = None) -> list[Evidence]:
         async with open_database(self._db_path) as db:
             db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT * FROM evidence WHERE target = ? ORDER BY captured_at ASC", (target,)
-            )
+            if captured_after is None:
+                cursor = await db.execute(
+                    "SELECT * FROM evidence WHERE target = ? ORDER BY captured_at ASC", (target,)
+                )
+            else:
+                cursor = await db.execute(
+                    "SELECT * FROM evidence WHERE target = ? AND captured_at >= ? ORDER BY captured_at ASC",
+                    (target, captured_after),
+                )
             rows = await cursor.fetchall()
             return [
                 Evidence(

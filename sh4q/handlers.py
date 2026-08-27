@@ -92,12 +92,18 @@ def make_discovery_handler(
         elif kind == "discovered_dns_resolution":
             domain = data["domain"]
             ip = data["ip"]
+            if stats is not None:
+                stats["resolved_discovered_attempted"] = stats.get("resolved_discovered_attempted", 0) + 1
             decision = scope.authorize(domain)
             if not decision.allowed:
+                if stats is not None:
+                    stats["resolved_discovered_failures"] = stats.get("resolved_discovered_failures", 0) + 1
                 print(f"  GATE 2 DENY: {domain} -> {decision.reason} (not persisted as an asset)")
                 return
             address_decision = scope.authorize_resolved_address(ip)
             if not address_decision.allowed:
+                if stats is not None:
+                    stats["resolved_discovered_failures"] = stats.get("resolved_discovered_failures", 0) + 1
                 print(f"  GATE 2 DENY: {ip} -> {address_decision.reason} (not persisted as an asset)")
                 return
             domain_node = Node(type="domain", value=domain)
@@ -110,6 +116,8 @@ def make_discovery_handler(
             display_bounded("discovered DNS success", f"  SAVED: {domain} --RESOLVES_TO--> {ip}")
 
         elif kind == "discovered_dns_error":
+            if stats is not None:
+                stats["resolved_discovered_failures"] = stats.get("resolved_discovered_failures", 0) + 1
             display_bounded(
                 "discovered DNS failure",
                 f"  FAILED  discovered_dns_error: {data.get('domain')}: {data.get('error', 'unknown error')}",

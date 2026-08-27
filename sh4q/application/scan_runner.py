@@ -4,6 +4,7 @@ import os
 import shutil
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 from sh4q.config import Sh4qConfig, load_config
@@ -40,8 +41,11 @@ class ScanSummary:
     ct_names: int
     adapter_names: int
     resolved_discovered_addresses: int
+    resolved_discovered_attempted: int
+    resolved_discovered_failures: int
     relationships: int
     evidence: int
+    evidence_this_scan: int
     recovered_events: int
     duration_seconds: float
     database_path: str
@@ -50,6 +54,7 @@ class ScanSummary:
     requests_completed: int
     requests_failed: int
     peak_request_concurrency: int
+    stage_durations: dict[str, float]
 
 
 def _default_config(target: str) -> Sh4qConfig:
@@ -65,6 +70,7 @@ async def run_scan(
     include_subfinder: bool = False,
 ) -> ScanSummary:
     start = time.monotonic()
+    scan_started_at = datetime.now(timezone.utc).isoformat()
 
     config = load_config(config_path) if config_path else _default_config(target)
     os.makedirs(config.output.directory, exist_ok=True)
@@ -93,6 +99,8 @@ async def run_scan(
         "adapter_names": 0,
         "discoveries": 0,
         "resolved_discovered_addresses": 0,
+        "resolved_discovered_attempted": 0,
+        "resolved_discovered_failures": 0,
     }
 
     bus.subscribe("discovery", make_discovery_handler(scope, storage, evidence_store, stats=stats))
@@ -147,6 +155,9 @@ async def run_scan(
         )
 
     evidence_records = await evidence_store.list_for_target(target)
+    scan_evidence_records = await evidence_store.list_for_target(
+        target, captured_after=scan_started_at
+    )
 
     return ScanSummary(
         target=target,
@@ -158,8 +169,11 @@ async def run_scan(
         ct_names=stats["ct_names"],
         adapter_names=stats["adapter_names"],
         resolved_discovered_addresses=stats["resolved_discovered_addresses"],
+        resolved_discovered_attempted=stats["resolved_discovered_attempted"],
+        resolved_discovered_failures=stats["resolved_discovered_failures"],
         relationships=stats["relationships"],
         evidence=len(evidence_records),
+        evidence_this_scan=len(scan_evidence_records),
         recovered_events=recovered,
         duration_seconds=time.monotonic() - start,
         database_path=db_path,
@@ -168,4 +182,5 @@ async def run_scan(
         requests_completed=request_metrics.completed,
         requests_failed=request_metrics.failed,
         peak_request_concurrency=request_metrics.peak_concurrency,
+        stage_durations=scheduler.stage_durations,
     )

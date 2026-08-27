@@ -1,5 +1,6 @@
 import asyncio
 import random
+import time
 from typing import Any
 
 from sh4q.events import Event, EventBus
@@ -30,6 +31,7 @@ class Scheduler:
             retry_max_delay,
         )
         self._retry_jitter = max(0.0, retry_jitter)
+        self.stage_durations: dict[str, float] = {}
 
     def _ordered_plugins(self) -> list[Plugin]:
         ordered: list[Plugin] = []
@@ -231,6 +233,7 @@ class Scheduler:
         # ---------------------------------------------------------
 
         for plugin in self._ordered_plugins():
+            stage_started = time.monotonic()
 
             # -----------------------------------------------------
             # Plugin-specific preflight
@@ -283,6 +286,9 @@ class Scheduler:
             # Keep terminal output and stage state ordered while preserving
             # asynchronous handler execution within the stage.
             await self._bus.drain()
+            self.stage_durations[plugin.metadata.name] = round(
+                time.monotonic() - stage_started, 3
+            )
             print(f"STAGE COMPLETE {plugin.metadata.name}")
 
         return decision

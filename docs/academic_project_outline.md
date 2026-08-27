@@ -165,6 +165,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 18. Approved Subfinder names now enter a bounded discovered-DNS stage only after pre-resolution scope authorization; reserved resolved addresses are denied before asset storage. HTTP probing of discovered names remains a separate risk-controlled phase.
 19. A live large-batch run exposed timeout/retry amplification and partial-result loss in discovered DNS. Per-name timeouts, bounded concurrency, partial preservation, and compact reporting were added; the formal evaluation should measure these under controlled loads.
 20. A later zero-result run was traced through execution evidence to a Subfinder process timeout rather than a genuine absence of findings. Explicit adapter-failure reporting, a bounded 120-second allowance, and source-specific stage hand-off were added.
+21. Large-run reporting now separates current-scan evidence from historical stored evidence, labels native request metrics accurately, and reports discovered-DNS failures for reproducible performance analysis.
 
 ## 4.4 Testing Strategy
 
@@ -209,7 +210,7 @@ The project demonstrates a modular reconnaissance control plane centred on polic
 
 ## 5.3 Recommendations
 
-Complete Gate 3 durable request accounting and adapter enforcement, then add schema migration, CI, and formal repeated evaluation. Add external-tool adapters only through the controlled execution and networking contracts.
+Complete Gate 3 durable request accounting, adapter enforcement, and performance reporting, then add a human-friendly results/query interface, schema migration, CI, and formal repeated evaluation. Add external-tool adapters only through the controlled execution and networking contracts.
 
 Python was retained for the academic implementation because the system is currently I/O-bound and benefits from asyncio, HTTPX, Pydantic, SQLite support, and rapid security-tool integration. Go offers stronger binary distribution and runtime efficiency, but a rewrite would not itself solve scope-policy, evidence, retry, or adapter correctness and would require complete regression revalidation. Reconsider the language only after profiling demonstrates a concrete limitation.
 
