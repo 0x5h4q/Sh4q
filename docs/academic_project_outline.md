@@ -160,6 +160,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 13. A controlled subprocess runner bounds executable choice, environment, runtime, output, cancellation, and process cleanup before adapter output is accepted.
 14. Adapter execution details and raw output are preserved as evidence, while parsed assets pass through the existing Gate 2 policy before graph storage.
 15. The native Python request limiter is not misrepresented as control over packets generated inside external tools; stronger enforcement requires tool-specific restrictions and eventual OS-level containment.
+16. The first planned real adapter is a passive Subfinder integration with fixed arguments and Gate 2 validation; it is not enabled in the default scan until offline integration and deployment checks pass.
 
 ## 4.4 Testing Strategy
 

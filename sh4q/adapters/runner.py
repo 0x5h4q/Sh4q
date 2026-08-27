@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import signal
+import shutil
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -37,7 +38,7 @@ class ControlledProcessRunner:
     ):
         if timeout <= 0 or max_output_bytes < 1:
             raise ValueError("timeout and max_output_bytes must be positive")
-        self._allowed = {str(Path(item).resolve()) for item in allowed_executables}
+        self._allowed = {self._resolve_executable(item) for item in allowed_executables}
         self._timeout = timeout
         self._max_output_bytes = max_output_bytes
         self._environment = dict(environment or {})
@@ -125,10 +126,19 @@ class ControlledProcessRunner:
         command = tuple(argv)
         if any(not isinstance(item, str) or "\0" in item for item in command):
             raise AdapterExecutionError("adapter arguments must be NUL-free strings")
-        executable = str(Path(command[0]).resolve())
+        executable = self._resolve_executable(command[0])
         if executable not in self._allowed:
             raise AdapterExecutionError(f"executable is not allow-listed: {command[0]}")
         return (executable, *command[1:])
+
+    @staticmethod
+    def _resolve_executable(executable: str) -> str:
+        if "/" in executable:
+            return str(Path(executable).resolve())
+        resolved = shutil.which(executable)
+        if resolved is None:
+            raise AdapterExecutionError(f"executable was not found: {executable}")
+        return str(Path(resolved).resolve())
 
     def _safe_environment(self) -> dict[str, str]:
         environment = {
