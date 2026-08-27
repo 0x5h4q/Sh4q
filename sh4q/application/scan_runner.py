@@ -89,6 +89,7 @@ async def run_scan(
         "http_endpoints": 0,
         "ct_names": 0,
         "adapter_names": 0,
+        "discoveries": 0,
     }
 
     bus.subscribe("discovery", make_discovery_handler(scope, storage, evidence_store, stats=stats))
@@ -147,12 +148,7 @@ async def run_scan(
         target=target,
         scope_allowed=decision.allowed,
         scope_reason=decision.reason,
-        discoveries=(
-            stats["dns_addresses"]
-            + stats["http_endpoints"]
-            + stats["ct_names"]
-            + stats["adapter_names"]
-        ),
+        discoveries=stats["discoveries"],
         dns_addresses=stats["dns_addresses"],
         http_endpoints=stats["http_endpoints"],
         ct_names=stats["ct_names"],

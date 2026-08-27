@@ -22,6 +22,21 @@ def make_discovery_handler(
     evidence_store: EvidenceStore,
     stats: dict | None = None,
 ):
+    def record_asset(counter: str, asset_id: str, relationship_id: str) -> bool:
+        if stats is None:
+            return True
+        source_assets = stats.setdefault(f"_{counter}_ids", set())
+        all_assets = stats.setdefault("_asset_ids", set())
+        relationships = stats.setdefault("_relationship_ids", set())
+        is_new_relationship = relationship_id not in relationships
+        source_assets.add(asset_id)
+        all_assets.add(asset_id)
+        relationships.add(relationship_id)
+        stats[counter] = len(source_assets)
+        stats["discoveries"] = len(all_assets)
+        stats["relationships"] = len(relationships)
+        return is_new_relationship
+
     async def handle_discovery(event: Event) -> None:
         kind = event.payload["kind"]
         data = event.payload["data"]
@@ -59,15 +74,10 @@ def make_discovery_handler(
             ip_node = Node(type="ip", value=ip)
             await storage.save_node(ip_node)
 
-            await storage.save_relationship(
-                Relationship(from_id=domain_node.id, to_id=ip_node.id, type="RESOLVES_TO")
-            )
-
-            if stats is not None:
-                stats["relationships"] = stats.get("relationships", 0) + 1
-                stats["dns_addresses"] = stats.get("dns_addresses", 0) + 1
-
-            print(f"  SAVED: {domain} --RESOLVES_TO--> {ip}")
+            relationship = Relationship(from_id=domain_node.id, to_id=ip_node.id, type="RESOLVES_TO")
+            await storage.save_relationship(relationship)
+            if record_asset("dns_addresses", ip_node.id, relationship.id):
+                print(f"  SAVED: {domain} --RESOLVES_TO--> {ip}")
 
         elif kind == "http_probe":
             final_url = _canonical_url(data["final_url"])
@@ -92,15 +102,10 @@ def make_discovery_handler(
             )
             await storage.save_node(url_node)
 
-            await storage.save_relationship(
-                Relationship(from_id=domain_node.id, to_id=url_node.id, type="SERVES")
-            )
-
-            if stats is not None:
-                stats["relationships"] = stats.get("relationships", 0) + 1
-                stats["http_endpoints"] = stats.get("http_endpoints", 0) + 1
-
-            print(f"  SAVED: {host} --SERVES--> {final_url} [{data['status']}]")
+            relationship = Relationship(from_id=domain_node.id, to_id=url_node.id, type="SERVES")
+            await storage.save_relationship(relationship)
+            if record_asset("http_endpoints", url_node.id, relationship.id):
+                print(f"  SAVED: {host} --SERVES--> {final_url} [{data['status']}]")
 
         elif kind == "subdomain_found":
             hostname = data["hostname"]
@@ -124,14 +129,10 @@ def make_discovery_handler(
             )
             await storage.save_node(sub_node)
 
-            await storage.save_relationship(
-                Relationship(from_id=root_node.id, to_id=sub_node.id, type="HAS_SUBDOMAIN")
-            )
-
-            if stats is not None:
-                stats["relationships"] = stats.get("relationships", 0) + 1
-                counter = "ct_names" if source_plugin == "ct" else "adapter_names"
-                stats[counter] = stats.get(counter, 0) + 1
+            relationship = Relationship(from_id=root_node.id, to_id=sub_node.id, type="HAS_SUBDOMAIN")
+            await storage.save_relationship(relationship)
+            counter = "ct_names" if source_plugin == "ct" else "adapter_names"
+            record_asset(counter, sub_node.id, relationship.id)
 
         elif kind == "ct_provider_status":
             # CTPlugin prints one compact provider table. The event remains

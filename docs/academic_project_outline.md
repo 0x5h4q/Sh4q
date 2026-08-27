@@ -161,6 +161,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 14. Adapter execution details and raw output are preserved as evidence, while parsed assets pass through the existing Gate 2 policy before graph storage.
 15. The native Python request limiter is not misrepresented as control over packets generated inside external tools; stronger enforcement requires tool-specific restrictions and eventual OS-level containment.
 16. The first real adapter is a passive, opt-in Subfinder integration exposed as `--sub`, with fixed arguments, an isolated configuration home, controlled execution evidence, deduplication, and Gate 2 validation. An offline scheduler test validates the complete orchestration path without internet access.
+17. A live adapter run exposed overlap inflation between CT and Subfinder observations. Per-source counts are retained, but total assets and relationships now use unique identifiers; enumerated hostnames are not described as live endpoints without later resolution or probing.
 
 ## 4.4 Testing Strategy
 
