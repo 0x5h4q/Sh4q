@@ -130,7 +130,8 @@ def make_discovery_handler(
 
             if stats is not None:
                 stats["relationships"] = stats.get("relationships", 0) + 1
-                stats["ct_names"] = stats.get("ct_names", 0) + 1
+                counter = "ct_names" if source_plugin == "ct" else "adapter_names"
+                stats[counter] = stats.get(counter, 0) + 1
 
         elif kind == "ct_provider_status":
             # CTPlugin prints one compact provider table. The event remains

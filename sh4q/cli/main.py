@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from sh4q.application import run_scan
+from sh4q.adapters import AdapterExecutionError
 from sh4q.events.event_log import DurableEventLog
 
 
@@ -18,6 +19,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--config",
         default=None,
         help="Path to a YAML config file. If omitted, scope defaults to just the target itself (and its subdomains) on ports 80/443.",
+    )
+    scan.add_argument(
+        "--sub",
+        action="store_true",
+        help="Run the optional passive Subfinder adapter.",
     )
 
     events = subparsers.add_parser("events", help="Inspect durable event state")
@@ -58,6 +64,7 @@ def render_summary(summary) -> None:
     print(f"    DNS addresses   {summary.dns_addresses:>5}")
     print(f"    HTTP endpoints  {summary.http_endpoints:>5}")
     print(f"    CT names        {summary.ct_names:>5}")
+    print(f"    Adapter names   {summary.adapter_names:>5}")
     print(f"    Total           {summary.discoveries:>5}")
     print()
     print(f"  Relationships     {summary.relationships:>5}")
@@ -82,13 +89,18 @@ def main() -> None:
 
     if args.command == "scan":
         try:
-            summary = asyncio.run(run_scan(args.target, args.config))
+            summary = asyncio.run(
+                run_scan(args.target, args.config, include_subfinder=args.sub)
+            )
         except KeyboardInterrupt:
             print()
             print("  Scan interrupted by user.")
             print("  Unfinished durable events will be recovered on the next scan.")
             print()
             sys.exit(130)
+        except AdapterExecutionError as error:
+            print(f"  Scan could not start: {error}")
+            sys.exit(2)
         render_summary(summary)
         sys.exit(0 if summary.scope_allowed else 1)
 

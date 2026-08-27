@@ -1,8 +1,10 @@
 
 
 import os
+import shutil
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 from sh4q.config import Sh4qConfig, load_config
 from sh4q.events import EventBus
@@ -17,6 +19,13 @@ from sh4q.scope import ScopeEngine
 from sh4q.storage import SQLiteStorage
 from sh4q.storage.evidence import SQLiteEvidenceStore
 from sh4q.application.request_metrics import persist_request_metrics
+from sh4q.adapters import (
+    AdapterContext,
+    AdapterExecutionError,
+    ControlledProcessRunner,
+    ExternalAdapterPlugin,
+    SubfinderAdapter,
+)
 
 
 @dataclass
@@ -28,6 +37,7 @@ class ScanSummary:
     dns_addresses: int
     http_endpoints: int
     ct_names: int
+    adapter_names: int
     relationships: int
     evidence: int
     recovered_events: int
@@ -46,7 +56,12 @@ def _default_config(target: str) -> Sh4qConfig:
     })
 
 
-async def run_scan(target: str, config_path: str | None = None) -> ScanSummary:
+async def run_scan(
+    target: str,
+    config_path: str | None = None,
+    *,
+    include_subfinder: bool = False,
+) -> ScanSummary:
     start = time.monotonic()
 
     config = load_config(config_path) if config_path else _default_config(target)
@@ -73,6 +88,7 @@ async def run_scan(target: str, config_path: str | None = None) -> ScanSummary:
         "dns_addresses": 0,
         "http_endpoints": 0,
         "ct_names": 0,
+        "adapter_names": 0,
     }
 
     bus.subscribe("discovery", make_discovery_handler(scope, storage, evidence_store, stats=stats))
@@ -82,8 +98,27 @@ async def run_scan(target: str, config_path: str | None = None) -> ScanSummary:
 
     outcome = "completed"
     try:
+        plugins = [DNSPlugin(), HTTPPlugin(scope, limiter=limiter), CTPlugin(limiter=limiter)]
+        if include_subfinder:
+            executable = shutil.which("subfinder")
+            if executable is None:
+                raise AdapterExecutionError(
+                    "Subfinder is not installed or is not available on PATH"
+                )
+            adapter = SubfinderAdapter(executable=executable)
+            adapter_home = Path(config.output.directory) / "adapters" / "subfinder-home"
+            adapter_home.mkdir(parents=True, exist_ok=True)
+            plugins.append(
+                ExternalAdapterPlugin(
+                    adapter,
+                    AdapterContext(scope, Path(config.output.directory)),
+                    ControlledProcessRunner(
+                        {executable}, environment={"HOME": str(adapter_home.resolve())}
+                    ),
+                )
+            )
         scheduler = Scheduler(
-            plugins=[DNSPlugin(), HTTPPlugin(scope, limiter=limiter), CTPlugin(limiter=limiter)],
+            plugins=plugins,
             scope=scope,
             bus=bus,
         )
@@ -116,10 +151,12 @@ async def run_scan(target: str, config_path: str | None = None) -> ScanSummary:
             stats["dns_addresses"]
             + stats["http_endpoints"]
             + stats["ct_names"]
+            + stats["adapter_names"]
         ),
         dns_addresses=stats["dns_addresses"],
         http_endpoints=stats["http_endpoints"],
         ct_names=stats["ct_names"],
+        adapter_names=stats["adapter_names"],
         relationships=stats["relationships"],
         evidence=len(evidence_records),
         recovered_events=recovered,
