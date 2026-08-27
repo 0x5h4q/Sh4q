@@ -168,6 +168,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 21. Large-run reporting now separates current-scan evidence from historical stored evidence, labels native request metrics accurately, and reports discovered-DNS failures for reproducible performance analysis.
 22. A first non-SQL `results` interface lists stored domains, IPs, URLs, and target-filtered failures. Exact per-scan asset views remain dependent on first-class scan-run ownership.
 23. Asset target filtering uses exact-domain/subdomain boundaries; target IP views traverse stored resolution relationships rather than mixing unrelated database assets.
+24. Result limiting now occurs after target matching; a discovered pagination defect previously produced inconsistent counts when filtering a global limited row set.
 
 ## 4.4 Testing Strategy
 

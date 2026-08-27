@@ -28,6 +28,8 @@ with tempfile.TemporaryDirectory() as directory:
 
     domains = list_assets(database, asset_type="domain", target="example.com")
     assert [row.value for row in domains] == ["api.example.com"]
+    limited_domains = list_assets(database, asset_type="domain", target="example.com", limit=1)
+    assert len(limited_domains) == 1
     ips = list_assets(database, asset_type="ip", target="example.com")
     assert [row.value for row in ips] == ["93.184.216.34"]
     failures = list_failures(database, target="example.com")

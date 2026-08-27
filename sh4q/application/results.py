@@ -22,16 +22,30 @@ def list_assets(
 ) -> list[ResultRow]:
     query = "SELECT type, value, attributes FROM nodes"
     params: list[object] = []
+    conditions: list[str] = []
     if asset_type:
-        query += " WHERE type = ?"
+        conditions.append("type = ?")
         params.append(asset_type)
+    normalized = target.lower().rstrip(".") if target else None
+    if normalized and asset_type == "domain":
+        conditions.append("(lower(rtrim(value, '.')) = ? OR lower(rtrim(value, '.')) LIKE ?)")
+        params.extend((normalized, f"%.{normalized}"))
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
     query += " ORDER BY type, value LIMIT ?"
     params.append(max(1, min(limit, 1000)))
     with sqlite3.connect(database) as db:
+        if normalized and asset_type == "url":
+            # SQLite has no built-in URL hostname parser, so filter URLs before
+            # applying the user-visible limit.
+            url_rows = db.execute(
+                "SELECT type, value, attributes FROM nodes WHERE type = 'url' ORDER BY value"
+            ).fetchall()
+            assets = [ResultRow(row[0], row[1], json.loads(row[2])) for row in url_rows]
+            return [asset for asset in assets if _matches_target(asset, normalized)][: max(1, min(limit, 1000))]
         rows = db.execute(query, params).fetchall()
         assets = [ResultRow(row[0], row[1], json.loads(row[2])) for row in rows]
         if target and asset_type == "ip":
-            normalized = target.lower().rstrip(".")
             ip_rows = db.execute(
                 """
                 SELECT DISTINCT ip.type, ip.value, ip.attributes
@@ -46,10 +60,7 @@ def list_assets(
                 (normalized, f"%.{normalized}", max(1, min(limit, 1000))),
             ).fetchall()
             return [ResultRow(row[0], row[1], json.loads(row[2])) for row in ip_rows]
-    if not target:
-        return assets
-    normalized = target.lower().rstrip(".")
-    return [asset for asset in assets if _matches_target(asset, normalized)]
+    return assets
 
 
 def _matches_target(asset: ResultRow, target: str) -> bool:

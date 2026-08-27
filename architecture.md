@@ -114,6 +114,8 @@ The large-run report now separates evidence produced in the current scan from hi
 
 Non-SQL usability has begun with `sh4q results`: users can list domains, URLs, target-filtered failures, and IPs related through `RESOLVES_TO` without writing SQL. `--target` uses exact-domain/subdomain boundaries and now filters assets instead of being silently ignored. Results remain historical target views until `scan_run` ownership is implemented; accurate `--latest` and per-scan views must not be faked from timestamps. JSON/CSV exports and an HTML report remain later work. SQLite remains the source of record.
 
+Target filtering is applied before the result limit. An early implementation limited the global node table first and then filtered in Python, causing the same target query to return 73 rows at limit 100 and 116 at limit 200. Domain filtering now occurs in SQL and URL filtering applies its limit only after hostname matching, so `--limit` consistently means matching results.
+
 Product end goal: Sh4q is a policy and evidence control plane for authorised attack-surface discovery. It coordinates specialised tools, prevents out-of-scope findings from becoming trusted assets, records what each tool actually observed, and produces a reproducible inventory that security teams can review. For a mobile-application-security practitioner, the same model could later govern an organisation's domains, APIs, certificate names, cloud endpoints, and mobile backend hosts without treating every tool result as automatically trustworthy.
 
 ### Technology and Readiness Decision (2026-08-27)
