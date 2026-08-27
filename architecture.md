@@ -94,7 +94,9 @@ The scan summary reports admitted, budget-denied, completed, failed, and peak-co
 
 Each completed or interrupted scan now also writes a `request_metrics` evidence record containing the configured limits, observed counters, peak concurrency, duration, and outcome. This preserves the summary for later audit without introducing the deferred `scan_run` schema prematurely.
 
-The first adapter contract is now defined in `sh4q/adapters/`. Future external tools receive an `AdapterContext` containing the scope engine, scan limiter, and output directory, and must construct an argument array rather than a shell string. A controlled subprocess runner is still required before any real adapter is enabled; it will enforce timeouts, output limits, environment sanitisation, exit-status handling, tool-version capture, and durable evidence capture.
+The first adapter contract is now defined in `sh4q/adapters/`. Future external tools receive an `AdapterContext` containing the scope engine, scan limiter, and output directory, and must construct an argument array rather than a shell string. No real adapter is enabled until execution evidence and scope-validated output handling are connected to this contract.
+
+The controlled runner is now implemented in `sh4q/adapters/runner.py`. It launches only allow-listed executables without a shell, uses a reduced environment, bounds stdout/stderr while the process is running, kills the process group on timeout/cancellation/output overflow, and exposes a version probe. It returns structured results but does not itself authorise discovered assets; adapters must still validate and persist outputs through the normal Gate 2 path.
 
 ### Technology and Readiness Decision (2026-08-27)
 

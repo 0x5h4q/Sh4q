@@ -157,6 +157,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 10. Scope validation does not consume request budget; each real redirect, fallback-IP, pagination, or retry attempt does.
 11. Request-limit configuration and observed counters are persisted as a `request_metrics` evidence record for each scan outcome.
 12. External-tool integration begins with a restricted adapter contract using shared policy services and argument arrays rather than shell command strings.
+13. A controlled subprocess runner bounds executable choice, environment, runtime, output, cancellation, and process cleanup before adapter output is accepted.
 
 ## 4.4 Testing Strategy
 
