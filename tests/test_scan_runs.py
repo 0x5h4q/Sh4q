@@ -1,7 +1,7 @@
 import tempfile
 from pathlib import Path
 
-from sh4q.storage.scan_runs import create_scan, finish_scan, list_scans
+from sh4q.storage.scan_runs import create_scan, finish_scan, latest_scan, list_scans
 
 with tempfile.TemporaryDirectory() as directory:
     database = str(Path(directory) / "runs.db")
@@ -11,4 +11,6 @@ with tempfile.TemporaryDirectory() as directory:
     saved = list_scans(database)[0]
     assert saved.id == run.id
     assert saved.status == "COMPLETED"
+    assert latest_scan(database).id == run.id
+    assert latest_scan(database, "example.com").id == run.id
 print("scan runs test passed")

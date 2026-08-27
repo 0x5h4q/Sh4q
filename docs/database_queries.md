@@ -69,6 +69,9 @@ The first scan-run view is now available:
 
 ```bash
 sh4q scans --limit 20
+sh4q results --latest --type domain
+sh4q results --latest --target example.com
+sh4q results --scan <scan-id> --type ip
 ```
 
-It lists run IDs, targets, timestamps, and status. Exact `results --scan <id>` filtering remains pending until evidence and asset ownership are migrated to carry the run ID.
+It lists run IDs, targets, timestamps, and status. New scans attach evidence and accepted asset relationships to the run ID, enabling exact `results --scan <id>` and `results --latest` views. Scans created before this migration have no run ownership and remain accessible only through historical target filtering.

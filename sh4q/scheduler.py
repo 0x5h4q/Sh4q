@@ -19,6 +19,7 @@ class Scheduler:
         retry_base_delay: float = 0.5,
         retry_max_delay: float = 8.0,
         retry_jitter: float = 0.25,
+        scan_run_id: str | None = None,
     ):
         self._plugins = plugins
         self._scope = scope
@@ -32,6 +33,7 @@ class Scheduler:
         )
         self._retry_jitter = max(0.0, retry_jitter)
         self.stage_durations: dict[str, float] = {}
+        self._scan_run_id = scan_run_id
 
     def _ordered_plugins(self) -> list[Plugin]:
         ordered: list[Plugin] = []
@@ -279,6 +281,7 @@ class Scheduler:
                             "data": discovery.data,
                             "source_plugin": plugin.metadata.name,
                             "scan_target": target,
+                            "scan_run_id": self._scan_run_id,
                         },
                     )
                 )

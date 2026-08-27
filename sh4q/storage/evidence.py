@@ -21,6 +21,7 @@ class Evidence:
     plugin: str
     kind: str
     content: dict
+    scan_run_id: str | None = None
     captured_at: str = field(default_factory=_now)
 
 
@@ -46,19 +47,23 @@ class SQLiteEvidenceStore:
                     plugin TEXT NOT NULL,
                     kind TEXT NOT NULL,
                     content TEXT NOT NULL,
-                    captured_at TEXT NOT NULL
+                    captured_at TEXT NOT NULL,
+                    scan_run_id TEXT
                 )
                 """
             )
+            columns = await (await db.execute("PRAGMA table_info(evidence)")).fetchall()
+            if not any(row[1] == "scan_run_id" for row in columns):
+                await db.execute("ALTER TABLE evidence ADD COLUMN scan_run_id TEXT")
             await db.commit()
 
     async def append(self, evidence: Evidence) -> None:
         async with open_database(self._db_path) as db:
             await db.execute(
-                "INSERT OR IGNORE INTO evidence (id, target, plugin, kind, content, captured_at) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT OR IGNORE INTO evidence (id, target, plugin, kind, content, captured_at, scan_run_id) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (evidence.id, evidence.target, evidence.plugin, evidence.kind,
-                 json.dumps(evidence.content), evidence.captured_at),
+                 json.dumps(evidence.content), evidence.captured_at, evidence.scan_run_id),
             )
             await db.commit()
 
@@ -71,7 +76,7 @@ class SQLiteEvidenceStore:
                 return None
             return Evidence(
                 id=row["id"], target=row["target"], plugin=row["plugin"], kind=row["kind"],
-                content=json.loads(row["content"]), captured_at=row["captured_at"],
+                content=json.loads(row["content"]), captured_at=row["captured_at"], scan_run_id=row["scan_run_id"],
             )
 
     async def list_for_target(self, target: str, *, captured_after: str | None = None) -> list[Evidence]:
@@ -90,7 +95,7 @@ class SQLiteEvidenceStore:
             return [
                 Evidence(
                     id=row["id"], target=row["target"], plugin=row["plugin"], kind=row["kind"],
-                    content=json.loads(row["content"]), captured_at=row["captured_at"],
+                    content=json.loads(row["content"]), captured_at=row["captured_at"], scan_run_id=row["scan_run_id"],
                 )
                 for row in rows
             ]

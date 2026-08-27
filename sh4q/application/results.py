@@ -18,6 +18,7 @@ def list_assets(
     *,
     asset_type: str | None = None,
     target: str | None = None,
+    scan_id: str | None = None,
     limit: int = 100,
 ) -> list[ResultRow]:
     query = "SELECT type, value, attributes FROM nodes"
@@ -35,6 +36,15 @@ def list_assets(
     query += " ORDER BY type, value LIMIT ?"
     params.append(max(1, min(limit, 1000)))
     with sqlite3.connect(database) as db:
+        if scan_id:
+            scan_rows = db.execute(
+                """SELECT DISTINCT n.type, n.value, n.attributes
+                FROM scan_assets sa JOIN nodes n ON n.id = sa.asset_id
+                WHERE sa.scan_run_id = ? AND (? IS NULL OR n.type = ?)
+                ORDER BY n.type, n.value LIMIT ?""",
+                (scan_id, asset_type, asset_type, max(1, min(limit, 1000))),
+            ).fetchall()
+            return [ResultRow(row[0], row[1], json.loads(row[2])) for row in scan_rows]
         if normalized and asset_type == "url":
             # SQLite has no built-in URL hostname parser, so filter URLs before
             # applying the user-visible limit.

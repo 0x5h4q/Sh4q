@@ -36,3 +36,15 @@ def list_scans(database: str, limit: int = 50) -> list[ScanRun]:
         db.execute("CREATE TABLE IF NOT EXISTS scan_runs (id TEXT PRIMARY KEY, target TEXT NOT NULL, started_at TEXT NOT NULL, completed_at TEXT, status TEXT NOT NULL)")
         rows = db.execute("SELECT id, target, started_at, completed_at, status FROM scan_runs ORDER BY started_at DESC LIMIT ?", (max(1, min(limit, 500)),)).fetchall()
     return [ScanRun(*row) for row in rows]
+
+
+def latest_scan(database: str, target: str | None = None) -> ScanRun | None:
+    query = "SELECT id, target, started_at, completed_at, status FROM scan_runs"
+    params = []
+    if target:
+        query += " WHERE target = ?"
+        params.append(target)
+    query += " ORDER BY started_at DESC LIMIT 1"
+    with sqlite3.connect(database) as db:
+        row = db.execute(query, params).fetchone()
+    return ScanRun(*row) if row else None

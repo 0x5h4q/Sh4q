@@ -15,6 +15,7 @@ async def persist_request_metrics(
     metrics: LimiterMetrics,
     duration_seconds: float,
     outcome: str,
+    scan_run_id: str | None = None,
 ) -> Evidence:
     evidence = Evidence(
         id=uuid4().hex,
@@ -38,6 +39,7 @@ async def persist_request_metrics(
                 "peak_concurrency": metrics.peak_concurrency,
             },
         },
+        scan_run_id=scan_run_id,
     )
     await evidence_store.append(evidence)
     return evidence

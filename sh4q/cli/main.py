@@ -7,7 +7,7 @@ from pathlib import Path
 from sh4q.application import run_scan
 from sh4q.adapters import AdapterExecutionError
 from sh4q.events.event_log import DurableEventLog
-from sh4q.storage.scan_runs import list_scans
+from sh4q.storage.scan_runs import latest_scan, list_scans
 from sh4q.application.results import list_assets, list_failures
 
 
@@ -48,6 +48,9 @@ def build_parser() -> argparse.ArgumentParser:
     results.add_argument("--limit", type=int, default=100)
     results.add_argument("--failures", action="store_true", help="Show recorded errors and provider failures")
     results.add_argument("--target", help="Filter assets or failures by root target")
+    scan_selection = results.add_mutually_exclusive_group()
+    scan_selection.add_argument("--scan", help="Show assets observed in one scan run")
+    scan_selection.add_argument("--latest", action="store_true", help="Show the latest recorded scan")
 
     scans = subparsers.add_parser("scans", help="List recorded scan runs")
     scans.add_argument("--database", default="./sh4q-output/sh4q.db")
@@ -61,6 +64,7 @@ def render_summary(summary) -> None:
     print("  SH4Q SCAN SUMMARY")
     print("  =================")
     print(f"  Target   {summary.target}")
+    print(f"  Scan ID  {summary.scan_run_id}")
 
     if not summary.scope_allowed:
         print(f"  Scope    DENIED - {summary.scope_reason}")
@@ -165,8 +169,17 @@ def main() -> None:
             if not rows:
                 print("  No recorded failures.")
         else:
+            scan_id = args.scan
+            if args.latest:
+                latest = latest_scan(str(database), args.target)
+                if latest is None:
+                    print("  No recorded scan run matches this query.\n")
+                    return
+                scan_id = latest.id
+                print(f"  Scan     {latest.id} ({latest.target})")
             rows = list_assets(
-                str(database), asset_type=args.type, target=args.target, limit=args.limit
+                str(database), asset_type=args.type, target=args.target,
+                scan_id=scan_id, limit=args.limit
             )
             for row in rows:
                 print(f"  {row.type:<8} {row.value}")

@@ -21,6 +21,7 @@ from sh4q.scope import ScopeEngine
 from sh4q.storage import SQLiteStorage
 from sh4q.storage.evidence import SQLiteEvidenceStore
 from sh4q.storage.scan_runs import create_scan, finish_scan
+from sh4q.storage.scan_assets import SQLiteScanAssetStore
 from sh4q.application.request_metrics import persist_request_metrics
 from sh4q.adapters import (
     AdapterContext,
@@ -33,6 +34,7 @@ from sh4q.adapters import (
 
 @dataclass
 class ScanSummary:
+    scan_run_id: str
     target: str
     scope_allowed: bool
     scope_reason: str
@@ -90,6 +92,8 @@ async def run_scan(
     event_log = DurableEventLog(db_path)
     await event_log.init()
     scan_run = create_scan(db_path, target)
+    scan_asset_store = SQLiteScanAssetStore(db_path)
+    await scan_asset_store.init()
 
     bus = EventBus(event_log=event_log)
 
@@ -105,7 +109,12 @@ async def run_scan(
         "resolved_discovered_failures": 0,
     }
 
-    bus.subscribe("discovery", make_discovery_handler(scope, storage, evidence_store, stats=stats))
+    bus.subscribe(
+        "discovery",
+        make_discovery_handler(
+            scope, storage, evidence_store, stats=stats, scan_asset_store=scan_asset_store
+        ),
+    )
     recovered = await bus.recover()
 
     bus.start()
@@ -136,6 +145,7 @@ async def run_scan(
             plugins=plugins,
             scope=scope,
             bus=bus,
+            scan_run_id=scan_run.id,
         )
         decision = await scheduler.run(target)
         await bus.drain()
@@ -154,6 +164,7 @@ async def run_scan(
             metrics=request_metrics,
             duration_seconds=time.monotonic() - start,
             outcome=outcome,
+            scan_run_id=scan_run.id,
         )
         finish_scan(db_path, scan_run.id, "COMPLETED" if outcome == "completed" else "INTERRUPTED")
 
@@ -163,6 +174,7 @@ async def run_scan(
     )
 
     return ScanSummary(
+        scan_run_id=scan_run.id,
         target=target,
         scope_allowed=decision.allowed,
         scope_reason=decision.reason,
