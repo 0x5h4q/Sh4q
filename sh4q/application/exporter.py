@@ -27,7 +27,7 @@ def export_scan(
         if alive == "http":
             rows = db.execute(
                 """SELECT domain.type, domain.value, domain.attributes,
-                group_concat(DISTINCT sa.source_plugin)
+                group_concat(DISTINCT sa.source_plugin), endpoint.value, endpoint.attributes
                 FROM scan_assets sa
                 JOIN relationships r ON r.id = sa.relationship_id
                 JOIN nodes domain ON domain.id = r.from_id
@@ -69,6 +69,7 @@ def export_scan(
             "attributes": json.loads(row[2]),
             "sources": sorted((row[3] or "").split(",")),
         }
+        | ({"endpoint": row[4], "endpoint_attributes": json.loads(row[5])} if alive == "http" else {})
         for row in rows
     ]
 
@@ -89,7 +90,8 @@ def export_scan(
         with output.open("w", newline="", encoding="utf-8") as stream:
             writer = csv.DictWriter(
                 stream,
-                fieldnames=["scan_id", "target", "type", "value", "sources", "attributes"],
+                fieldnames=["scan_id", "target", "type", "value", "sources", "attributes"]
+                + (["endpoint", "http_status"] if alive == "http" else []),
             )
             writer.writeheader()
             for item in assets:
@@ -101,6 +103,7 @@ def export_scan(
                         "value": item["value"],
                         "sources": ",".join(item["sources"]),
                         "attributes": json.dumps(item["attributes"], sort_keys=True),
+                        **({"endpoint": item["endpoint"], "http_status": item["endpoint_attributes"].get("status")} if alive == "http" else {}),
                     }
                 )
     else:

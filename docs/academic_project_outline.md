@@ -176,6 +176,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 29. A live migration validation found and corrected a scan-ownership handler defect: counters could report accepted assets before per-scan ownership persistence succeeded. Exact results and export exposed the inconsistency; ownership is now written before counters are updated, with regression coverage. The affected historical run is excluded from exact export rather than guessed or backfilled.
 30. Structured export supports an evidence-backed HTTP liveness view (`--alive http`), selecting domains with a scan-owned HTTP/HTTPS endpoint observation rather than treating passive discovery as proof of availability.
 31. Live export validation corrected an ownership-query assumption: HTTP liveness is derived from the scan-owned URL and `SERVES` relationship, and an empty filtered result is distinguished from an ownership-migration failure by checking the unfiltered ownership count.
+32. HTTP-alive exports include the responding endpoint and status code, allowing the evaluation to verify the classification from stored evidence.
 
 ## 4.4 Testing Strategy
 
