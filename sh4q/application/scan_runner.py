@@ -112,7 +112,12 @@ async def run_scan(
     bus.subscribe(
         "discovery",
         make_discovery_handler(
-            scope, storage, evidence_store, stats=stats, scan_asset_store=scan_asset_store
+            scope,
+            storage,
+            evidence_store,
+            stats=stats,
+            scan_asset_store=scan_asset_store,
+            scan_run_id=scan_run.id,
         ),
     )
     recovered = await bus.recover()

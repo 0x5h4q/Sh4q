@@ -22,6 +22,7 @@ def make_discovery_handler(
     evidence_store: EvidenceStore,
     stats: dict | None = None,
     scan_asset_store=None,
+    scan_run_id: str | None = None,
 ):
     display_counts: dict[str, int] = {}
 
@@ -63,7 +64,7 @@ def make_discovery_handler(
         data = event.payload["data"]
         source_plugin = event.payload.get("source_plugin", "unknown")
         scan_target = event.payload.get("scan_target", "")
-        scan_run_id = event.payload.get("scan_run_id")
+        event_scan_run_id = event.payload.get("scan_run_id") or scan_run_id
 
         await evidence_store.append(
             Evidence(
@@ -72,7 +73,7 @@ def make_discovery_handler(
                 plugin=source_plugin,
                 kind=kind,
                 content=data,
-                scan_run_id=scan_run_id,
+                scan_run_id=event_scan_run_id,
             )
         )
 
@@ -99,7 +100,7 @@ def make_discovery_handler(
 
             relationship = Relationship(from_id=domain_node.id, to_id=ip_node.id, type="RESOLVES_TO")
             await storage.save_relationship(relationship)
-            if await record_asset("dns_addresses", ip_node.id, relationship.id, source_plugin, scan_run_id):
+            if await record_asset("dns_addresses", ip_node.id, relationship.id, source_plugin, event_scan_run_id):
                 print(f"  SAVED: {domain} --RESOLVES_TO--> {ip}")
 
         elif kind == "discovered_dns_resolution":
@@ -125,7 +126,7 @@ def make_discovery_handler(
             await storage.save_node(ip_node)
             relationship = Relationship(from_id=domain_node.id, to_id=ip_node.id, type="RESOLVES_TO")
             await storage.save_relationship(relationship)
-            await record_asset("resolved_discovered_addresses", domain_node.id, relationship.id, source_plugin, scan_run_id)
+            await record_asset("resolved_discovered_addresses", domain_node.id, relationship.id, source_plugin, event_scan_run_id)
             display_bounded("discovered DNS success", f"  SAVED: {domain} --RESOLVES_TO--> {ip}")
 
         elif kind == "discovered_dns_error":
@@ -161,7 +162,7 @@ def make_discovery_handler(
 
             relationship = Relationship(from_id=domain_node.id, to_id=url_node.id, type="SERVES")
             await storage.save_relationship(relationship)
-            if await record_asset("http_endpoints", url_node.id, relationship.id, source_plugin, scan_run_id):
+            if await record_asset("http_endpoints", url_node.id, relationship.id, source_plugin, event_scan_run_id):
                 print(f"  SAVED: {host} --SERVES--> {final_url} [{data['status']}]")
 
         elif kind == "subdomain_found":
@@ -189,7 +190,7 @@ def make_discovery_handler(
             relationship = Relationship(from_id=root_node.id, to_id=sub_node.id, type="HAS_SUBDOMAIN")
             await storage.save_relationship(relationship)
             counter = "ct_names" if source_plugin == "ct" else "adapter_names"
-            await record_asset(counter, sub_node.id, relationship.id, source_plugin, scan_run_id)
+            await record_asset(counter, sub_node.id, relationship.id, source_plugin, event_scan_run_id)
 
         elif kind == "ct_provider_status":
             # CTPlugin prints one compact provider table. The event remains
