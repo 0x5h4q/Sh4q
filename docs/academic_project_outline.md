@@ -182,6 +182,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 35. Live testing showed that public DNS timeouts can leave the enrichment stage with no eligible names; the system reports these failures and safely sends no HTTP requests. Offline fixtures provide repeatable validation independent of external DNS conditions.
 36. A simple reachability utility such as `httprobe` was evaluated conceptually but deferred as an adapter because Sh4q's native HTTP enrichment already supplies equivalent probing plus scope, redirect, budget, and evidence controls. Any future comparison will use identical controlled inputs and repeated measurements.
 37. Technology fingerprinting is planned as a separate enrichment stage over scan-owned HTTP endpoints. Fingerprints will preserve technology, category, version, detection method, confidence, tool provenance, timestamp, and raw evidence reference, and will be treated as observations rather than definitive version claims. Candidate tools will be selected only after controlled comparison.
+38. ProjectDiscovery `httpx` was selected as the first parser-only fingerprinting candidate because it supplies structured JSONL. The candidate remains disabled in live scans until scan-owned endpoint input, redirect containment, and request-control implications are validated.
 
 ## 4.4 Testing Strategy
 
