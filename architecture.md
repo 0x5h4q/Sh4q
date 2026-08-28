@@ -124,6 +124,8 @@ Scan-specific JSON and CSV export is now available through `sh4q export`. Export
 
 Export also supports `--alive http`, which returns only scan-owned domain assets that have a corresponding scan-owned `SERVES` relationship to an observed URL. This is deliberately an evidence-backed HTTP liveness definition; CT or Subfinder discovery alone is not labelled alive.
 
+Live validation exposed two details in this filter: HTTP observations own the URL endpoint and its `SERVES` relationship rather than separately owning the source domain node, and a legitimate empty filtered result must not be mistaken for missing scan ownership. The query now derives responding domains from scan-owned `SERVES` relationships and performs migration detection against the unfiltered ownership count.
+
 Migration-era scans can contain scan-owned evidence but no `scan_assets` observations. Export now reports this condition explicitly rather than producing a misleading empty file. `--latest` selects the latest completed run, while `sh4q scans` continues to expose unfinished `RUNNING` records for audit and recovery.
 
 Adapter breadth remains intentionally one tool: Subfinder proves the external-tool contract, execution evidence, Gate 2 output validation, and discovered-DNS hand-off. The next passive adapter should be added after scan ownership and result export are stable, so it reuses a proven contract rather than introducing another parallel data path.

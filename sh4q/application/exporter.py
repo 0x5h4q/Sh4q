@@ -24,28 +24,37 @@ def export_scan(
     if alive not in (None, "http"):
         raise ValueError(f"unsupported alive filter: {alive}")
     with sqlite3.connect(database) as db:
-        alive_clause = ""
         if alive == "http":
-            alive_clause = """AND n.type = 'domain' AND EXISTS (
-                SELECT 1 FROM relationships r
-                JOIN scan_assets endpoint_sa ON endpoint_sa.asset_id = r.to_id
+            rows = db.execute(
+                """SELECT domain.type, domain.value, domain.attributes,
+                group_concat(DISTINCT sa.source_plugin)
+                FROM scan_assets sa
+                JOIN relationships r ON r.id = sa.relationship_id
+                JOIN nodes domain ON domain.id = r.from_id
                 JOIN nodes endpoint ON endpoint.id = r.to_id
-                WHERE r.from_id = n.id AND r.type = 'SERVES'
-                  AND endpoint.type = 'url' AND endpoint_sa.scan_run_id = sa.scan_run_id
-            )"""
-        rows = db.execute(
-            f"""SELECT n.type, n.value, n.attributes,
-            group_concat(DISTINCT sa.source_plugin)
-            FROM scan_assets sa JOIN nodes n ON n.id = sa.asset_id
-            WHERE sa.scan_run_id = ? {alive_clause}
-            GROUP BY n.id, n.type, n.value, n.attributes
-            ORDER BY n.type, n.value""",
-            (run.id,),
-        ).fetchall()
+                WHERE sa.scan_run_id = ? AND r.type = 'SERVES'
+                  AND domain.type = 'domain' AND endpoint.type = 'url'
+                GROUP BY domain.id, domain.type, domain.value, domain.attributes
+                ORDER BY domain.value""",
+                (run.id,),
+            ).fetchall()
+        else:
+            rows = db.execute(
+                """SELECT n.type, n.value, n.attributes,
+                group_concat(DISTINCT sa.source_plugin)
+                FROM scan_assets sa JOIN nodes n ON n.id = sa.asset_id
+                WHERE sa.scan_run_id = ?
+                GROUP BY n.id, n.type, n.value, n.attributes
+                ORDER BY n.type, n.value""",
+                (run.id,),
+            ).fetchall()
+        owned_asset_count = db.execute(
+            "SELECT COUNT(*) FROM scan_assets WHERE scan_run_id = ?", (run.id,)
+        ).fetchone()[0]
         evidence_count = db.execute(
             "SELECT COUNT(*) FROM evidence WHERE scan_run_id = ?", (run.id,)
         ).fetchone()[0]
-    if not rows and evidence_count:
+    if not owned_asset_count and evidence_count:
         raise ScanOwnershipUnavailableError(
             f"scan {run.id} contains {evidence_count} evidence record(s) but no "
             "scan-owned assets; it predates the asset-ownership migration"
