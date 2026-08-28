@@ -128,6 +128,8 @@ The same interface supports `--alive dns`, which exports one row per domain and 
 
 The optional Subfinder path now includes a `discovered-http` enrichment stage. It probes only deduplicated, in-scope hostnames that produced successful discovered-DNS observations, reusing the scoped HTTP client, request limiter, and Gate 2 evidence handler. This turns passive names into auditable HTTP liveness observations without probing unresolved or out-of-scope hosts.
 
+A live run may therefore show zero discovered-HTTP probes when public DNS returns only timeouts or failures. This is an environmental observation, not proof that the adapter is unusable: users with reachable DNS infrastructure will receive probes for successfully resolved names, while unresolved names remain safely uncontacted. Controlled offline fixtures are the authoritative functional test for this stage.
+
 Live validation exposed two details in this filter: HTTP observations own the URL endpoint and its `SERVES` relationship rather than separately owning the source domain node, and a legitimate empty filtered result must not be mistaken for missing scan ownership. The query now derives responding domains from scan-owned `SERVES` relationships and performs migration detection against the unfiltered ownership count.
 
 Migration-era scans can contain scan-owned evidence but no `scan_assets` observations. Export now reports this condition explicitly rather than producing a misleading empty file. `--latest` selects the latest completed run, while `sh4q scans` continues to expose unfinished `RUNNING` records for audit and recovery.

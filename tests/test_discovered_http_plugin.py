@@ -17,7 +17,8 @@ class FakeClient:
 
     async def get(self, url):
         request = httpx.Request("GET", url)
-        return httpx.Response(200, request=request, headers={"server": "test"})
+        status = 403 if "blocked.example.com" in url else 200
+        return httpx.Response(status, request=request, headers={"server": "test"})
 
 
 async def main():
@@ -32,18 +33,24 @@ async def main():
         [
             Discovery("discovered_dns_resolution", {"domain": "API.EXAMPLE.COM.", "ip": "93.184.216.34"}),
             Discovery("discovered_dns_resolution", {"domain": "api.example.com", "ip": "93.184.216.35"}),
+            Discovery("discovered_dns_resolution", {"domain": "blocked.example.com", "ip": "93.184.216.36"}),
             Discovery("discovered_dns_error", {"domain": "dead.example.com"}),
             Discovery("discovered_dns_resolution", {"domain": "evil.test", "ip": "93.184.216.34"}),
         ],
         "discovered-dns",
     )
-    assert plugin._names == ["api.example.com"]
+    assert plugin._names == ["api.example.com", "blocked.example.com"]
     results = await plugin.execute("example.com")
     probes = [item for item in results if item.kind == "http_probe"]
     assert {item.data["final_url"] for item in probes} == {
         "http://api.example.com",
         "https://api.example.com",
+        "http://blocked.example.com",
+        "https://blocked.example.com",
     }
+    assert {item.data["status"] for item in probes} == {200, 403}
+    assert all("dead.example.com" not in item.data["final_url"] for item in probes)
+    assert all("evil.test" not in item.data["final_url"] for item in probes)
     print("discovered HTTP plugin test passed")
 
 
