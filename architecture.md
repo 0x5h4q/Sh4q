@@ -138,6 +138,8 @@ The fingerprint persistence path is now implemented and tested offline. Gate 2 r
 
 The non-SQL results interface now supports `--type technology` for exact scan-owned views and historical target-filtered views. This completes the read path for fingerprint observations before live external execution is enabled.
 
+Fingerprint input selection is now implemented as an offline application boundary. It reads only URL assets owned by the selected scan, accepts only HTTP(S), revalidates each hostname through the scope engine, deduplicates endpoints, and applies a bounded batch limit. URLs from other scans, unsupported schemes, and out-of-scope hosts cannot enter the candidate execution batch.
+
 A live run may therefore show zero discovered-HTTP probes when public DNS returns only timeouts or failures. This is an environmental observation, not proof that the adapter is unusable: users with reachable DNS infrastructure will receive probes for successfully resolved names, while unresolved names remain safely uncontacted. Controlled offline fixtures are the authoritative functional test for this stage.
 
 Live validation exposed two details in this filter: HTTP observations own the URL endpoint and its `SERVES` relationship rather than separately owning the source domain node, and a legitimate empty filtered result must not be mistaken for missing scan ownership. The query now derives responding domains from scan-owned `SERVES` relationships and performs migration detection against the unfiltered ownership count.
