@@ -178,6 +178,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 31. Live export validation corrected an ownership-query assumption: HTTP liveness is derived from the scan-owned URL and `SERVES` relationship, and an empty filtered result is distinguished from an ownership-migration failure by checking the unfiltered ownership count.
 32. HTTP-alive exports include the responding endpoint and status code, allowing the evaluation to verify the classification from stored evidence.
 33. DNS-alive exports provide one row per domain and permitted resolved address, distinguishing DNS liveness from HTTP liveness.
+34. A controlled discovered-HTTP enrichment stage probes only in-scope names with successful DNS observations, producing auditable HTTP status and endpoint evidence for liveness evaluation.
 
 ## 4.4 Testing Strategy
 

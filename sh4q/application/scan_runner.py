@@ -14,6 +14,7 @@ from sh4q.handlers import make_discovery_handler
 from sh4q.network import RequestLimiter
 from sh4q.plugins.ct_plugin import CTPlugin
 from sh4q.plugins.discovered_dns_plugin import DiscoveredDNSPlugin
+from sh4q.plugins.discovered_http_plugin import DiscoveredHTTPPlugin
 from sh4q.plugins.dns_plugin import DNSPlugin
 from sh4q.plugins.http_plugin import HTTPPlugin
 from sh4q.scheduler import Scheduler
@@ -146,6 +147,7 @@ async def run_scan(
                 )
             )
             plugins.append(DiscoveredDNSPlugin(scope=scope))
+            plugins.append(DiscoveredHTTPPlugin(scope=scope, limiter=limiter))
         scheduler = Scheduler(
             plugins=plugins,
             scope=scope,

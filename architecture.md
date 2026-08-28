@@ -126,6 +126,8 @@ Export also supports `--alive http`, which returns only scan-owned domain assets
 Alive exports now include the observed endpoint and HTTP status (`endpoint` and `http_status` in CSV; endpoint metadata in JSON), making the liveness classification directly auditable.
 The same interface supports `--alive dns`, which exports one row per domain and permitted resolved address from scan-owned `RESOLVES_TO` relationships (`resolved_address` in CSV).
 
+The optional Subfinder path now includes a `discovered-http` enrichment stage. It probes only deduplicated, in-scope hostnames that produced successful discovered-DNS observations, reusing the scoped HTTP client, request limiter, and Gate 2 evidence handler. This turns passive names into auditable HTTP liveness observations without probing unresolved or out-of-scope hosts.
+
 Live validation exposed two details in this filter: HTTP observations own the URL endpoint and its `SERVES` relationship rather than separately owning the source domain node, and a legitimate empty filtered result must not be mistaken for missing scan ownership. The query now derives responding domains from scan-owned `SERVES` relationships and performs migration detection against the unfiltered ownership count.
 
 Migration-era scans can contain scan-owned evidence but no `scan_assets` observations. Export now reports this condition explicitly rather than producing a misleading empty file. `--latest` selects the latest completed run, while `sh4q scans` continues to expose unfinished `RUNNING` records for audit and recovery.
