@@ -165,6 +165,50 @@ def make_discovery_handler(
             if await record_asset("http_endpoints", url_node.id, relationship.id, source_plugin, event_scan_run_id):
                 print(f"  SAVED: {host} --SERVES--> {final_url} [{data['status']}]")
 
+        elif kind == "http_fingerprint":
+            endpoint = _canonical_url(data["endpoint"])
+            host = HttpURL(endpoint).host
+            decision = scope.authorize(host)
+            if not decision.allowed:
+                print(
+                    f"  GATE 2 DENY: {host} -> {decision.reason} "
+                    f"(fingerprint not persisted)"
+                )
+                return
+
+            url_node = Node(type="url", value=endpoint)
+            await storage.save_node(url_node)
+            for technology in sorted(set(data.get("technologies") or [])):
+                normalized = str(technology).strip().lower()
+                if not normalized:
+                    continue
+                technology_node = Node(
+                    type="technology",
+                    value=normalized,
+                    attributes={"observed_name": str(technology).strip()},
+                )
+                await storage.save_node(technology_node)
+                relationship = Relationship(
+                    from_id=url_node.id,
+                    to_id=technology_node.id,
+                    type="DETECTED_TECHNOLOGY",
+                    attributes={
+                        "detection_method": data.get("detection_method", ""),
+                        "confidence": data.get("confidence", "tool-reported"),
+                        "status": data.get("status"),
+                        "title": data.get("title", ""),
+                        "source": data.get("source", source_plugin),
+                    },
+                )
+                await storage.save_relationship(relationship)
+                await record_asset(
+                    "technologies",
+                    technology_node.id,
+                    relationship.id,
+                    source_plugin,
+                    event_scan_run_id,
+                )
+
         elif kind == "subdomain_found":
             hostname = data["hostname"]
             root_domain = data["domain"]
