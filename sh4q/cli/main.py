@@ -66,7 +66,7 @@ def build_parser() -> argparse.ArgumentParser:
     export_selection.add_argument("--scan", help="Export one scan run ID")
     export_selection.add_argument("--latest", action="store_true", help="Export the latest scan")
     export.add_argument("--force", action="store_true", help="Overwrite an existing output file")
-    export.add_argument("--alive", choices=["http"], help="Export only domains with an observed HTTP/HTTPS response")
+    export.add_argument("--alive", choices=["http", "dns"], help="Export only domains with observed HTTP or DNS liveness evidence")
 
     return parser
 

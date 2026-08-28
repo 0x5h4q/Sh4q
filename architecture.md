@@ -124,6 +124,7 @@ Scan-specific JSON and CSV export is now available through `sh4q export`. Export
 
 Export also supports `--alive http`, which returns only scan-owned domain assets that have a corresponding scan-owned `SERVES` relationship to an observed URL. This is deliberately an evidence-backed HTTP liveness definition; CT or Subfinder discovery alone is not labelled alive.
 Alive exports now include the observed endpoint and HTTP status (`endpoint` and `http_status` in CSV; endpoint metadata in JSON), making the liveness classification directly auditable.
+The same interface supports `--alive dns`, which exports one row per domain and permitted resolved address from scan-owned `RESOLVES_TO` relationships (`resolved_address` in CSV).
 
 Live validation exposed two details in this filter: HTTP observations own the URL endpoint and its `SERVES` relationship rather than separately owning the source domain node, and a legitimate empty filtered result must not be mistaken for missing scan ownership. The query now derives responding domains from scan-owned `SERVES` relationships and performs migration detection against the unfiltered ownership count.
 
