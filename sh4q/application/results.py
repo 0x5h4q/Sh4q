@@ -70,7 +70,42 @@ def list_assets(
                 (normalized, f"%.{normalized}", max(1, min(limit, 1000))),
             ).fetchall()
             return [ResultRow(row[0], row[1], json.loads(row[2])) for row in ip_rows]
+        if target and asset_type == "technology":
+            technology_rows = db.execute(
+                """
+                SELECT DISTINCT technology.type, technology.value, technology.attributes
+                FROM relationships r
+                JOIN nodes endpoint ON endpoint.id = r.from_id
+                JOIN nodes technology ON technology.id = r.to_id
+                WHERE r.type = 'DETECTED_TECHNOLOGY'
+                  AND endpoint.type = 'url'
+                ORDER BY technology.value
+                """
+            ).fetchall()
+            technologies = [
+                ResultRow(row[0], row[1], json.loads(row[2]))
+                for row in technology_rows
+            ]
+            return [
+                item for item in technologies
+                if any(
+                    _matches_target(url, normalized)
+                    for url in _technology_endpoints(db, item.value)
+                )
+            ][: max(1, min(limit, 1000))]
     return assets
+
+
+def _technology_endpoints(db: sqlite3.Connection, technology: str) -> list[ResultRow]:
+    rows = db.execute(
+        """SELECT endpoint.type, endpoint.value, endpoint.attributes
+        FROM relationships r
+        JOIN nodes endpoint ON endpoint.id = r.from_id
+        JOIN nodes technology_node ON technology_node.id = r.to_id
+        WHERE r.type = 'DETECTED_TECHNOLOGY' AND technology_node.value = ?""",
+        (technology,),
+    ).fetchall()
+    return [ResultRow(row[0], row[1], json.loads(row[2])) for row in rows]
 
 
 def _matches_target(asset: ResultRow, target: str) -> bool:

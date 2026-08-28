@@ -184,6 +184,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 37. Technology fingerprinting is planned as a separate enrichment stage over scan-owned HTTP endpoints. Fingerprints will preserve technology, category, version, detection method, confidence, tool provenance, timestamp, and raw evidence reference, and will be treated as observations rather than definitive version claims. Candidate tools will be selected only after controlled comparison.
 38. ProjectDiscovery `httpx` was selected as the first parser-only fingerprinting candidate because it supplies structured JSONL. The candidate remains disabled in live scans until scan-owned endpoint input, redirect containment, and request-control implications are validated.
 39. Offline fingerprint-pipeline validation shows that in-scope observations create normalized technology nodes and provenance-bearing relationships, while out-of-scope output remains evidence but is rejected from trusted asset state.
+40. Technology observations can be queried through the non-SQL results interface by exact scan or target, completing the presentation path before live fingerprint execution is introduced.
 
 ## 4.4 Testing Strategy
 

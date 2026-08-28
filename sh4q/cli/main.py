@@ -45,7 +45,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     results = subparsers.add_parser("results", help="View stored assets without writing SQL")
     results.add_argument("--database", default="./sh4q-output/sh4q.db")
-    results.add_argument("--type", choices=["domain", "ip", "url"])
+    results.add_argument("--type", choices=["domain", "ip", "url", "technology"])
     results.add_argument("--limit", type=int, default=100)
     results.add_argument("--failures", action="store_true", help="Show recorded errors and provider failures")
     results.add_argument("--target", help="Filter assets or failures by root target")

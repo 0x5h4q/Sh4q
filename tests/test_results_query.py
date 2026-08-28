@@ -17,14 +17,24 @@ with tempfile.TemporaryDirectory() as directory:
             ("domain:api.example.com", "domain", "api.example.com", "{}"),
             ("domain:other.test", "domain", "other.test", "{}"),
             ("ip:93.184.216.34", "ip", "93.184.216.34", "{}"),
+            ("url:https://api.example.com/", "url", "https://api.example.com/", "{}"),
+            ("technology:nginx", "technology", "nginx", "{\"observed_name\":\"nginx\"}"),
         ])
         db.execute(
             "INSERT INTO relationships VALUES (?, ?, ?)",
             ("domain:api.example.com", "ip:93.184.216.34", "RESOLVES_TO"),
         )
         db.execute(
+            "INSERT INTO relationships VALUES (?, ?, ?)",
+            ("url:https://api.example.com/", "technology:nginx", "DETECTED_TECHNOLOGY"),
+        )
+        db.execute(
             "INSERT INTO scan_assets VALUES (?, ?, ?, ?)",
             ("scan-1", "domain:api.example.com", "rel-1", "subfinder"),
+        )
+        db.execute(
+            "INSERT INTO scan_assets VALUES (?, ?, ?, ?)",
+            ("scan-1", "technology:nginx", "rel-tech", "httpx-fingerprint"),
         )
         db.execute(
             "INSERT INTO evidence VALUES (?, ?, ?, ?, ?)",
@@ -39,6 +49,10 @@ with tempfile.TemporaryDirectory() as directory:
     assert [row.value for row in ips] == ["93.184.216.34"]
     scan_domains = list_assets(database, asset_type="domain", scan_id="scan-1")
     assert [row.value for row in scan_domains] == ["api.example.com"]
+    technologies = list_assets(database, asset_type="technology", target="example.com")
+    assert [row.value for row in technologies] == ["nginx"]
+    scan_technologies = list_assets(database, asset_type="technology", scan_id="scan-1")
+    assert [row.value for row in scan_technologies] == ["nginx"]
     failures = list_failures(database, target="example.com")
     assert failures[0][0:2] == ("dns", "dns_error")
 print("results query test passed")

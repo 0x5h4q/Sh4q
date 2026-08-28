@@ -136,6 +136,8 @@ ProjectDiscovery `httpx` is the first parser-only candidate because its JSONL ou
 
 The fingerprint persistence path is now implemented and tested offline. Gate 2 revalidates the endpoint hostname, normalizes technology names into `technology` nodes, and connects the verified URL with `DETECTED_TECHNOLOGY` relationships carrying method, confidence, status, title, and source provenance. Out-of-scope fingerprint output remains raw evidence but is excluded from the trusted graph.
 
+The non-SQL results interface now supports `--type technology` for exact scan-owned views and historical target-filtered views. This completes the read path for fingerprint observations before live external execution is enabled.
+
 A live run may therefore show zero discovered-HTTP probes when public DNS returns only timeouts or failures. This is an environmental observation, not proof that the adapter is unusable: users with reachable DNS infrastructure will receive probes for successfully resolved names, while unresolved names remain safely uncontacted. Controlled offline fixtures are the authoritative functional test for this stage.
 
 Live validation exposed two details in this filter: HTTP observations own the URL endpoint and its `SERVES` relationship rather than separately owning the source domain node, and a legitimate empty filtered result must not be mistaken for missing scan ownership. The query now derives responding domains from scan-owned `SERVES` relationships and performs migration detection against the unfiltered ownership count.
