@@ -19,13 +19,25 @@ def export_scan(
     format: str,
     output: Path,
     force: bool = False,
+    alive: str | None = None,
 ) -> int:
+    if alive not in (None, "http"):
+        raise ValueError(f"unsupported alive filter: {alive}")
     with sqlite3.connect(database) as db:
+        alive_clause = ""
+        if alive == "http":
+            alive_clause = """AND n.type = 'domain' AND EXISTS (
+                SELECT 1 FROM relationships r
+                JOIN scan_assets endpoint_sa ON endpoint_sa.asset_id = r.to_id
+                JOIN nodes endpoint ON endpoint.id = r.to_id
+                WHERE r.from_id = n.id AND r.type = 'SERVES'
+                  AND endpoint.type = 'url' AND endpoint_sa.scan_run_id = sa.scan_run_id
+            )"""
         rows = db.execute(
-            """SELECT n.type, n.value, n.attributes,
+            f"""SELECT n.type, n.value, n.attributes,
             group_concat(DISTINCT sa.source_plugin)
             FROM scan_assets sa JOIN nodes n ON n.id = sa.asset_id
-            WHERE sa.scan_run_id = ?
+            WHERE sa.scan_run_id = ? {alive_clause}
             GROUP BY n.id, n.type, n.value, n.attributes
             ORDER BY n.type, n.value""",
             (run.id,),

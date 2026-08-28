@@ -174,6 +174,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 27. Exact scan exports support structured JSON and spreadsheet-compatible CSV, include scan metadata and source provenance, avoid interactive result limits, and protect existing files from accidental overwrite.
 28. Export detects migration-era runs that lack asset ownership and refuses misleading empty output; latest-run selection excludes unfinished executions while retaining them in the audit list.
 29. A live migration validation found and corrected a scan-ownership handler defect: counters could report accepted assets before per-scan ownership persistence succeeded. Exact results and export exposed the inconsistency; ownership is now written before counters are updated, with regression coverage. The affected historical run is excluded from exact export rather than guessed or backfilled.
+30. Structured export supports an evidence-backed HTTP liveness view (`--alive http`), selecting domains with a scan-owned HTTP/HTTPS endpoint observation rather than treating passive discovery as proof of availability.
 
 ## 4.4 Testing Strategy
 

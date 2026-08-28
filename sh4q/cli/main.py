@@ -66,6 +66,7 @@ def build_parser() -> argparse.ArgumentParser:
     export_selection.add_argument("--scan", help="Export one scan run ID")
     export_selection.add_argument("--latest", action="store_true", help="Export the latest scan")
     export.add_argument("--force", action="store_true", help="Overwrite an existing output file")
+    export.add_argument("--alive", choices=["http"], help="Export only domains with an observed HTTP/HTTPS response")
 
     return parser
 
@@ -223,7 +224,7 @@ def main() -> None:
             parser.error("no matching scan run was found")
         try:
             count = export_scan(
-                str(database), run, format=args.format, output=args.output, force=args.force
+                str(database), run, format=args.format, output=args.output, force=args.force, alive=args.alive
             )
         except FileExistsError as error:
             parser.error(f"{error}; pass --force to overwrite it")
