@@ -55,3 +55,13 @@ Never copy AI-generated prose without checking the cited paper. Every important 
 ## Outputs for the Thesis
 
 The workflow produces a verified APA 7 bibliography, a literature matrix for Chapter Two, a search-method appendix, and an audit trail demonstrating how sources were selected. This makes the literature review reproducible without claiming that automation replaces scholarly judgement.
+
+## Practical First Session
+
+1. Install Zotero and the browser Connector, then create the `Sh4q Final Year Project` collection and its topic subcollections.
+2. Search Google Scholar and publisher/library databases using one research concept at a time, beginning with `cybersecurity reconnaissance orchestration automated asset discovery`.
+3. Save promising papers to Zotero, verify title, authors, year, venue, DOI, and publication type against the authoritative record, and attach the legitimate full text.
+4. Add a note for each verified source covering why it matters, problem, method, finding, limitation, relevance to Sh4q, page/section, and chapter supported.
+5. Run `tools/collect_sources.py` to generate additional OpenAlex candidate metadata. Treat its CSV as a discovery list only; verify each selected record before adding it to Zotero.
+6. Record each search in `docs/research/search_manifest.csv`, including concept, query, database, date, results reviewed, and selected count.
+7. Build the literature matrix while collecting the first 15-20 strong sources. Use NotebookLM only after the PDFs have been verified and organised in Zotero; cite the original publications, never NotebookLM.
