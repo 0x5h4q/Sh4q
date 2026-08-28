@@ -180,6 +180,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 33. DNS-alive exports provide one row per domain and permitted resolved address, distinguishing DNS liveness from HTTP liveness.
 34. A controlled discovered-HTTP enrichment stage probes only in-scope names with successful DNS observations, producing auditable HTTP status and endpoint evidence for liveness evaluation.
 35. Live testing showed that public DNS timeouts can leave the enrichment stage with no eligible names; the system reports these failures and safely sends no HTTP requests. Offline fixtures provide repeatable validation independent of external DNS conditions.
+36. A simple reachability utility such as `httprobe` was evaluated conceptually but deferred as an adapter because Sh4q's native HTTP enrichment already supplies equivalent probing plus scope, redirect, budget, and evidence controls. Any future comparison will use identical controlled inputs and repeated measurements.
 
 ## 4.4 Testing Strategy
 
