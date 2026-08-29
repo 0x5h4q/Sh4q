@@ -148,6 +148,8 @@ Technology result presentation is endpoint-aware: each observation shows endpoin
 
 A live run may therefore show zero discovered-HTTP probes when public DNS returns only timeouts or failures. This is an environmental observation, not proof that the adapter is unusable: users with reachable DNS infrastructure will receive probes for successfully resolved names, while unresolved names remain safely uncontacted. Controlled offline fixtures are the authoritative functional test for this stage.
 
+The discovered-DNS stage no longer uses thread-backed system `getaddrinfo`. It now uses `dnspython`'s asynchronous resolver with explicit A/AAAA queries, DNS caching, partial-family retention, and structured `nxdomain`, `no_answer`, `servfail`, `timeout`, and general DNS error categories. Defaults are bounded to 500 names and 10 concurrent hostname resolutions under a 300-second stage allowance. Scan summaries break failures down by reason, distinguishing stale discoveries from resolver degradation.
+
 Live validation exposed two details in this filter: HTTP observations own the URL endpoint and its `SERVES` relationship rather than separately owning the source domain node, and a legitimate empty filtered result must not be mistaken for missing scan ownership. The query now derives responding domains from scan-owned `SERVES` relationships and performs migration detection against the unfiltered ownership count.
 
 Migration-era scans can contain scan-owned evidence but no `scan_assets` observations. Export now reports this condition explicitly rather than producing a misleading empty file. `--latest` selects the latest completed run, while `sh4q scans` continues to expose unfinished `RUNNING` records for audit and recovery.

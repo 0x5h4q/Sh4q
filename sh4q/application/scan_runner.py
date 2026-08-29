@@ -48,6 +48,7 @@ class ScanSummary:
     resolved_discovered_attempted: int
     resolved_discovered_failures: int
     technologies: int
+    dns_failure_reasons: dict[str, int]
     relationships: int
     evidence: int
     evidence_this_scan: int
@@ -110,6 +111,7 @@ async def run_scan(
         "resolved_discovered_attempted": 0,
         "resolved_discovered_failures": 0,
         "technologies": 0,
+        "dns_failure_reasons": {},
     }
 
     bus.subscribe(
@@ -196,6 +198,7 @@ async def run_scan(
         resolved_discovered_attempted=stats["resolved_discovered_attempted"],
         resolved_discovered_failures=stats["resolved_discovered_failures"],
         technologies=stats["technologies"],
+        dns_failure_reasons=dict(stats["dns_failure_reasons"]),
         relationships=stats["relationships"],
         evidence=len(evidence_records),
         evidence_this_scan=len(scan_evidence_records),

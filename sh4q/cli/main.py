@@ -96,6 +96,8 @@ def render_summary(summary) -> None:
     print(f"    Adapter names   {summary.adapter_names:>5}")
     print(f"    Resolved names  {summary.resolved_discovered_addresses:>5}")
     print(f"    DNS failures    {summary.resolved_discovered_failures:>5}")
+    for reason, count in sorted(summary.dns_failure_reasons.items()):
+        print(f"      {reason:<14} {count:>5}")
     print(f"    Technologies    {summary.technologies:>5}")
     print(f"    Total           {summary.discoveries:>5}")
     print()

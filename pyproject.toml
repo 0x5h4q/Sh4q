@@ -8,6 +8,7 @@ dependencies = [
     "pyyaml",
     "aiosqlite",
     "httpx",
+    "dnspython>=2.7",
 ]
 
 [project.scripts]

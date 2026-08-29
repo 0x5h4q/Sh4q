@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import asyncio
-import socket
 from collections.abc import Awaitable, Callable
 
 from .discovery import Discovery
 from .interface import Plugin, PluginMetadata
 from sh4q.scope import ScopeEngine
+from sh4q.network import AsyncDNSResolver, DNSResolutionError
 
 
 class DiscoveredDNSPlugin(Plugin):
@@ -15,14 +15,14 @@ class DiscoveredDNSPlugin(Plugin):
     metadata = PluginMetadata(
         name="discovered-dns",
         dependencies=["subfinder"],
-        timeout=120.0,
+        timeout=300.0,
         risk_level="passive",
     )
 
     def __init__(
         self,
-        max_names: int = 1000,
-        max_concurrent: int = 20,
+        max_names: int = 500,
+        max_concurrent: int = 10,
         resolver: Callable[[str], Awaitable[list[str]]] | None = None,
         scope: ScopeEngine | None = None,
         per_name_timeout: float = 3.0,
@@ -30,9 +30,10 @@ class DiscoveredDNSPlugin(Plugin):
         self._names: list[str] = []
         self._max_names = max(1, max_names)
         self._semaphore = asyncio.Semaphore(max(1, max_concurrent))
-        self._resolver = resolver or self._resolve
-        self._scope = scope
         self._per_name_timeout = max(0.1, per_name_timeout)
+        self._dns = AsyncDNSResolver(lifetime=self._per_name_timeout)
+        self._resolver = resolver or self._dns.resolve_addresses
+        self._scope = scope
 
     def accept_discoveries(
         self, discoveries: list[Discovery], source_plugin: str | None = None
@@ -85,11 +86,11 @@ class DiscoveredDNSPlugin(Plugin):
                         {"domain": name, "error": "resolution timed out", "timeout": self._per_name_timeout},
                     )
                 ]
+            except DNSResolutionError as error:
+                return [Discovery("discovered_dns_error", {
+                    "domain": name,
+                    "error": str(error),
+                    "reason": error.code,
+                })]
             except OSError as error:
                 return [Discovery("discovered_dns_error", {"domain": name, "error": str(error)})]
-
-    @staticmethod
-    async def _resolve(name: str) -> list[str]:
-        loop = asyncio.get_running_loop()
-        results = await loop.getaddrinfo(name, None)
-        return sorted({info[4][0] for info in results})

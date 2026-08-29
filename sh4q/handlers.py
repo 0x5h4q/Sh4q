@@ -132,6 +132,11 @@ def make_discovery_handler(
         elif kind == "discovered_dns_error":
             if stats is not None:
                 stats["resolved_discovered_failures"] = stats.get("resolved_discovered_failures", 0) + 1
+                reason = data.get("reason") or (
+                    "timeout" if "timed out" in data.get("error", "").lower() else "resolver_error"
+                )
+                reasons = stats.setdefault("dns_failure_reasons", {})
+                reasons[reason] = reasons.get(reason, 0) + 1
             display_bounded(
                 "discovered DNS failure",
                 f"  FAILED  discovered_dns_error: {data.get('domain')}: {data.get('error', 'unknown error')}",
