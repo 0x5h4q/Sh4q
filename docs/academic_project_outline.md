@@ -186,6 +186,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 39. Offline fingerprint-pipeline validation shows that in-scope observations create normalized technology nodes and provenance-bearing relationships, while out-of-scope output remains evidence but is rejected from trusted asset state.
 40. Technology observations can be queried through the non-SQL results interface by exact scan or target, completing the presentation path before live fingerprint execution is introduced.
 41. Fingerprint input selection is constrained to HTTP(S) endpoints owned by the selected scan and reauthorised through the scope engine; unrelated historical, unsupported-scheme, and out-of-scope URLs are excluded before adapter execution.
+42. Native fingerprinting reuses already-authorised HTTP responses and conservatively records explicit `Server` and `X-Powered-By` header observations with raw evidence and confidence labels. No additional request is generated, and header-based results are not treated as definitive software proof.
 
 ## 4.4 Testing Strategy
 

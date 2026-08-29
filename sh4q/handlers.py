@@ -198,6 +198,7 @@ def make_discovery_handler(
                         "status": data.get("status"),
                         "title": data.get("title", ""),
                         "source": data.get("source", source_plugin),
+                        "raw_observation": data.get("raw_observation", ""),
                     },
                 )
                 await storage.save_relationship(relationship)

@@ -18,7 +18,7 @@ class FakeClient:
             return type("Response", (), {
                 "url": url,
                 "status_code": 200,
-                "headers": {"server": "fake"},
+                "headers": {"server": "nginx/1.25", "x-powered-by": "Express"},
             })()
         await asyncio.sleep(0.05)
         raise asyncio.TimeoutError
@@ -34,6 +34,12 @@ async def main() -> None:
     plugin = HTTPPlugin(scope, client_factory=FakeClient)
     discoveries = await plugin.execute("example.com")
     assert any(item.kind == "http_probe" and item.data["status"] == 200 for item in discoveries)
+    fingerprints = [item for item in discoveries if item.kind == "http_fingerprint"]
+    assert {item.data["technologies"][0] for item in fingerprints} == {"nginx", "Express"}
+    assert {item.data["detection_method"] for item in fingerprints} == {
+        "http-header:server",
+        "http-header:x-powered-by",
+    }
     assert any(item.kind == "http_error" and item.data["url"] == "http://example.com" for item in discoveries)
     assert _canonical_url("https://Example.com:443/") == "https://example.com/"
     assert _canonical_url("http://example.com:8080/a///?x=1") == "http://example.com:8080/a?x=1"

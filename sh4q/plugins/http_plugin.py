@@ -10,6 +10,36 @@ from .interface import Plugin, PluginMetadata
 from sh4q.network import RequestLimiter, ScopedHTTPClient, ScopedHTTPError
 
 
+def _header_fingerprints(probe: Discovery) -> list[Discovery]:
+    observations = []
+    for header, value in (
+        ("server", probe.data.get("server", "")),
+        ("x-powered-by", probe.data.get("powered_by", "")),
+    ):
+        raw = str(value).strip()
+        if not raw:
+            continue
+        product = raw.split("/", 1)[0].split(" ", 1)[0].strip()
+        if not product:
+            continue
+        observations.append(
+            Discovery(
+                kind="http_fingerprint",
+                data={
+                    "endpoint": probe.data["final_url"],
+                    "status": probe.data["status"],
+                    "title": "",
+                    "technologies": [product],
+                    "detection_method": f"http-header:{header}",
+                    "confidence": "explicit-header",
+                    "source": "native-http",
+                    "raw_observation": raw,
+                },
+            )
+        )
+    return observations
+
+
 class HTTPPlugin(Plugin):
     metadata = PluginMetadata(
         name="http",
@@ -53,6 +83,7 @@ class HTTPPlugin(Plugin):
                             "final_url": str(response.url),
                             "status": response.status_code,
                             "server": response.headers.get("server", ""),
+                            "powered_by": response.headers.get("x-powered-by", ""),
                             "duration_seconds": round(time.monotonic() - started, 3),
                             "address": getattr(response, "extensions", {}).get("sh4q_pinned_ip"),
                         },
@@ -112,4 +143,11 @@ class HTTPPlugin(Plugin):
 
             unique[key] = discovery
 
-        return list(unique.values())
+        results = list(unique.values())
+        fingerprints = [
+            fingerprint
+            for discovery in results
+            if discovery.kind == "http_probe"
+            for fingerprint in _header_fingerprints(discovery)
+        ]
+        return [*results, *fingerprints]
