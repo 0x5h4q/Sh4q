@@ -10,6 +10,7 @@ from sh4q.events.event_log import DurableEventLog
 from sh4q.storage.scan_runs import get_scan, latest_scan, list_scans, scan_asset_count
 from sh4q.application.results import list_assets, list_failures, list_technology_observations
 from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
+from sh4q.application.scan_report import build_scan_report
 
 
 def _fit(value: object, width: int) -> str:
@@ -51,6 +52,56 @@ def render_technology_results(rows) -> None:
         )
 
 
+def render_scan_report(report) -> None:
+    run = report.run
+    observed = report.request_metrics.get("observed", {})
+    configured = report.request_metrics.get("configured", {})
+    duration = report.request_metrics.get("duration_seconds")
+    print("\n  SH4Q SCAN OVERVIEW")
+    print("  ==================")
+    print(f"  Target       {run.target}")
+    print(f"  Scan ID      {run.id}")
+    print(f"  Status       {run.status}")
+    print(f"  Started      {run.started_at}")
+    print(f"  Completed    {run.completed_at or '-'}")
+    if duration is not None:
+        print(f"  Duration     {duration:.2f}s")
+
+    print("\n  Verified Surface")
+    print(f"    DNS hostnames          {report.dns_hostnames:>6}")
+    print(f"    DNS addresses          {report.dns_addresses:>6}")
+    print(f"    HTTP hosts             {report.http_hosts:>6}")
+    print(f"    HTTP endpoints         {report.http_endpoints:>6}")
+    print(f"    Technologies           {report.technology_assets:>6}")
+    print(f"    Tech observations      {report.technology_observations:>6}")
+
+    print("\n  Stored Record")
+    print(f"    Unique assets          {sum(report.asset_types.values()):>6}")
+    print(f"    Relationships          {report.relationships:>6}")
+    print(f"    Evidence               {report.evidence:>6}")
+    if report.source_assets:
+        print("    Owned assets by source")
+        for source, count in sorted(report.source_assets.items()):
+            print(f"      {source:<18} {count:>6}")
+
+    print("\n  Failures")
+    print(f"    HTTP                    {report.http_failures:>6}")
+    print(f"    DNS                     {sum(report.dns_failures.values()):>6}")
+    for reason, count in sorted(report.dns_failures.items()):
+        print(f"      {reason:<18} {count:>6}")
+
+    if observed:
+        print("\n  Native Requests")
+        print(f"    Admitted                {observed.get('admitted', 0):>6}")
+        print(f"    Completed               {observed.get('completed', 0):>6}")
+        print(f"    Failed                  {observed.get('failed', 0):>6}")
+        print(f"    Budget denied           {observed.get('budget_denied', 0):>6}")
+        print(f"    Peak concurrent         {observed.get('peak_concurrency', 0):>6}")
+        print(
+            f"    Limits                  {configured.get('requests_per_second', '-')} req/s, "
+            f"{configured.get('max_concurrent', '-')} concurrent, budget {configured.get('budget', '-')}"
+        )
+    print()
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="sh4q", description="Sh4q —> Your very own scope-aware recon engine ('_')/")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -95,6 +146,13 @@ def build_parser() -> argparse.ArgumentParser:
     scans = subparsers.add_parser("scans", help="List recorded scan runs")
     scans.add_argument("--database", default="./sh4q-output/sh4q.db")
     scans.add_argument("--limit", type=int, default=50)
+
+    show = subparsers.add_parser("show", help="Show a persisted overview of one scan")
+    show.add_argument("--database", default="./sh4q-output/sh4q.db")
+    show.add_argument("--target", help="Select the latest completed scan for this target")
+    show_selection = show.add_mutually_exclusive_group()
+    show_selection.add_argument("--scan", help="Show one scan run ID")
+    show_selection.add_argument("--latest", action="store_true", help="Show the latest completed scan")
 
     export = subparsers.add_parser("export", help="Export one scan to JSON or CSV")
     export.add_argument("--database", default="./sh4q-output/sh4q.db")
@@ -247,6 +305,18 @@ def main() -> None:
                     print(f"  {row.type:<8} {row.value}")
                 print(f"\n  Showing {len(rows)} asset(s). Use --limit to increase the view.")
         print()
+        return
+
+    if args.command == "show":
+        database = Path(args.database)
+        if not database.exists():
+            parser.error(f"database not found: {database}")
+        run = get_scan(str(database), args.scan) if args.scan else latest_scan(
+            str(database), args.target
+        )
+        if run is None:
+            parser.error("no matching scan run was found")
+        render_scan_report(build_scan_report(str(database), run))
         return
 
     if args.command == "scans":
