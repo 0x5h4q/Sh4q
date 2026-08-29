@@ -8,7 +8,7 @@ from sh4q.application import run_scan
 from sh4q.adapters import AdapterExecutionError
 from sh4q.events.event_log import DurableEventLog
 from sh4q.storage.scan_runs import get_scan, latest_scan, list_scans, scan_asset_count
-from sh4q.application.results import list_assets, list_failures
+from sh4q.application.results import list_assets, list_failures, list_technology_observations
 from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
 
 
@@ -190,13 +190,28 @@ def main() -> None:
                     return
                 scan_id = latest.id
                 print(f"  Scan     {latest.id} ({latest.target})")
-            rows = list_assets(
-                str(database), asset_type=args.type, target=args.target,
-                scan_id=scan_id, limit=args.limit
-            )
-            for row in rows:
-                print(f"  {row.type:<8} {row.value}")
-            print(f"\n  Showing {len(rows)} asset(s). Use --limit to increase the view.")
+            if args.type == "technology":
+                rows = list_technology_observations(
+                    str(database), target=args.target, scan_id=scan_id, limit=args.limit
+                )
+                for row in rows:
+                    version = f" {row.version}" if row.version else ""
+                    status = str(row.status) if row.status is not None else "-"
+                    print(f"  {row.endpoint}")
+                    print(
+                        f"    {row.technology}{version}  category={row.category or '-'} "
+                        f"confidence={row.confidence or '-'} status={status}"
+                    )
+                    print(f"    signal: {row.signal or '-'}")
+                print(f"\n  Showing {len(rows)} technology observation(s). Use --limit to increase the view.")
+            else:
+                rows = list_assets(
+                    str(database), asset_type=args.type, target=args.target,
+                    scan_id=scan_id, limit=args.limit
+                )
+                for row in rows:
+                    print(f"  {row.type:<8} {row.value}")
+                print(f"\n  Showing {len(rows)} asset(s). Use --limit to increase the view.")
         print()
         return
 

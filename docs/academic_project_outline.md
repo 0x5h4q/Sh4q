@@ -188,6 +188,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 41. Fingerprint input selection is constrained to HTTP(S) endpoints owned by the selected scan and reauthorised through the scope engine; unrelated historical, unsupported-scheme, and out-of-scope URLs are excluded before adapter execution.
 42. Native fingerprinting reuses already-authorised HTTP responses and conservatively records explicit `Server` and `X-Powered-By` header observations with raw evidence and confidence labels. No additional request is generated, and header-based results are not treated as definitive software proof.
 43. The native signature engine evaluates a bounded 64 KiB HTML sample plus title, content type, cookie names, and selected headers. Versioned signatures cover conservative CMS, framework, CDN/WAF, runtime, and web-server signals; multiple independent observations increase confidence, while versions are recorded only when explicitly disclosed.
+44. Technology results are displayed per endpoint with status, category, confidence, version, and supporting signal. Evaluation distinguishes total discovered assets from HTTP-observed endpoints; passive names are not described as fingerprinted hosts.
 
 ## 4.4 Testing Strategy
 

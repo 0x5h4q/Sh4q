@@ -3,14 +3,14 @@ import sqlite3
 import tempfile
 from pathlib import Path
 
-from sh4q.application.results import list_assets, list_failures
+from sh4q.application.results import list_assets, list_failures, list_technology_observations
 
 
 with tempfile.TemporaryDirectory() as directory:
     database = str(Path(directory) / "results.db")
     with sqlite3.connect(database) as db:
         db.execute("CREATE TABLE nodes (id TEXT, type TEXT, value TEXT, attributes TEXT)")
-        db.execute("CREATE TABLE relationships (from_id TEXT, to_id TEXT, type TEXT)")
+        db.execute("CREATE TABLE relationships (id TEXT, from_id TEXT, to_id TEXT, type TEXT, attributes TEXT)")
         db.execute("CREATE TABLE scan_assets (scan_run_id TEXT, asset_id TEXT, relationship_id TEXT, source_plugin TEXT)")
         db.execute("CREATE TABLE evidence (target TEXT, plugin TEXT, kind TEXT, content TEXT, captured_at TEXT)")
         db.executemany("INSERT INTO nodes VALUES (?, ?, ?, ?)", [
@@ -21,12 +21,12 @@ with tempfile.TemporaryDirectory() as directory:
             ("technology:nginx", "technology", "nginx", "{\"observed_name\":\"nginx\"}"),
         ])
         db.execute(
-            "INSERT INTO relationships VALUES (?, ?, ?)",
-            ("domain:api.example.com", "ip:93.184.216.34", "RESOLVES_TO"),
+            "INSERT INTO relationships VALUES (?, ?, ?, ?, ?)",
+            ("rel-dns", "domain:api.example.com", "ip:93.184.216.34", "RESOLVES_TO", "{}"),
         )
         db.execute(
-            "INSERT INTO relationships VALUES (?, ?, ?)",
-            ("url:https://api.example.com/", "technology:nginx", "DETECTED_TECHNOLOGY"),
+            "INSERT INTO relationships VALUES (?, ?, ?, ?, ?)",
+            ("rel-tech", "url:https://api.example.com/", "technology:nginx", "DETECTED_TECHNOLOGY", '{"category":"web-server","confidence":"explicit","status":200,"raw_observation":"header:server=nginx"}'),
         )
         db.execute(
             "INSERT INTO scan_assets VALUES (?, ?, ?, ?)",
@@ -53,6 +53,9 @@ with tempfile.TemporaryDirectory() as directory:
     assert [row.value for row in technologies] == ["nginx"]
     scan_technologies = list_assets(database, asset_type="technology", scan_id="scan-1")
     assert [row.value for row in scan_technologies] == ["nginx"]
+    observations = list_technology_observations(database, scan_id="scan-1")
+    assert observations[0].endpoint == "https://api.example.com/"
+    assert observations[0].signal == "header:server=nginx"
     failures = list_failures(database, target="example.com")
     assert failures[0][0:2] == ("dns", "dns_error")
 print("results query test passed")

@@ -13,6 +13,58 @@ class ResultRow:
     attributes: dict
 
 
+@dataclass(frozen=True)
+class TechnologyObservation:
+    endpoint: str
+    technology: str
+    category: str
+    version: str
+    confidence: str
+    status: int | None
+    signal: str
+
+
+def list_technology_observations(
+    database: str,
+    *,
+    target: str | None = None,
+    scan_id: str | None = None,
+    limit: int = 100,
+) -> list[TechnologyObservation]:
+    query = """SELECT endpoint.value, technology.value, r.attributes
+        FROM relationships r
+        JOIN nodes endpoint ON endpoint.id = r.from_id
+        JOIN nodes technology ON technology.id = r.to_id"""
+    params: list[object] = []
+    if scan_id:
+        query += " JOIN scan_assets sa ON sa.relationship_id = r.id"
+    query += " WHERE r.type = 'DETECTED_TECHNOLOGY'"
+    if scan_id:
+        query += " AND sa.scan_run_id = ?"
+        params.append(scan_id)
+    query += " ORDER BY endpoint.value, technology.value"
+    normalized = target.lower().rstrip(".") if target else None
+    with sqlite3.connect(database) as db:
+        rows = db.execute(query, params).fetchall()
+    observations = []
+    for endpoint, technology, raw_attributes in rows:
+        if normalized and not _matches_target(ResultRow("url", endpoint, {}), normalized):
+            continue
+        attributes = json.loads(raw_attributes)
+        observations.append(TechnologyObservation(
+            endpoint=endpoint,
+            technology=technology,
+            category=attributes.get("category", ""),
+            version=attributes.get("version", ""),
+            confidence=attributes.get("confidence", ""),
+            status=attributes.get("status"),
+            signal=attributes.get("raw_observation", ""),
+        ))
+        if len(observations) >= max(1, min(limit, 1000)):
+            break
+    return observations
+
+
 def list_assets(
     database: str,
     *,
