@@ -8,6 +8,15 @@ from sh4q.plugins.discovery import Discovery
 
 SIGNATURE_SET_VERSION = "2026.08.1"
 MAX_HTML_SAMPLE_BYTES = 65_536
+CATEGORY_PRIORITY = {
+    "web-server": 10,
+    "runtime-or-framework": 20,
+    "runtime": 30,
+    "framework": 40,
+    "web-framework": 50,
+    "cms": 60,
+    "cdn-waf": 70,
+}
 
 
 class _TitleParser(HTMLParser):
@@ -68,6 +77,8 @@ def fingerprint_response(endpoint: str, status: int, response, metadata: dict) -
             "signals": [],
         })
         finding["signals"].append(signal)
+        if CATEGORY_PRIORITY.get(category, 0) > CATEGORY_PRIORITY.get(finding["category"], 0):
+            finding["category"] = category
         if version and not finding["version"]:
             finding["version"] = version
 

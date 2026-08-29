@@ -12,6 +12,45 @@ from sh4q.application.results import list_assets, list_failures, list_technology
 from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
 
 
+def _fit(value: object, width: int) -> str:
+    text = str(value if value not in (None, "") else "-")
+    if len(text) <= width:
+        return text
+    return text[: max(1, width - 3)] + "..."
+
+
+def render_technology_results(rows) -> None:
+    columns = (
+        ("ENDPOINT", 44),
+        ("TECHNOLOGY", 16),
+        ("CATEGORY", 14),
+        ("CONFIDENCE", 10),
+        ("STATUS", 6),
+        ("SIGNAL", 34),
+    )
+    header = "  " + "  ".join(label.ljust(width) for label, width in columns)
+    print()
+    print(header)
+    print("  " + "  ".join("-" * width for _, width in columns))
+    for row in rows:
+        technology = f"{row.technology} {row.version}".strip()
+        values = (
+            row.endpoint,
+            technology,
+            row.category,
+            row.confidence,
+            row.status,
+            row.signal,
+        )
+        print(
+            "  "
+            + "  ".join(
+                _fit(value, width).ljust(width)
+                for value, (_, width) in zip(values, columns)
+            )
+        )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="sh4q", description="Sh4q —> Your very own scope-aware recon engine ('_')/")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -67,6 +106,7 @@ def build_parser() -> argparse.ArgumentParser:
     export_selection.add_argument("--latest", action="store_true", help="Export the latest scan")
     export.add_argument("--force", action="store_true", help="Overwrite an existing output file")
     export.add_argument("--alive", choices=["http", "dns"], help="Export only domains with observed HTTP or DNS liveness evidence")
+    export.add_argument("--type", choices=["technology"], help="Export one structured asset view")
 
     return parser
 
@@ -196,15 +236,7 @@ def main() -> None:
                 rows = list_technology_observations(
                     str(database), target=args.target, scan_id=scan_id, limit=args.limit
                 )
-                for row in rows:
-                    version = f" {row.version}" if row.version else ""
-                    status = str(row.status) if row.status is not None else "-"
-                    print(f"  {row.endpoint}")
-                    print(
-                        f"    {row.technology}{version}  category={row.category or '-'} "
-                        f"confidence={row.confidence or '-'} status={status}"
-                    )
-                    print(f"    signal: {row.signal or '-'}")
+                render_technology_results(rows)
                 print(f"\n  Showing {len(rows)} technology observation(s). Use --limit to increase the view.")
             else:
                 rows = list_assets(
@@ -240,9 +272,12 @@ def main() -> None:
         )
         if run is None:
             parser.error("no matching scan run was found")
+        if args.alive and args.type:
+            parser.error("--alive and --type cannot be combined")
         try:
             count = export_scan(
-                str(database), run, format=args.format, output=args.output, force=args.force, alive=args.alive
+                str(database), run, format=args.format, output=args.output,
+                force=args.force, alive=args.alive, asset_type=args.type
             )
         except FileExistsError as error:
             parser.error(f"{error}; pass --force to overwrite it")

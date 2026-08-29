@@ -6,6 +6,7 @@ import sqlite3
 from pathlib import Path
 
 from sh4q.storage.scan_runs import ScanRun
+from sh4q.application.results import list_technology_observations
 
 
 class ScanOwnershipUnavailableError(Exception):
@@ -20,9 +21,12 @@ def export_scan(
     output: Path,
     force: bool = False,
     alive: str | None = None,
+    asset_type: str | None = None,
 ) -> int:
     if alive not in (None, "http", "dns"):
         raise ValueError(f"unsupported alive filter: {alive}")
+    if alive and asset_type:
+        raise ValueError("--alive and --type cannot be combined")
     with sqlite3.connect(database) as db:
         if alive in ("http", "dns"):
             relationship_type = "SERVES" if alive == "http" else "RESOLVES_TO"
@@ -65,7 +69,23 @@ def export_scan(
     if output.exists() and not force:
         raise FileExistsError(f"output already exists: {output}")
     output.parent.mkdir(parents=True, exist_ok=True)
-    assets = [
+    if asset_type == "technology":
+        observations = list_technology_observations(database, scan_id=run.id, limit=1000)
+        assets = [
+            {
+                "type": "technology",
+                "value": item.technology,
+                "endpoint": item.endpoint,
+                "category": item.category,
+                "version": item.version,
+                "confidence": item.confidence,
+                "http_status": item.status,
+                "signal": item.signal,
+            }
+            for item in observations
+        ]
+    else:
+        assets = [
         {
             "type": row[0],
             "value": row[1],
@@ -74,7 +94,7 @@ def export_scan(
         }
         | ({"endpoint": row[4], "endpoint_attributes": json.loads(row[5])} if alive in ("http", "dns") else {})
         for row in rows
-    ]
+        ]
 
     if format == "json":
         document = {
@@ -91,15 +111,37 @@ def export_scan(
         output.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     elif format == "csv":
         with output.open("w", newline="", encoding="utf-8") as stream:
+            if asset_type == "technology":
+                fieldnames = [
+                    "scan_id", "target", "endpoint", "technology", "category",
+                    "version", "confidence", "http_status", "signal",
+                ]
+            else:
+                fieldnames = ["scan_id", "target", "type", "value", "sources", "attributes"]
+                if alive == "http":
+                    fieldnames.extend(["endpoint", "http_status"])
+                elif alive == "dns":
+                    fieldnames.append("resolved_address")
             writer = csv.DictWriter(
                 stream,
-                fieldnames=["scan_id", "target", "type", "value", "sources", "attributes"]
-                + (["endpoint", "http_status"] if alive == "http" else ["resolved_address"] if alive == "dns" else []),
+                fieldnames=fieldnames,
             )
             writer.writeheader()
             for item in assets:
-                writer.writerow(
-                    {
+                if asset_type == "technology":
+                    writer.writerow({
+                        "scan_id": run.id,
+                        "target": run.target,
+                        "endpoint": item["endpoint"],
+                        "technology": item["value"],
+                        "category": item["category"],
+                        "version": item["version"],
+                        "confidence": item["confidence"],
+                        "http_status": item["http_status"],
+                        "signal": item["signal"],
+                    })
+                else:
+                    writer.writerow({
                         "scan_id": run.id,
                         "target": run.target,
                         "type": item["type"],
@@ -107,8 +149,7 @@ def export_scan(
                         "sources": ",".join(item["sources"]),
                         "attributes": json.dumps(item["attributes"], sort_keys=True),
                         **({"endpoint": item["endpoint"], "http_status": item["endpoint_attributes"].get("status")} if alive == "http" else {"resolved_address": item["endpoint"]} if alive == "dns" else {}),
-                    }
-                )
+                    })
     else:
         raise ValueError(f"unsupported export format: {format}")
     return len(assets)

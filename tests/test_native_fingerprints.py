@@ -26,6 +26,7 @@ findings = {item.data["technologies"][0]: item.data for item in discoveries}
 assert findings["nginx"]["version"] == "1.25.4"
 assert findings["PHP"]["confidence"] == "high"
 assert findings["Cloudflare"]["confidence"] == "high"
+assert findings["Cloudflare"]["category"] == "cdn-waf"
 assert findings["WordPress"]["category"] == "cms"
 assert findings["Next.js"]["category"] == "web-framework"
 assert all(item.data["signature_version"] == "2026.08.1" for item in discoveries)
