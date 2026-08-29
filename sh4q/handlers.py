@@ -290,7 +290,11 @@ def make_discovery_handler(
         elif kind in ("http_error", "dns_error", "ct_error"):
             phase = data.get("phase")
             suffix = f" [{phase}]" if phase else ""
-            print(f"  FAILED  {kind}{suffix}: {data.get('error', 'unknown error')}")
+            message = f"  FAILED  {kind}{suffix}: {data.get('error', 'unknown error')}"
+            if source_plugin == "discovered-http":
+                display_bounded("discovered HTTP failure", message)
+            else:
+                print(message)
 
         else:
             print(f"  (no handler yet for discovery kind={kind!r})")

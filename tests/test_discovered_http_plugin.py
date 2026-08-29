@@ -40,6 +40,7 @@ async def main():
         "discovered-dns",
     )
     assert plugin._names == ["api.example.com", "blocked.example.com"]
+    assert plugin._addresses["api.example.com"] == {"93.184.216.34", "93.184.216.35"}
     results = await plugin.execute("example.com")
     probes = [item for item in results if item.kind == "http_probe"]
     assert {item.data["final_url"] for item in probes} == {

@@ -24,11 +24,15 @@ class HTTPPlugin(Plugin):
         scope: ScopeEngine,
         client_factory: Callable | None = None,
         limiter: RequestLimiter | None = None,
+        resolver: Callable | None = None,
     ):
         self.scope = scope
         self._client_factory = client_factory or (
             lambda: ScopedHTTPClient(
-                self.scope, timeout=self.metadata.timeout, limiter=limiter
+                self.scope,
+                timeout=self.metadata.timeout,
+                limiter=limiter,
+                resolver=resolver,
             )
         )
 

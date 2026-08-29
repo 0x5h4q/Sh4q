@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from sh4q.network import RequestLimiter
+from sh4q.network import AsyncDNSResolver, RequestLimiter
 from sh4q.scope import ScopeEngine
 
 from .discovery import Discovery
@@ -34,20 +34,27 @@ class DiscoveredHTTPPlugin(Plugin):
         self._semaphore = asyncio.Semaphore(max(1, max_concurrent))
         self._client_factory = client_factory
         self._names: list[str] = []
+        self._addresses: dict[str, set[str]] = {}
+        self._redirect_resolver = AsyncDNSResolver()
 
     def accept_discoveries(
         self, discoveries: list[Discovery], source_plugin: str | None = None
     ) -> None:
         if source_plugin != "discovered-dns":
             return
-        names = {
-            item.data.get("domain", "").lower().rstrip(".")
-            for item in discoveries
-            if item.kind == "discovered_dns_resolution" and item.data.get("domain")
-        }
+        addresses: dict[str, set[str]] = {}
+        for item in discoveries:
+            if item.kind != "discovered_dns_resolution":
+                continue
+            name = item.data.get("domain", "").lower().rstrip(".")
+            address = item.data.get("ip", "")
+            if name and address:
+                addresses.setdefault(name, set()).add(address)
+        names = set(addresses)
         self._names = sorted(
             name for name in names if self._scope.authorize(name).allowed
         )[: self._max_names]
+        self._addresses = {name: addresses[name] for name in self._names}
 
     async def execute(self, target: str) -> list[Discovery]:
         tasks = [asyncio.create_task(self._probe(name)) for name in self._names]
@@ -63,9 +70,16 @@ class DiscoveredHTTPPlugin(Plugin):
 
     async def _probe(self, name: str) -> list[Discovery]:
         async with self._semaphore:
+            async def resolve(host: str, port: int) -> list[str]:
+                normalized = host.lower().rstrip(".")
+                if normalized == name:
+                    return sorted(self._addresses[name])
+                return await self._redirect_resolver.resolve_addresses(normalized)
+
             plugin = HTTPPlugin(
                 self._scope,
                 client_factory=self._client_factory,
                 limiter=self._limiter,
+                resolver=resolve,
             )
             return await plugin.execute(name)
