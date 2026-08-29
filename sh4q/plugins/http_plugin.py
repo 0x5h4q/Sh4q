@@ -8,36 +8,7 @@ from sh4q.scope import ScopeEngine
 from .discovery import Discovery
 from .interface import Plugin, PluginMetadata
 from sh4q.network import RequestLimiter, ScopedHTTPClient, ScopedHTTPError
-
-
-def _header_fingerprints(probe: Discovery) -> list[Discovery]:
-    observations = []
-    for header, value in (
-        ("server", probe.data.get("server", "")),
-        ("x-powered-by", probe.data.get("powered_by", "")),
-    ):
-        raw = str(value).strip()
-        if not raw:
-            continue
-        product = raw.split("/", 1)[0].split(" ", 1)[0].strip()
-        if not product:
-            continue
-        observations.append(
-            Discovery(
-                kind="http_fingerprint",
-                data={
-                    "endpoint": probe.data["final_url"],
-                    "status": probe.data["status"],
-                    "title": "",
-                    "technologies": [product],
-                    "detection_method": f"http-header:{header}",
-                    "confidence": "explicit-header",
-                    "source": "native-http",
-                    "raw_observation": raw,
-                },
-            )
-        )
-    return observations
+from sh4q.fingerprints import extract_http_metadata, fingerprint_response
 
 
 class HTTPPlugin(Plugin):
@@ -75,8 +46,8 @@ class HTTPPlugin(Plugin):
 
                 try:
                     response = await client.get(url)
-
-                    return Discovery(
+                    metadata = extract_http_metadata(response)
+                    probe = Discovery(
                         kind="http_probe",
                         data={
                             "requested_url": url,
@@ -84,18 +55,24 @@ class HTTPPlugin(Plugin):
                             "status": response.status_code,
                             "server": response.headers.get("server", ""),
                             "powered_by": response.headers.get("x-powered-by", ""),
+                            "title": metadata["title"],
+                            "content_type": metadata["content_type"],
+                            "cookie_names": metadata["cookie_names"],
+                            "sample_bytes": metadata["sample_bytes"],
+                            "sample_truncated": metadata["sample_truncated"],
                             "duration_seconds": round(time.monotonic() - started, 3),
                             "address": getattr(response, "extensions", {}).get("sh4q_pinned_ip"),
                         },
                     )
+                    return [probe, *fingerprint_response(str(response.url), response.status_code, response, metadata)]
 
                 except asyncio.TimeoutError:
-                    return Discovery(
+                    return [Discovery(
                         kind="http_error",
                         data={"url": url, "error": "request timed out", "phase": "overall", "timeout": self.metadata.timeout, "duration_seconds": round(time.monotonic() - started, 3)},
-                    )
+                    )]
                 except (httpx.HTTPError, ScopedHTTPError) as e:
-                    return Discovery(
+                    return [Discovery(
                         kind="http_error",
                         data={
                             "url": url,
@@ -104,14 +81,14 @@ class HTTPPlugin(Plugin):
                             "duration_seconds": round(time.monotonic() - started, 3),
                             "address": getattr(e, "address", None),
                         },
-                    )
+                    )]
 
             async def bounded_probe(scheme: str) -> Discovery:
                 try:
                     return await asyncio.wait_for(probe(scheme), timeout=probe_timeout)
                 except asyncio.TimeoutError:
                     url = f"{scheme}://{target}"
-                    return Discovery(
+                    return [Discovery(
                         kind="http_error",
                         data={
                             "url": url,
@@ -119,16 +96,23 @@ class HTTPPlugin(Plugin):
                             "phase": "overall",
                             "timeout": probe_timeout,
                         },
-                    )
+                    )]
 
-            discoveries = await asyncio.gather(
+            batches = await asyncio.gather(
                 *(bounded_probe(scheme) for scheme in ("https", "http"))
             )
+            discoveries = [item for batch in batches for item in batch]
 
         unique: dict[tuple, Discovery] = {}
 
         for discovery in discoveries:
-            if discovery.kind != "http_probe":
+            if discovery.kind == "http_fingerprint":
+                key = (
+                    discovery.kind,
+                    discovery.data.get("endpoint"),
+                    tuple(discovery.data.get("technologies") or []),
+                )
+            elif discovery.kind != "http_probe":
                 key = (
                     discovery.kind,
                     discovery.data.get("url"),
@@ -143,11 +127,4 @@ class HTTPPlugin(Plugin):
 
             unique[key] = discovery
 
-        results = list(unique.values())
-        fingerprints = [
-            fingerprint
-            for discovery in results
-            if discovery.kind == "http_probe"
-            for fingerprint in _header_fingerprints(discovery)
-        ]
-        return [*results, *fingerprints]
+        return list(unique.values())

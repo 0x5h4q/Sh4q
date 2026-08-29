@@ -156,7 +156,15 @@ def make_discovery_handler(
             url_node = Node(
                 type="url",
                 value=final_url,
-                attributes={"status": data["status"], "server": data.get("server", "")},
+                attributes={
+                    "status": data["status"],
+                    "server": data.get("server", ""),
+                    "title": data.get("title", ""),
+                    "content_type": data.get("content_type", ""),
+                    "cookie_names": data.get("cookie_names", []),
+                    "sample_bytes": data.get("sample_bytes", 0),
+                    "sample_truncated": data.get("sample_truncated", False),
+                },
             )
             await storage.save_node(url_node)
 
@@ -199,6 +207,10 @@ def make_discovery_handler(
                         "title": data.get("title", ""),
                         "source": data.get("source", source_plugin),
                         "raw_observation": data.get("raw_observation", ""),
+                        "category": data.get("category", ""),
+                        "version": data.get("version", ""),
+                        "signals": data.get("signals", []),
+                        "signature_version": data.get("signature_version", ""),
                     },
                 )
                 await storage.save_relationship(relationship)

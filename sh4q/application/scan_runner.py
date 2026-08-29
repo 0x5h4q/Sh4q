@@ -47,6 +47,7 @@ class ScanSummary:
     resolved_discovered_addresses: int
     resolved_discovered_attempted: int
     resolved_discovered_failures: int
+    technologies: int
     relationships: int
     evidence: int
     evidence_this_scan: int
@@ -108,6 +109,7 @@ async def run_scan(
         "resolved_discovered_addresses": 0,
         "resolved_discovered_attempted": 0,
         "resolved_discovered_failures": 0,
+        "technologies": 0,
     }
 
     bus.subscribe(
@@ -193,6 +195,7 @@ async def run_scan(
         resolved_discovered_addresses=stats["resolved_discovered_addresses"],
         resolved_discovered_attempted=stats["resolved_discovered_attempted"],
         resolved_discovered_failures=stats["resolved_discovered_failures"],
+        technologies=stats["technologies"],
         relationships=stats["relationships"],
         evidence=len(evidence_records),
         evidence_this_scan=len(scan_evidence_records),
