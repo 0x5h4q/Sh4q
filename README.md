@@ -70,4 +70,4 @@ The default database is `./sh4q-output/sh4q.db`. It may contain sensitive target
 
 ## Project Status
 
-Sh4q is approaching a private alpha for trusted testers. Expect incomplete packaging, variable live-provider results, and breaking changes between early versions.
+Sh4q is available as a limited private alpha for trusted testers. Expect variable live-provider results and breaking changes between early versions.

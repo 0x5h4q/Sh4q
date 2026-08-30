@@ -2,6 +2,7 @@
 import argparse
 import asyncio
 import sys
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from sh4q.application import run_scan
@@ -153,6 +154,11 @@ def build_parser() -> argparse.ArgumentParser:
         prog="sh4q",
         description="Sh4q - policy-controlled reconnaissance with evidence and scope checks.",
     )
+    try:
+        package_version = version("sh4q")
+    except PackageNotFoundError:
+        package_version = "development"
+    parser.add_argument("--version", action="version", version=f"sh4q {package_version}")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     scan = subparsers.add_parser("scan", help="Scan a target")

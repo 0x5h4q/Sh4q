@@ -50,4 +50,4 @@ This list describes the private-alpha boundary. It should be read before judging
 - Sh4q does not perform vulnerability exploitation.
 - It does not currently crawl applications broadly or perform general port scanning.
 - It is not a direct replacement for reconFTW, Amass, Nmap, or a commercial attack-surface management platform.
-- Packaging and CLI presentation are still being prepared for private alpha.
+- The private-alpha package is source-based and currently requires Python and a local virtual environment; no standalone binary is provided.
