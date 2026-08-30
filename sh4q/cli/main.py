@@ -149,7 +149,10 @@ def render_scan_report(report) -> None:
             )
     print()
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="sh4q", description="Sh4q —> Your very own scope-aware recon engine ('_')/")
+    parser = argparse.ArgumentParser(
+        prog="sh4q",
+        description="Sh4q - policy-controlled reconnaissance with evidence and scope checks.",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     scan = subparsers.add_parser("scan", help="Scan a target")
