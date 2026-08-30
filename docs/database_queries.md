@@ -49,7 +49,7 @@ Exit with `.quit`.
 
 ## Planned Non-SQL Interface
 
-Ordinary users should not need SQL. Planned interfaces include `sh4q results` with target/type/source filters, JSON and CSV export, and a self-contained HTML report showing assets, provenance, failures, and scan metrics.
+Ordinary users should not need SQL. The supported interfaces are `sh4q results` with target/type filters, `sh4q show` for scan summaries, and JSON/CSV export. A self-contained HTML report showing assets, provenance, failures, and scan metrics remains future work.
 
 The first non-SQL view is now available:
 
