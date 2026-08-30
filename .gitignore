@@ -21,3 +21,7 @@ Sh4q_Academic_Project_Draft.docx
 docs/academic_project_outline.md
 docs/research_workflow.md
 docs/research/
+architecture.md
+tools/build_project_docs.py
+tools/collect_sources.py
+tools/update_architecture_review.py
