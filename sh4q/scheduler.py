@@ -33,6 +33,7 @@ class Scheduler:
         )
         self._retry_jitter = max(0.0, retry_jitter)
         self.stage_durations: dict[str, float] = {}
+        self.stage_outcomes: dict[str, dict] = {}
         self._scan_run_id = scan_run_id
 
     def _ordered_plugins(self) -> list[Plugin]:
@@ -128,6 +129,7 @@ class Scheduler:
     ) -> list[Any]:
 
         total_attempts = self._max_retries + 1
+        stage_name = plugin.metadata.name
 
         for attempt in range(1, total_attempts + 1):
 
@@ -158,6 +160,9 @@ class Scheduler:
                         f"on {target} "
                         f"after {attempt} attempts"
                     )
+                    self.stage_outcomes[stage_name] = {
+                        "status": "timeout_exhausted", "attempts": attempt, "discoveries": 0
+                    }
                     return []
 
                 delay = self._backoff_delay(attempt)
@@ -181,6 +186,10 @@ class Scheduler:
                 # Generic unexpected exceptions are NOT automatically
                 # retried. Plugins should explicitly report retryable
                 # domain-specific failures through discoveries.
+                self.stage_outcomes[stage_name] = {
+                    "status": "error", "attempts": attempt, "discoveries": 0,
+                    "error": f"{type(e).__name__}: {e}",
+                }
                 return []
 
             # ---------------------------------------------------------
@@ -191,6 +200,9 @@ class Scheduler:
             # ---------------------------------------------------------
 
             if not self._retryable_discovery(discoveries):
+                self.stage_outcomes[stage_name] = {
+                    "status": "completed", "attempts": attempt, "discoveries": len(discoveries)
+                }
                 return discoveries
 
             if attempt >= total_attempts:
@@ -199,6 +211,10 @@ class Scheduler:
                     f"on {target} "
                     f"after {attempt} attempts"
                 )
+                self.stage_outcomes[stage_name] = {
+                    "status": "retry_exhausted", "attempts": attempt,
+                    "discoveries": len(discoveries),
+                }
                 return discoveries
 
             delay = self._backoff_delay(attempt)
@@ -246,6 +262,12 @@ class Scheduler:
                     f"SKIP {plugin.metadata.name}: "
                     "preflight failed"
                 )
+                self.stage_durations[plugin.metadata.name] = round(
+                    time.monotonic() - stage_started, 3
+                )
+                self.stage_outcomes[plugin.metadata.name] = {
+                    "status": "skipped", "attempts": 0, "discoveries": 0
+                }
                 continue
 
             try:
@@ -253,11 +275,23 @@ class Scheduler:
                     plugin,
                     target,
                 )
-
+            except BaseException:
+                self.stage_durations[plugin.metadata.name] = round(
+                    time.monotonic() - stage_started, 3
+                )
+                self.stage_outcomes[plugin.metadata.name] = {
+                    "status": "interrupted", "attempts": 0, "discoveries": 0
+                }
+                raise
             finally:
                 try:
                     await plugin.cleanup()
                 except Exception as error:
+                    outcome = self.stage_outcomes.setdefault(
+                        plugin.metadata.name,
+                        {"status": "cleanup_error", "attempts": 0, "discoveries": 0},
+                    )
+                    outcome["cleanup_error"] = f"{type(error).__name__}: {error}"
                     print(
                         f"CLEANUP ERROR {plugin.metadata.name} "
                         f"on {target}: {error}"

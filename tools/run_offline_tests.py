@@ -43,6 +43,7 @@ OFFLINE_TESTS = (
     "test_scoped_http.py",
     "test_sqlite_concurrency.py",
     "test_stage_timing.py",
+    "test_stage_metrics_evidence.py",
     "test_subfinder_adapter.py",
     "test_subfinder_scheduler_integration.py",
     "test_trusted_service_http.py",

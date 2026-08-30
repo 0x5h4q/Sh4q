@@ -25,6 +25,11 @@ async def main():
     finally:
         await bus.shutdown()
     assert scheduler.stage_durations["timed"] >= 0.01
+    assert scheduler.stage_outcomes["timed"] == {
+        "status": "completed",
+        "attempts": 1,
+        "discoveries": 0,
+    }
     print("stage timing test passed")
 
 

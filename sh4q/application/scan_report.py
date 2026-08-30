@@ -23,6 +23,7 @@ class ScanReport:
     dns_failures: dict[str, int] = field(default_factory=dict)
     http_failures: int = 0
     request_metrics: dict = field(default_factory=dict)
+    stages: list[dict] = field(default_factory=list)
 
 
 def build_scan_report(database: str, run: ScanRun) -> ScanReport:
@@ -68,6 +69,7 @@ def build_scan_report(database: str, run: ScanRun) -> ScanReport:
         dns_failures: dict[str, int] = {}
         http_failures = 0
         request_metrics = {}
+        stages = []
         rows = db.execute(
             "SELECT kind, content FROM evidence WHERE scan_run_id = ?",
             (run.id,),
@@ -83,6 +85,8 @@ def build_scan_report(database: str, run: ScanRun) -> ScanReport:
                 http_failures += 1
             elif kind == "request_metrics":
                 request_metrics = content
+            elif kind == "stage_metrics":
+                stages = content.get("stages", [])
 
     return ScanReport(
         run=run,
@@ -99,4 +103,5 @@ def build_scan_report(database: str, run: ScanRun) -> ScanReport:
         dns_failures=dns_failures,
         http_failures=http_failures,
         request_metrics=request_metrics,
+        stages=stages,
     )

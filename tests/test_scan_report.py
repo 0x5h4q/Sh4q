@@ -34,6 +34,7 @@ with tempfile.TemporaryDirectory() as directory:
             ("scan-1", "discovered_dns_error", json.dumps({"reason": "nxdomain"})),
             ("scan-1", "http_error", json.dumps({"error": "timeout"})),
             ("scan-1", "request_metrics", json.dumps({"observed": {"admitted": 2}})),
+            ("scan-1", "stage_metrics", json.dumps({"stages": [{"name": "dns", "status": "completed", "attempts": 1, "discoveries": 1, "duration_seconds": 0.5}]})),
         ])
 
     run = ScanRun("scan-1", "example.com", "start", "end", "COMPLETED")
@@ -45,4 +46,5 @@ with tempfile.TemporaryDirectory() as directory:
     assert report.dns_failures == {"nxdomain": 1}
     assert report.http_failures == 1
     assert report.request_metrics["observed"]["admitted"] == 2
+    assert report.stages[0]["name"] == "dns"
 print("scan report test passed")

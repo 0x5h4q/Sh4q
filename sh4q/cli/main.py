@@ -102,6 +102,18 @@ def render_scan_report(report) -> None:
             f"    Limits                  {configured.get('requests_per_second', '-')} req/s, "
             f"{configured.get('max_concurrent', '-')} concurrent, budget {configured.get('budget', '-')}"
         )
+    if report.stages:
+        print("\n  Stages")
+        print("    NAME                STATUS               ATTEMPTS  FINDINGS  DURATION")
+        print("    ------------------  -------------------  --------  --------  --------")
+        for stage in report.stages:
+            print(
+                f"    {_fit(stage.get('name'), 18):<18}  "
+                f"{_fit(stage.get('status'), 19):<19}  "
+                f"{stage.get('attempts', 0):>8}  "
+                f"{stage.get('discoveries', 0):>8}  "
+                f"{stage.get('duration_seconds', 0):>7.2f}s"
+            )
     print()
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="sh4q", description="Sh4q —> Your very own scope-aware recon engine ('_')/")

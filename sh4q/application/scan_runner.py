@@ -25,6 +25,7 @@ from sh4q.storage.scan_runs import create_scan, finish_scan
 from sh4q.storage.scan_assets import SQLiteScanAssetStore
 from sh4q.storage.db import ensure_schema_version
 from sh4q.application.request_metrics import persist_request_metrics
+from sh4q.application.stage_metrics import persist_stage_metrics
 from sh4q.adapters import (
     AdapterContext,
     AdapterExecutionError,
@@ -132,6 +133,7 @@ async def run_scan(
     bus.start()
 
     outcome = "completed"
+    scheduler = None
     try:
         plugins = [DNSPlugin(), HTTPPlugin(scope, limiter=limiter), CTPlugin(limiter=limiter)]
         if include_subfinder:
@@ -179,6 +181,14 @@ async def run_scan(
             outcome=outcome,
             scan_run_id=scan_run.id,
         )
+        if scheduler is not None:
+            await persist_stage_metrics(
+                evidence_store,
+                target=target,
+                durations=scheduler.stage_durations,
+                outcomes=scheduler.stage_outcomes,
+                scan_run_id=scan_run.id,
+            )
         finish_scan(db_path, scan_run.id, "COMPLETED" if outcome == "completed" else "INTERRUPTED")
 
     evidence_records = await evidence_store.list_for_target(target)

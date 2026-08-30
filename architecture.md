@@ -185,6 +185,8 @@ Before private-alpha distribution, complete a presentation pass: add a restraine
 
 The deterministic offline suite is now standardized through `tools/run_offline_tests.py`. It uses an explicit 36-test allow-list, aligned pass/fail output, per-test timing and timeout enforcement, captured failure diagnostics, and a nonzero failure exit code. A validation run passed 36/36 tests in 13.25 seconds. GitHub Actions runs the same command on Python 3.11, 3.12, and 3.13. Optional local-TLS checks and manual/live scripts remain separately classified in `docs/testing.md`.
 
+Stage performance is now durable. Each scan writes ordered `stage_metrics` evidence containing stage name, status, attempts, discovery count, duration, and cleanup error where applicable. Supported statuses include completed, skipped, error, timeout exhausted, retry exhausted, and interrupted. `sh4q show` renders these records as a stage table; older scans omit it rather than receiving reconstructed values. The expanded deterministic suite passes 37/37 tests in 12.89 seconds.
+
 ## Delivery Plan
 
 Work in small, reviewable increments. Each increment must add regression tests before expanding discovery breadth. Do not add active scanners until the safety boundary and event guarantees pass their gates.
