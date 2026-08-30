@@ -26,6 +26,16 @@ REPLACEMENTS = {
     "Weeks 5–6: subdomain enumeration first, followed by additional discovery modules and reporting, while preserving the frozen engine contracts unless real plugin behavior demonstrates a concrete need to change them.": "Private alpha: presentation polish, clean-install verification, controlled feedback, repeated benchmarks, and one carefully selected next adapter.",
     "JavaScript analysis, cloud enumeration, certificate transparency, passive intelligence, screenshots, secret discovery": "JavaScript analysis, cloud enumeration, deeper passive intelligence, screenshots and secret discovery",
     "The validated implementation had a clean working tree and HEAD at commit 9f1b73b (Fix scan pipeline, scope handling, and relationship counting) before the later Week 4 documentation update.": "The review is maintained alongside the implementation history; the current repository state is recorded by Git commits and the authoritative architecture.md record.",
+    "│   ├── events/": "│   ├── adapters/ (controlled runner, Subfinder, fingerprinting)",
+    "│   │   ├── dns_plugin.py": "│   ├── events/ and handlers.py",
+    "│   │   ├── http_plugin.py": "│   ├── plugins/ and scheduler.py",
+    "│   │   └── interface.py": "│   ├── scope/ and storage/",
+    "│   ├── handlers.py": "│   ├── config/ and network services",
+    "│   ├── scheduler.py": "│   ├── docs/ and tools/",
+    "│   ├── scope/": "│   ├── tests/ and .github/workflows/",
+    "│   └── storage/": "│   └── README.md",
+    "└── venv/": "└── pyproject.toml",
+    "The Application/Scan Runner and CLI layers are additive orchestration layers. Proven scheduler, handler, storage and plugin boundaries are not being reshuffled merely for aesthetic reasons.": "The application, CLI, adapter, scheduler, handler, scope, and storage layers remain separate ownership boundaries. A tester distribution should omit local virtual environments, scan databases, generated exports, and private academic records.",
     "Document Maintenance Note": "Document Maintenance Note",
 }
 
