@@ -66,6 +66,26 @@ def render_asset_results(rows) -> None:
                 for value, (_, width) in zip((row.type, row.value), columns)
             )
         )
+
+
+def render_event_results(records) -> None:
+    columns = (("STATUS", 12), ("TYPE", 14), ("TARGET", 34), ("ATTEMPTS", 8), ("EVENT ID", 32))
+    print("  " + "  ".join(label.ljust(width) for label, width in columns))
+    print("  " + "  ".join("-" * width for _, width in columns))
+    for record in records:
+        values = (record.status, record.type, record.target or "-", record.attempts, record.id)
+        print("  " + "  ".join(_fit(value, width).ljust(width) for value, (_, width) in zip(values, columns)))
+        if record.error:
+            print(f"    error: {_fit(record.error, 100)}")
+
+
+def render_scan_runs(rows) -> None:
+    columns = (("STATUS", 12), ("ASSETS", 7), ("TARGET", 34), ("STARTED", 22), ("SCAN ID", 32))
+    print("  " + "  ".join(label.ljust(width) for label, width in columns))
+    print("  " + "  ".join("-" * width for _, width in columns))
+    for run, assets in rows:
+        values = (run.status, assets, run.target, run.started_at, run.id)
+        print("  " + "  ".join(_fit(value, width).ljust(width) for value, (_, width) in zip(values, columns)))
 def render_scan_report(report) -> None:
     run = report.run
     observed = report.request_metrics.get("observed", {})
@@ -292,13 +312,8 @@ def main() -> None:
         print("  ===============")
         if not records:
             print("  No matching events.")
-        for record in records:
-            print(
-                f"  {record.status:<11} {record.type:<12} "
-                f"event-attempts={record.attempts:<2} {record.target or '-':<30} {record.id}"
-            )
-            if record.error:
-                print(f"    error: {record.error}")
+        else:
+            render_event_results(records)
         print()
         return
 
@@ -357,12 +372,8 @@ def main() -> None:
         if not database.exists():
             parser.error(f"database not found: {database}")
         print("\n  SH4Q SCAN RUNS\n  ============== ")
-        for run in list_scans(str(database), args.limit):
-            assets = scan_asset_count(str(database), run.id)
-            print(
-                f"  {run.status:<11} assets={assets:<5} {run.target:<35} "
-                f"{run.started_at}  {run.id}"
-            )
+        runs = list_scans(str(database), args.limit)
+        render_scan_runs([(run, scan_asset_count(str(database), run.id)) for run in runs])
         print()
         return
 
