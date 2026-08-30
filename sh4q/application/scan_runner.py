@@ -23,6 +23,7 @@ from sh4q.storage import SQLiteStorage
 from sh4q.storage.evidence import SQLiteEvidenceStore
 from sh4q.storage.scan_runs import create_scan, finish_scan
 from sh4q.storage.scan_assets import SQLiteScanAssetStore
+from sh4q.storage.db import ensure_schema_version
 from sh4q.application.request_metrics import persist_request_metrics
 from sh4q.adapters import (
     AdapterContext,
@@ -81,6 +82,7 @@ async def run_scan(
     config = load_config(config_path) if config_path else _default_config(target)
     os.makedirs(config.output.directory, exist_ok=True)
     db_path = os.path.join(config.output.directory, "sh4q.db")
+    ensure_schema_version(db_path)
 
     scope = ScopeEngine(config)
     limiter = RequestLimiter(

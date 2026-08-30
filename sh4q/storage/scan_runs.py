@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import uuid4
+from sh4q.storage.db import open_sync_database
 
 
 @dataclass(frozen=True)
@@ -16,7 +16,7 @@ class ScanRun:
 
 
 def scan_asset_count(database: str, scan_id: str) -> int:
-    with sqlite3.connect(database) as db:
+    with open_sync_database(database) as db:
         table = db.execute(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name='scan_assets'"
         ).fetchone()
@@ -30,7 +30,7 @@ def scan_asset_count(database: str, scan_id: str) -> int:
 def create_scan(database: str, target: str) -> ScanRun:
     started = datetime.now(timezone.utc).isoformat()
     run = ScanRun(uuid4().hex, target, started, None, "RUNNING")
-    with sqlite3.connect(database) as db:
+    with open_sync_database(database) as db:
         db.execute("CREATE TABLE IF NOT EXISTS scan_runs (id TEXT PRIMARY KEY, target TEXT NOT NULL, started_at TEXT NOT NULL, completed_at TEXT, status TEXT NOT NULL)")
         db.execute("INSERT INTO scan_runs VALUES (?, ?, ?, NULL, ?)", (run.id, run.target, run.started_at, run.status))
         db.commit()
@@ -38,13 +38,13 @@ def create_scan(database: str, target: str) -> ScanRun:
 
 
 def finish_scan(database: str, scan_id: str, status: str) -> None:
-    with sqlite3.connect(database) as db:
+    with open_sync_database(database) as db:
         db.execute("UPDATE scan_runs SET completed_at = ?, status = ? WHERE id = ?", (datetime.now(timezone.utc).isoformat(), status, scan_id))
         db.commit()
 
 
 def list_scans(database: str, limit: int = 50) -> list[ScanRun]:
-    with sqlite3.connect(database) as db:
+    with open_sync_database(database) as db:
         db.execute("CREATE TABLE IF NOT EXISTS scan_runs (id TEXT PRIMARY KEY, target TEXT NOT NULL, started_at TEXT NOT NULL, completed_at TEXT, status TEXT NOT NULL)")
         rows = db.execute("SELECT id, target, started_at, completed_at, status FROM scan_runs ORDER BY started_at DESC LIMIT ?", (max(1, min(limit, 500)),)).fetchall()
     return [ScanRun(*row) for row in rows]
@@ -64,13 +64,13 @@ def latest_scan(
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
     query += " ORDER BY started_at DESC LIMIT 1"
-    with sqlite3.connect(database) as db:
+    with open_sync_database(database) as db:
         row = db.execute(query, params).fetchone()
     return ScanRun(*row) if row else None
 
 
 def get_scan(database: str, scan_id: str) -> ScanRun | None:
-    with sqlite3.connect(database) as db:
+    with open_sync_database(database) as db:
         row = db.execute(
             "SELECT id, target, started_at, completed_at, status FROM scan_runs WHERE id = ?",
             (scan_id,),

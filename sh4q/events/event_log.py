@@ -120,7 +120,7 @@ class DurableEventLog:
             parameters.append(target)
         query += " ORDER BY updated_at DESC LIMIT ?"
         parameters.append(max(1, min(limit, 500)))
-        async with aiosqlite.connect(self._db_path) as db:
+        async with open_database(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             rows = await (await db.execute(query, parameters)).fetchall()
         return [

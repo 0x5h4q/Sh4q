@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 from dataclasses import dataclass, field
 
 from sh4q.storage.scan_runs import ScanRun
+from sh4q.storage.db import open_sync_database
 
 
 @dataclass(frozen=True)
@@ -26,7 +26,7 @@ class ScanReport:
 
 
 def build_scan_report(database: str, run: ScanRun) -> ScanReport:
-    with sqlite3.connect(database) as db:
+    with open_sync_database(database) as db:
         asset_types = dict(db.execute(
             """SELECT n.type, COUNT(DISTINCT n.id)
             FROM scan_assets sa JOIN nodes n ON n.id = sa.asset_id

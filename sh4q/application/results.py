@@ -4,6 +4,7 @@ import json
 import sqlite3
 from dataclasses import dataclass
 from urllib.parse import urlsplit
+from sh4q.storage.db import open_sync_database
 
 
 @dataclass(frozen=True)
@@ -44,7 +45,7 @@ def list_technology_observations(
         params.append(scan_id)
     query += " ORDER BY endpoint.value, technology.value"
     normalized = target.lower().rstrip(".") if target else None
-    with sqlite3.connect(database) as db:
+    with open_sync_database(database) as db:
         rows = db.execute(query, params).fetchall()
     observations = []
     for endpoint, technology, raw_attributes in rows:
@@ -87,7 +88,7 @@ def list_assets(
         query += " WHERE " + " AND ".join(conditions)
     query += " ORDER BY type, value LIMIT ?"
     params.append(max(1, min(limit, 1000)))
-    with sqlite3.connect(database) as db:
+    with open_sync_database(database) as db:
         if scan_id:
             scan_rows = db.execute(
                 """SELECT DISTINCT n.type, n.value, n.attributes
@@ -178,5 +179,5 @@ def list_failures(database: str, *, target: str | None = None, limit: int = 100)
         params.append(target)
     query += " ORDER BY captured_at DESC LIMIT ?"
     params.append(max(1, min(limit, 1000)))
-    with sqlite3.connect(database) as db:
+    with open_sync_database(database) as db:
         return db.execute(query, params).fetchall()

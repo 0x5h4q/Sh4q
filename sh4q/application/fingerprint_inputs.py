@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import sqlite3
 from urllib.parse import urlsplit
 
 from sh4q.scope import ScopeEngine
+from sh4q.storage.db import open_sync_database
 
 
 def scan_fingerprint_endpoints(
@@ -15,7 +15,7 @@ def scan_fingerprint_endpoints(
 ) -> list[str]:
     """Return deduplicated, in-scope HTTP endpoints owned by one scan."""
 
-    with sqlite3.connect(database) as db:
+    with open_sync_database(database) as db:
         rows = db.execute(
             """SELECT DISTINCT n.value
             FROM scan_assets sa

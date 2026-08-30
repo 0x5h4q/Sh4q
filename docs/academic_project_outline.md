@@ -193,6 +193,8 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 44. Technology results are displayed per endpoint with status, category, confidence, version, and supporting signal. Evaluation distinguishes total discovered assets from HTTP-observed endpoints; passive names are not described as fingerprinted hosts.
 45. Technology reporting uses a compact endpoint-aware table and structured CSV/JSON export. More specific signature categories override generic server labels in new observations, while historical evidence remains immutable for reproducibility.
 46. A persisted scan-overview command separates verified surface, stored records, categorized failures, per-source ownership, and durable request metrics without requiring SQL. Stage timing persistence remains follow-up work rather than being inferred retrospectively.
+47. SQLite storage now records schema version 1, rejects unsupported newer schemas, establishes WAL during initialization, and consistently applies busy timeout and foreign-key settings. A 50-work-unit parallel validation completed with all expected nodes, relationships, events, and evidence records.
+48. The private-alpha preparation plan includes a restrained ASCII identity and consistent table-based CLI presentation, while preserving plain-text output and prioritising evidence clarity over decoration.
 
 ## 4.4 Testing Strategy
 

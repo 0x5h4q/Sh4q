@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import csv
 import json
-import sqlite3
 from pathlib import Path
 
 from sh4q.storage.scan_runs import ScanRun
 from sh4q.application.results import list_technology_observations
+from sh4q.storage.db import open_sync_database
 
 
 class ScanOwnershipUnavailableError(Exception):
@@ -27,7 +27,7 @@ def export_scan(
         raise ValueError(f"unsupported alive filter: {alive}")
     if alive and asset_type:
         raise ValueError("--alive and --type cannot be combined")
-    with sqlite3.connect(database) as db:
+    with open_sync_database(database) as db:
         if alive in ("http", "dns"):
             relationship_type = "SERVES" if alive == "http" else "RESOLVES_TO"
             endpoint_type = "url" if alive == "http" else "ip"

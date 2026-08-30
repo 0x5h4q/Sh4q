@@ -4,7 +4,7 @@ import json
 import aiosqlite
 
 from .models import Node, Relationship
-from .db import open_database
+from .db import ensure_schema_version, open_database
 
 
 class SQLiteStorage:
@@ -13,6 +13,7 @@ class SQLiteStorage:
 
     async def init(self) -> None:
         """Create tables if they don't exist. Call once at startup."""
+        ensure_schema_version(self._db_path)
         async with open_database(self._db_path) as db:
             await db.execute(
                 """
@@ -84,7 +85,7 @@ class SQLiteStorage:
         return relationship
 
     async def get_relationships(self, node_id: str) -> list[Relationship]:
-        async with aiosqlite.connect(self._db_path) as db:
+        async with open_database(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 "SELECT * FROM relationships WHERE from_id = ? OR to_id = ?",

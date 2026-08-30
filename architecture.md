@@ -179,6 +179,10 @@ Current readiness is: strong academic/MVP architecture, credible but early orche
 - Add SQLite transactions, WAL, busy timeout, and migration/version checks.
 - Document threat model, plugin contract, configuration, and known limitations.
 
+SQLite now has an explicit schema metadata version (`1`), rejects newer unsupported databases, establishes WAL once during schema initialization, and applies a 10-second busy timeout plus foreign-key enforcement consistently across production connections. Synchronous reporting/query paths and asynchronous storage paths share the same connection policy. A post-change concurrency validation completed 50 parallel synthetic work units in 1.156 seconds with the expected 100 nodes, 50 relationships, 50 events, and 50 evidence rows. Numbered structural migrations and broader transaction grouping remain future work.
+
+Before private-alpha distribution, complete a presentation pass: add a restrained ASCII Sh4q wordmark, use consistent aligned tables for scans/results/events/summaries, preserve plain-text and redirected-output readability, and verify narrow-terminal behavior. Presentation must clarify evidence and status rather than imitate a decorative dashboard.
+
 ## Delivery Plan
 
 Work in small, reviewable increments. Each increment must add regression tests before expanding discovery breadth. Do not add active scanners until the safety boundary and event guarantees pass their gates.

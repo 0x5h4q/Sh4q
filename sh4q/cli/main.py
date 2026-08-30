@@ -11,6 +11,7 @@ from sh4q.storage.scan_runs import get_scan, latest_scan, list_scans, scan_asset
 from sh4q.application.results import list_assets, list_failures, list_technology_observations
 from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
 from sh4q.application.scan_report import build_scan_report
+from sh4q.storage.db import SchemaVersionError, ensure_schema_version
 
 
 def _fit(value: object, width: int) -> str:
@@ -225,6 +226,14 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
+    if args.command != "scan" and hasattr(args, "database"):
+        database = Path(args.database)
+        if database.exists():
+            try:
+                ensure_schema_version(str(database))
+            except (SchemaVersionError, ValueError) as error:
+                parser.error(str(error))
+
     if args.command == "scan":
         try:
             summary = asyncio.run(
@@ -236,7 +245,7 @@ def main() -> None:
             print("  Unfinished durable events will be recovered on the next scan.")
             print()
             sys.exit(130)
-        except AdapterExecutionError as error:
+        except (AdapterExecutionError, SchemaVersionError) as error:
             print(f"  Scan could not start: {error}")
             sys.exit(2)
         render_summary(summary)
