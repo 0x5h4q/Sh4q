@@ -195,6 +195,7 @@ Describe configuration loading, Scope Engine, scoped HTTP transport, DNS plugin,
 46. A persisted scan-overview command separates verified surface, stored records, categorized failures, per-source ownership, and durable request metrics without requiring SQL. Stage timing persistence remains follow-up work rather than being inferred retrospectively.
 47. SQLite storage now records schema version 1, rejects unsupported newer schemas, establishes WAL during initialization, and consistently applies busy timeout and foreign-key settings. A 50-work-unit parallel validation completed with all expected nodes, relationships, events, and evidence records.
 48. The private-alpha preparation plan includes a restrained ASCII identity and consistent table-based CLI presentation, while preserving plain-text output and prioritising evidence clarity over decoration.
+49. A deterministic offline runner standardizes 36 assertion-based scripts with timeout enforcement, failure capture, durations, and process exit status. The initial aggregate run passed 36/36 tests in 13.25 seconds, and CI executes the same suite across Python 3.11-3.13.
 
 ## 4.4 Testing Strategy
 

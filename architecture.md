@@ -183,6 +183,8 @@ SQLite now has an explicit schema metadata version (`1`), rejects newer unsuppor
 
 Before private-alpha distribution, complete a presentation pass: add a restrained ASCII Sh4q wordmark, use consistent aligned tables for scans/results/events/summaries, preserve plain-text and redirected-output readability, and verify narrow-terminal behavior. Presentation must clarify evidence and status rather than imitate a decorative dashboard.
 
+The deterministic offline suite is now standardized through `tools/run_offline_tests.py`. It uses an explicit 36-test allow-list, aligned pass/fail output, per-test timing and timeout enforcement, captured failure diagnostics, and a nonzero failure exit code. A validation run passed 36/36 tests in 13.25 seconds. GitHub Actions runs the same command on Python 3.11, 3.12, and 3.13. Optional local-TLS checks and manual/live scripts remain separately classified in `docs/testing.md`.
+
 ## Delivery Plan
 
 Work in small, reviewable increments. Each increment must add regression tests before expanding discovery breadth. Do not add active scanners until the safety boundary and event guarantees pass their gates.
