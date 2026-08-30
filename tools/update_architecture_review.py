@@ -23,6 +23,9 @@ REPLACEMENTS = {
     "Technology results are displayed per endpoint with status, category, confidence, version, and supporting signal.": "Technology results are displayed per endpoint with status, category, confidence, version, and supporting signal.",
     "The Week 4 milestone changes Sh4q's status from an architecture prototype into a functioning MVP engine.": "The current milestone changes Sh4q's status from an architecture prototype into a functioning, auditable MVP prepared for limited private-alpha testing.",
     "Weeks 5–6: subdomain enumeration first, followed by additional discovery modules and reporting, while preserving the frozen engine contracts unless real plugin behavior demonstrates concrete schema pressure.": "Private alpha: presentation polish, clean-install verification, controlled feedback, repeated benchmarks, and one carefully selected next adapter.",
+    "Weeks 5–6: subdomain enumeration first, followed by additional discovery modules and reporting, while preserving the frozen engine contracts unless real plugin behavior demonstrates a concrete need to change them.": "Private alpha: presentation polish, clean-install verification, controlled feedback, repeated benchmarks, and one carefully selected next adapter.",
+    "JavaScript analysis, cloud enumeration, certificate transparency, passive intelligence, screenshots, secret discovery": "JavaScript analysis, cloud enumeration, deeper passive intelligence, screenshots and secret discovery",
+    "The validated implementation had a clean working tree and HEAD at commit 9f1b73b (Fix scan pipeline, scope handling, and relationship counting) before the later Week 4 documentation update.": "The review is maintained alongside the implementation history; the current repository state is recorded by Git commits and the authoritative architecture.md record.",
     "Document Maintenance Note": "Document Maintenance Note",
 }
 
