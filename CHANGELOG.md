@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.0-alpha.5 - 2026-08-30
+
+- Added a combined HTTP inventory export with endpoint status, resolved addresses, technologies, confidence, signals, and provenance.
+
 ## 0.1.0-alpha.4 - 2026-08-30
 
 - Converted raw TLS errors into durable HTTP failure evidence.

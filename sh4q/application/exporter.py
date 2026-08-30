@@ -13,6 +13,75 @@ class ScanOwnershipUnavailableError(Exception):
     pass
 
 
+def _http_inventory(db, scan_id: str) -> list[dict]:
+    endpoint_rows = db.execute(
+        """SELECT DISTINCT domain.id, domain.value, endpoint.id, endpoint.value,
+        endpoint.attributes
+        FROM scan_assets sa
+        JOIN relationships serves ON serves.id = sa.relationship_id
+        JOIN nodes domain ON domain.id = serves.from_id
+        JOIN nodes endpoint ON endpoint.id = serves.to_id
+        WHERE sa.scan_run_id = ? AND serves.type = 'SERVES'
+          AND domain.type = 'domain' AND endpoint.type = 'url'
+        ORDER BY endpoint.value""",
+        (scan_id,),
+    ).fetchall()
+    inventory = []
+    for domain_id, domain, endpoint_id, endpoint, raw_endpoint_attributes in endpoint_rows:
+        address_rows = db.execute(
+            """SELECT DISTINCT address.value
+            FROM scan_assets sa
+            JOIN relationships resolves ON resolves.id = sa.relationship_id
+            JOIN nodes address ON address.id = resolves.to_id
+            WHERE sa.scan_run_id = ? AND resolves.type = 'RESOLVES_TO'
+              AND resolves.from_id = ? AND address.type = 'ip'
+            ORDER BY address.value""",
+            (scan_id, domain_id),
+        ).fetchall()
+        technology_rows = db.execute(
+            """SELECT technology.value, detection.attributes, sa.source_plugin
+            FROM scan_assets sa
+            JOIN relationships detection ON detection.id = sa.relationship_id
+            JOIN nodes technology ON technology.id = detection.to_id
+            WHERE sa.scan_run_id = ? AND detection.type = 'DETECTED_TECHNOLOGY'
+              AND detection.from_id = ? AND technology.type = 'technology'
+            ORDER BY technology.value""",
+            (scan_id, endpoint_id),
+        ).fetchall()
+        source_rows = db.execute(
+            """SELECT DISTINCT sa.source_plugin
+            FROM scan_assets sa JOIN relationships r ON r.id = sa.relationship_id
+            WHERE sa.scan_run_id = ? AND (r.to_id = ? OR r.from_id = ?)
+            ORDER BY sa.source_plugin""",
+            (scan_id, endpoint_id, endpoint_id),
+        ).fetchall()
+        technologies = []
+        sources = {row[0] for row in source_rows if row[0]}
+        for technology, raw_attributes, source in technology_rows:
+            attributes = json.loads(raw_attributes)
+            technologies.append({
+                "name": technology,
+                "category": attributes.get("category", ""),
+                "version": attributes.get("version", ""),
+                "confidence": attributes.get("confidence", ""),
+                "signal": attributes.get("raw_observation", ""),
+                "source": source,
+            })
+            if source:
+                sources.add(source)
+        endpoint_attributes = json.loads(raw_endpoint_attributes)
+        inventory.append({
+            "type": "http-inventory",
+            "domain": domain,
+            "endpoint": endpoint,
+            "http_status": endpoint_attributes.get("status"),
+            "resolved_addresses": [row[0] for row in address_rows],
+            "technologies": technologies,
+            "sources": sorted(sources),
+        })
+    return inventory
+
+
 def export_scan(
     database: str,
     run: ScanRun,
@@ -28,6 +97,7 @@ def export_scan(
     if alive and asset_type:
         raise ValueError("--alive and --type cannot be combined")
     with open_sync_database(database) as db:
+        inventory_assets = _http_inventory(db, run.id) if asset_type == "http-inventory" else None
         if alive in ("http", "dns"):
             relationship_type = "SERVES" if alive == "http" else "RESOLVES_TO"
             endpoint_type = "url" if alive == "http" else "ip"
@@ -69,7 +139,9 @@ def export_scan(
     if output.exists() and not force:
         raise FileExistsError(f"output already exists: {output}")
     output.parent.mkdir(parents=True, exist_ok=True)
-    if asset_type == "technology":
+    if asset_type == "http-inventory":
+        assets = inventory_assets or []
+    elif asset_type == "technology":
         observations = list_technology_observations(database, scan_id=run.id, limit=1000)
         assets = [
             {
@@ -116,6 +188,13 @@ def export_scan(
                     "scan_id", "target", "endpoint", "technology", "category",
                     "version", "confidence", "http_status", "signal",
                 ]
+            elif asset_type == "http-inventory":
+                fieldnames = [
+                    "scan_id", "target", "domain", "endpoint", "http_status",
+                    "resolved_addresses", "technologies", "technology_categories",
+                    "technology_versions", "technology_confidences",
+                    "technology_signals", "sources",
+                ]
             else:
                 fieldnames = ["scan_id", "target", "type", "value", "sources", "attributes"]
                 if alive == "http":
@@ -139,6 +218,22 @@ def export_scan(
                         "confidence": item["confidence"],
                         "http_status": item["http_status"],
                         "signal": item["signal"],
+                    })
+                elif asset_type == "http-inventory":
+                    observations = item["technologies"]
+                    writer.writerow({
+                        "scan_id": run.id,
+                        "target": run.target,
+                        "domain": item["domain"],
+                        "endpoint": item["endpoint"],
+                        "http_status": item["http_status"],
+                        "resolved_addresses": ";".join(item["resolved_addresses"]),
+                        "technologies": ";".join(value["name"] for value in observations),
+                        "technology_categories": ";".join(value["category"] for value in observations),
+                        "technology_versions": ";".join(value["version"] for value in observations),
+                        "technology_confidences": ";".join(value["confidence"] for value in observations),
+                        "technology_signals": ";".join(value["signal"] for value in observations),
+                        "sources": ";".join(item["sources"]),
                     })
                 else:
                     writer.writerow({

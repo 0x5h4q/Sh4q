@@ -96,6 +96,13 @@ sh4q export --scan <scan-id> --type technology \
   --format csv --output technologies.csv
 ```
 
+Combined HTTP inventory with statuses, resolved addresses, and technologies:
+
+```bash
+sh4q export --scan <scan-id> --type http-inventory \
+  --format csv --output http-inventory.csv
+```
+
 Sh4q refuses to overwrite an existing export unless `--force` is supplied.
 
 ## 6. Stop a Scan Cleanly

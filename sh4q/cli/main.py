@@ -267,7 +267,11 @@ def build_parser() -> argparse.ArgumentParser:
     export_selection.add_argument("--latest", action="store_true", help="Export the latest scan")
     export.add_argument("--force", action="store_true", help="Overwrite an existing output file")
     export.add_argument("--alive", choices=["http", "dns"], help="Export only domains with observed HTTP or DNS liveness evidence")
-    export.add_argument("--type", choices=["technology"], help="Export one structured asset view")
+    export.add_argument(
+        "--type",
+        choices=["technology", "http-inventory"],
+        help="Export a structured technology or combined HTTP inventory view",
+    )
 
     return parser
 

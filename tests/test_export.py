@@ -18,7 +18,7 @@ with tempfile.TemporaryDirectory() as directory:
         db.execute("CREATE TABLE evidence (scan_run_id TEXT)")
         db.execute("INSERT INTO nodes VALUES (?, ?, ?, ?)", ("domain:api.example.com", "domain", "api.example.com", '{"source":"test"}'))
         db.execute("INSERT INTO scan_assets VALUES (?, ?, ?, ?)", ("scan-1", "domain:api.example.com", "rel-1", "test"))
-        db.execute("INSERT INTO nodes VALUES (?, ?, ?, ?)", ("url:https://api.example.com/", "url", "https://api.example.com/", "{}"))
+        db.execute("INSERT INTO nodes VALUES (?, ?, ?, ?)", ("url:https://api.example.com/", "url", "https://api.example.com/", '{"status":200}'))
         db.execute("INSERT INTO nodes VALUES (?, ?, ?, ?)", ("technology:nginx", "technology", "nginx", "{}"))
         db.execute("INSERT INTO relationships VALUES (?, ?, ?, ?, ?)", ("rel-tech", "url:https://api.example.com/", "technology:nginx", "DETECTED_TECHNOLOGY", '{"category":"web-server","version":"1.25","confidence":"explicit","status":200,"raw_observation":"header:server=nginx/1.25"}'))
         db.execute("INSERT INTO scan_assets VALUES (?, ?, ?, ?)", ("scan-1", "technology:nginx", "rel-tech", "native-http"))
@@ -46,6 +46,29 @@ with tempfile.TemporaryDirectory() as directory:
     assert technology_rows[0]["endpoint"] == "https://api.example.com/"
     assert technology_rows[0]["technology"] == "nginx"
     assert technology_rows[0]["confidence"] == "explicit"
+
+    with sqlite3.connect(database) as db:
+        db.execute("INSERT INTO nodes VALUES (?, ?, ?, ?)", ("ip:93.184.216.34", "ip", "93.184.216.34", "{}"))
+        db.execute("INSERT INTO relationships VALUES (?, ?, ?, ?, ?)", ("rel-dns", "domain:api.example.com", "ip:93.184.216.34", "RESOLVES_TO", "{}"))
+        db.execute("INSERT INTO relationships VALUES (?, ?, ?, ?, ?)", ("rel-http", "domain:api.example.com", "url:https://api.example.com/", "SERVES", "{}"))
+        db.execute("INSERT INTO scan_assets VALUES (?, ?, ?, ?)", ("scan-1", "ip:93.184.216.34", "rel-dns", "dns"))
+        db.execute("INSERT INTO scan_assets VALUES (?, ?, ?, ?)", ("scan-1", "url:https://api.example.com/", "rel-http", "http"))
+
+    inventory_path = root / "http-inventory.csv"
+    assert export_scan(database, run, format="csv", output=inventory_path, asset_type="http-inventory") == 1
+    with inventory_path.open() as stream:
+        inventory_rows = list(csv.DictReader(stream))
+    assert inventory_rows[0]["domain"] == "api.example.com"
+    assert inventory_rows[0]["endpoint"] == "https://api.example.com/"
+    assert inventory_rows[0]["http_status"] == "200"
+    assert inventory_rows[0]["resolved_addresses"] == "93.184.216.34"
+    assert inventory_rows[0]["technologies"] == "nginx"
+    assert inventory_rows[0]["technology_categories"] == "web-server"
+
+    inventory_json_path = root / "http-inventory.json"
+    assert export_scan(database, run, format="json", output=inventory_json_path, asset_type="http-inventory") == 1
+    inventory_document = json.loads(inventory_json_path.read_text())
+    assert inventory_document["assets"][0]["technologies"][0]["name"] == "nginx"
 
     try:
         export_scan(database, run, format="json", output=json_path)

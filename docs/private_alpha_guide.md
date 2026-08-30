@@ -45,6 +45,7 @@ sh4q export --latest --target your-authorized-domain.example --format csv --outp
 sh4q export --latest --target your-authorized-domain.example --alive dns --format csv --output dns-alive.csv
 sh4q export --latest --target your-authorized-domain.example --alive http --format csv --output http-alive.csv
 sh4q export --latest --target your-authorized-domain.example --type technology --format json --output technologies.json
+sh4q export --latest --target your-authorized-domain.example --type http-inventory --format csv --output http-inventory.csv
 ```
 
 Exports are complete scan views and are not limited by the number shown in the terminal. Existing files are protected; use `--force` only when replacement is intentional.
