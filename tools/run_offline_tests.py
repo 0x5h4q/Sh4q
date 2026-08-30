@@ -18,6 +18,7 @@ OFFLINE_TESTS = (
     "test_async_dns_resolver.py",
     "test_cleanup_failure.py",
     "test_cli_sub_flag.py",
+    "test_cli_formatting.py",
     "test_ct_reporting.py",
     "test_discovered_dns_plugin.py",
     "test_discovered_http_plugin.py",

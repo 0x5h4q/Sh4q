@@ -11,6 +11,6 @@ Initial private-alpha release.
 - Scan overview, asset results, failure inspection, and aligned terminal tables.
 - CSV and JSON export with DNS-alive, HTTP-alive, and technology views.
 - Conservative technology observations from authorised HTTP responses.
-- Deterministic offline test runner with 37 checks.
+- Deterministic offline test runner with 38 checks.
 
 Known limitations are documented in `docs/limitations.md`.

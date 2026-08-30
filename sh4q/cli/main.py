@@ -1,6 +1,7 @@
 
 import argparse
 import asyncio
+import shutil
 import sys
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -22,7 +23,27 @@ def _fit(value: object, width: int) -> str:
     return text[: max(1, width - 3)] + "..."
 
 
+def _terminal_is_narrow(minimum_width: int) -> bool:
+    return sys.stdout.isatty() and shutil.get_terminal_size((80, 24)).columns < minimum_width
+
+
+def _narrow_value(value: object, indent: int = 4) -> str:
+    width = max(20, shutil.get_terminal_size((80, 24)).columns - indent)
+    return _fit(value, width)
+
+
 def render_technology_results(rows) -> None:
+    if _terminal_is_narrow(100):
+        print()
+        for row in rows:
+            technology = f"{row.technology} {row.version}".strip()
+            print(f"  {_narrow_value(row.endpoint, 2)}")
+            print(f"    Technology  {technology}")
+            print(f"    Category    {row.category}")
+            print(f"    Confidence  {row.confidence}")
+            print(f"    Status      {row.status}")
+            print(f"    Signal      {_narrow_value(row.signal, 16)}")
+        return
     columns = (
         ("ENDPOINT", 44),
         ("TECHNOLOGY", 16),
@@ -70,6 +91,14 @@ def render_asset_results(rows) -> None:
 
 
 def render_event_results(records) -> None:
+    if _terminal_is_narrow(100):
+        for record in records:
+            print(f"  {record.status}  {record.type}  attempts={record.attempts}")
+            print(f"    Target    {_narrow_value(record.target or '-', 14)}")
+            print(f"    Event ID  {_narrow_value(record.id, 14)}")
+            if record.error:
+                print(f"    Error     {_narrow_value(record.error, 14)}")
+        return
     columns = (("STATUS", 12), ("TYPE", 14), ("TARGET", 34), ("ATTEMPTS", 8), ("EVENT ID", 32))
     print("  " + "  ".join(label.ljust(width) for label, width in columns))
     print("  " + "  ".join("-" * width for _, width in columns))
@@ -81,6 +110,12 @@ def render_event_results(records) -> None:
 
 
 def render_scan_runs(rows) -> None:
+    if _terminal_is_narrow(100):
+        for run, assets in rows:
+            print(f"  {run.status}  {_narrow_value(run.target, 28)}  assets={assets}")
+            print(f"    Started  {_narrow_value(run.started_at, 14)}")
+            print(f"    Scan ID  {_narrow_value(run.id, 14)}")
+        return
     columns = (("STATUS", 12), ("ASSETS", 7), ("TARGET", 34), ("STARTED", 22), ("SCAN ID", 32))
     print("  " + "  ".join(label.ljust(width) for label, width in columns))
     print("  " + "  ".join("-" * width for _, width in columns))
@@ -152,7 +187,7 @@ def render_scan_report(report) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="sh4q",
-        description="Sh4q - policy-controlled reconnaissance with evidence and scope checks.",
+        description="Sh4q (*_*)/ - policy-controlled reconnaissance with evidence and scope checks.",
     )
     try:
         package_version = version("sh4q")
