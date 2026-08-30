@@ -26,6 +26,6 @@ The default suite uses fakes, temporary SQLite databases, controlled subprocesse
 
 Live checks and manual engineering scripts remain outside CI. They must be run deliberately and documented with the target authorization, network conditions, tool versions, and exact Git commit.
 
-## Current Exclusions
+## Interpreting Test Results
 
-Older manual or live-oriented scripts such as `test_dns.py`, `test_evidence.py`, `test_integration.py`, `test_scope_manual.py`, and `test_storage_manual.py` are not authoritative pass/fail checks. They should be converted to deterministic assertion-based tests or retained explicitly as demonstrations before private-alpha release.
+The offline suite is the repeatable pass/fail check for the project. Optional integration checks exercise local operating-system and TLS behaviour. Live-domain checks are demonstrations only: results depend on the network, DNS resolver, provider availability, rate limits, and target responses, so a live failure is not by itself proof of a Sh4q defect.

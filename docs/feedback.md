@@ -5,12 +5,7 @@ Good feedback includes enough detail to reproduce the problem without exposing s
 ## Before Reporting
 
 1. Confirm the target was authorised.
-2. Record the exact Sh4q commit:
-
-   ```bash
-   git rev-parse HEAD
-   ```
-
+2. Record the Sh4q version or commit, if available.
 3. Record the Python and operating-system versions:
 
    ```bash
@@ -18,13 +13,7 @@ Good feedback includes enough detail to reproduce the problem without exposing s
    uname -a
    ```
 
-4. Run the offline suite:
-
-   ```bash
-   python tools/run_offline_tests.py
-   ```
-
-5. Reproduce with the narrowest safe command possible.
+4. Reproduce with the narrowest safe command possible.
 
 ## Feedback Template
 
