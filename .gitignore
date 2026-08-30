@@ -13,3 +13,11 @@ sh4q.egg-info/
 
 # Personal/submission documents are not part of a tester checkout
 RERE'S SUBMITTABLE PROJECT.docx
+
+# Local agent instructions and private academic work
+AGENTS.md
+CLAUDE.md
+Sh4q_Academic_Project_Draft.docx
+docs/academic_project_outline.md
+docs/research_workflow.md
+docs/research/
