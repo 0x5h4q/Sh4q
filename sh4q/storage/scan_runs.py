@@ -23,7 +23,8 @@ def scan_asset_count(database: str, scan_id: str) -> int:
         if table is None:
             return 0
         return db.execute(
-            "SELECT COUNT(*) FROM scan_assets WHERE scan_run_id = ?", (scan_id,)
+            "SELECT COUNT(DISTINCT asset_id) FROM scan_assets WHERE scan_run_id = ?",
+            (scan_id,),
         ).fetchone()[0]
 
 

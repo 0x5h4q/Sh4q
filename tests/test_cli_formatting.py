@@ -4,7 +4,7 @@ import shutil
 import sys
 from types import SimpleNamespace
 
-from sh4q.cli.main import render_event_results, render_scan_runs, render_technology_results
+from sh4q.cli.main import render_event_results, render_failure_results, render_scan_runs, render_technology_results
 
 
 class NarrowOutput(io.StringIO):
@@ -21,6 +21,7 @@ try:
     render_technology_results([SimpleNamespace(endpoint="https://very-long-hostname.example.com/path", technology="cloudflare", version="", category="cdn", confidence="high", status=403, signal="x" * 100)])
     render_event_results([SimpleNamespace(status="FAILED", type="discovery", target="a" * 80, attempts=3, id="b" * 80, error="c" * 100)])
     render_scan_runs([(SimpleNamespace(status="COMPLETED", target="d" * 80, started_at="2026-08-30T00:00:00", id="e" * 80), 12)])
+    render_failure_results([("discovered-http", "http_error", "f" * 120)])
 finally:
     sys.stdout = original_stdout
     shutil.get_terminal_size = original_terminal_size

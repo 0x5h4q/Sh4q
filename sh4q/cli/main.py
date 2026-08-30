@@ -122,6 +122,19 @@ def render_scan_runs(rows) -> None:
     for run, assets in rows:
         values = (run.status, assets, run.target, run.started_at, run.id)
         print("  " + "  ".join(_fit(value, width).ljust(width) for value, (_, width) in zip(values, columns)))
+
+
+def render_failure_results(rows) -> None:
+    if _terminal_is_narrow(100):
+        for plugin, kind, content in rows:
+            print(f"  {plugin}  {kind}")
+            print(f"    {_narrow_value(content, 4)}")
+        return
+    columns = (("PLUGIN", 18), ("KIND", 24), ("DETAIL", 72))
+    print("  " + "  ".join(label.ljust(width) for label, width in columns))
+    print("  " + "  ".join("-" * width for _, width in columns))
+    for row in rows:
+        print("  " + "  ".join(_fit(value, width).ljust(width) for value, (_, width) in zip(row, columns)))
 def render_scan_report(report) -> None:
     run = report.run
     observed = report.request_metrics.get("observed", {})
@@ -370,10 +383,11 @@ def main() -> None:
         print("  ============")
         if args.failures:
             rows = list_failures(str(database), target=args.target, limit=args.limit)
-            for plugin, kind, content in rows:
-                print(f"  {plugin:<14} {kind:<24} {content}")
             if not rows:
                 print("  No recorded failures.")
+            else:
+                render_failure_results(rows)
+                print(f"\n  Showing {len(rows)} failure record(s). Use --limit to increase the view.")
         else:
             scan_id = args.scan
             if args.latest:
