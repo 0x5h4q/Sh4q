@@ -21,6 +21,12 @@ class FakeClient:
         return httpx.Response(status, request=request, headers={"server": "test"})
 
 
+class DelayedFakeClient(FakeClient):
+    async def get(self, url):
+        await asyncio.sleep(0.1)
+        return await super().get(url)
+
+
 async def main():
     scope = ScopeEngine(Sh4qConfig(**{"scope": {"targets": ["example.com"]}}))
     plugin = DiscoveredHTTPPlugin(
@@ -52,6 +58,20 @@ async def main():
     assert {item.data["status"] for item in probes} == {200, 403}
     assert all("dead.example.com" not in item.data["final_url"] for item in probes)
     assert all("evil.test" not in item.data["final_url"] for item in probes)
+
+    from sh4q.plugins.http_plugin import HTTPPlugin
+    original_timeout = HTTPPlugin.metadata.timeout
+    try:
+        HTTPPlugin.metadata.timeout = 0.05
+        queued = DiscoveredHTTPPlugin(scope, max_names=1, client_factory=DelayedFakeClient)
+        queued.accept_discoveries(
+            [Discovery("discovered_dns_resolution", {"domain": "api.example.com", "ip": "93.184.216.34"})],
+            "discovered-dns",
+        )
+        queued_results = await queued.execute("example.com")
+        assert len([item for item in queued_results if item.kind == "http_probe"]) == 2
+    finally:
+        HTTPPlugin.metadata.timeout = original_timeout
     print("discovered HTTP plugin test passed")
 
 

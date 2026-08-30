@@ -81,5 +81,6 @@ class DiscoveredHTTPPlugin(Plugin):
                 client_factory=self._client_factory,
                 limiter=self._limiter,
                 resolver=resolve,
+                enforce_overall_probe_timeout=False,
             )
             return await plugin.execute(name)

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-alpha.3 - 2026-08-30
+
+- Prevented discovered-host HTTP probes from timing out while waiting for Sh4q's own rate-limit queue.
+- Network timeouts now apply to admitted discovered-host requests; the outer stage deadline still bounds total work.
+
 ## 0.1.0-alpha.2 - 2026-08-30
 
 - Corrected `sh4q scans` asset counts to count distinct owned assets instead of relationship ownership rows.

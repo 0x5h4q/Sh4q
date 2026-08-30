@@ -25,8 +25,10 @@ class HTTPPlugin(Plugin):
         client_factory: Callable | None = None,
         limiter: RequestLimiter | None = None,
         resolver: Callable | None = None,
+        enforce_overall_probe_timeout: bool = True,
     ):
         self.scope = scope
+        self._enforce_overall_probe_timeout = enforce_overall_probe_timeout
         self._client_factory = client_factory or (
             lambda: ScopedHTTPClient(
                 self.scope,
@@ -88,6 +90,8 @@ class HTTPPlugin(Plugin):
                     )]
 
             async def bounded_probe(scheme: str) -> Discovery:
+                if not self._enforce_overall_probe_timeout:
+                    return await probe(scheme)
                 try:
                     return await asyncio.wait_for(probe(scheme), timeout=probe_timeout)
                 except asyncio.TimeoutError:
