@@ -3,3 +3,13 @@ __pycache__/
 *.pyc
 sh4q-output/
 sh4q.egg-info/
+
+# Local scan exports and office/editor temporary files
+*.csv
+*.sqlite
+*.sqlite3
+*.db
+.~*
+
+# Personal/submission documents are not part of a tester checkout
+RERE'S SUBMITTABLE PROJECT.docx
