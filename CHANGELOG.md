@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-alpha.4 - 2026-08-30
+
+- Converted raw TLS errors into durable HTTP failure evidence.
+- Isolated discovered-host probe failures so one hostname cannot terminate the entire HTTP enrichment stage.
+
 ## 0.1.0-alpha.3 - 2026-08-30
 
 - Prevented discovered-host HTTP probes from timing out while waiting for Sh4q's own rate-limit queue.

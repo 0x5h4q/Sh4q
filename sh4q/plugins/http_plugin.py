@@ -1,4 +1,5 @@
 import asyncio
+import ssl
 import time
 from collections.abc import Callable
 
@@ -77,7 +78,7 @@ class HTTPPlugin(Plugin):
                         kind="http_error",
                         data={"url": url, "error": "request timed out", "phase": "overall", "timeout": self.metadata.timeout, "duration_seconds": round(time.monotonic() - started, 3)},
                     )]
-                except (httpx.HTTPError, ScopedHTTPError) as e:
+                except (httpx.HTTPError, ScopedHTTPError, ssl.SSLError) as e:
                     return [Discovery(
                         kind="http_error",
                         data={

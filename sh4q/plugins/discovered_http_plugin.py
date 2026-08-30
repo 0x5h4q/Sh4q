@@ -76,11 +76,23 @@ class DiscoveredHTTPPlugin(Plugin):
                     return sorted(self._addresses[name])
                 return await self._redirect_resolver.resolve_addresses(normalized)
 
-            plugin = HTTPPlugin(
-                self._scope,
-                client_factory=self._client_factory,
-                limiter=self._limiter,
-                resolver=resolve,
-                enforce_overall_probe_timeout=False,
-            )
-            return await plugin.execute(name)
+            try:
+                plugin = HTTPPlugin(
+                    self._scope,
+                    client_factory=self._client_factory,
+                    limiter=self._limiter,
+                    resolver=resolve,
+                    enforce_overall_probe_timeout=False,
+                )
+                return await plugin.execute(name)
+            except asyncio.CancelledError:
+                raise
+            except Exception as error:
+                return [Discovery(
+                    kind="http_error",
+                    data={
+                        "url": name,
+                        "error": str(error) or error.__class__.__name__,
+                        "phase": "host-probe",
+                    },
+                )]

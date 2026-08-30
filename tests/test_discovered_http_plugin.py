@@ -1,4 +1,5 @@
 import asyncio
+import ssl
 
 import httpx
 
@@ -24,6 +25,13 @@ class FakeClient:
 class DelayedFakeClient(FakeClient):
     async def get(self, url):
         await asyncio.sleep(0.1)
+        return await super().get(url)
+
+
+class TLSFailureClient(FakeClient):
+    async def get(self, url):
+        if "broken.example.com" in url:
+            raise ssl.SSLError("bad record mac")
         return await super().get(url)
 
 
@@ -72,6 +80,18 @@ async def main():
         assert len([item for item in queued_results if item.kind == "http_probe"]) == 2
     finally:
         HTTPPlugin.metadata.timeout = original_timeout
+
+    isolated = DiscoveredHTTPPlugin(scope, max_names=2, client_factory=TLSFailureClient)
+    isolated.accept_discoveries(
+        [
+            Discovery("discovered_dns_resolution", {"domain": "api.example.com", "ip": "93.184.216.34"}),
+            Discovery("discovered_dns_resolution", {"domain": "broken.example.com", "ip": "93.184.216.35"}),
+        ],
+        "discovered-dns",
+    )
+    isolated_results = await isolated.execute("example.com")
+    assert len([item for item in isolated_results if item.kind == "http_probe"]) == 2
+    assert len([item for item in isolated_results if item.kind == "http_error"]) == 2
     print("discovered HTTP plugin test passed")
 
 
