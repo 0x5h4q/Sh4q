@@ -45,6 +45,7 @@ sh4q export --latest --target your-domain.example \
 
 ## Read Before Testing
 
+- [Private-alpha guide (PDF)](Sh4q_Private_Alpha_Guide.pdf)
 - [Installation](docs/installation.md)
 - [Quick start](docs/quickstart.md)
 - [Authorised use](docs/authorized_use.md)
