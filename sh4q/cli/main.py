@@ -53,6 +53,19 @@ def render_technology_results(rows) -> None:
         )
 
 
+def render_asset_results(rows) -> None:
+    columns = (("TYPE", 10), ("VALUE", 64))
+    print()
+    print("  " + "  ".join(label.ljust(width) for label, width in columns))
+    print("  " + "  ".join("-" * width for _, width in columns))
+    for row in rows:
+        print(
+            "  "
+            + "  ".join(
+                _fit(value, width).ljust(width)
+                for value, (_, width) in zip((row.type, row.value), columns)
+            )
+        )
 def render_scan_report(report) -> None:
     run = report.run
     observed = report.request_metrics.get("observed", {})
@@ -322,8 +335,7 @@ def main() -> None:
                     str(database), asset_type=args.type, target=args.target,
                     scan_id=scan_id, limit=args.limit
                 )
-                for row in rows:
-                    print(f"  {row.type:<8} {row.value}")
+                render_asset_results(rows)
                 print(f"\n  Showing {len(rows)} asset(s). Use --limit to increase the view.")
         print()
         return
