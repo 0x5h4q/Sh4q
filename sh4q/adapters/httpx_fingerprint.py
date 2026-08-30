@@ -18,8 +18,7 @@ class HttpxFingerprintAdapter(ExternalToolAdapter):
         self.executable = executable
 
     def build_argv(self, target: str, context: AdapterContext) -> Sequence[str]:
-        # Redirect following is deliberately not enabled. Live integration is
-        # deferred until endpoint-fed execution and containment are validated.
+        # Redirect following is deliberately not enabled. Live integration is deferred until endpoint-fed execution and containment are validated.
         return (
             self.executable,
             "-silent",
