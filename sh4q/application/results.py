@@ -173,12 +173,21 @@ def _matches_target(asset: ResultRow, target: str) -> bool:
     return False
 
 
-def list_failures(database: str, *, target: str | None = None, limit: int = 100) -> list[tuple[str, str, str]]:
-    query = "SELECT plugin, kind, content FROM evidence WHERE kind LIKE '%error%' OR kind IN ('adapter_execution', 'ct_provider_status')"
+def list_failures(
+    database: str,
+    *,
+    target: str | None = None,
+    scan_id: str | None = None,
+    limit: int = 100,
+) -> list[tuple[str, str, str]]:
+    query = "SELECT plugin, kind, content FROM evidence WHERE (kind LIKE '%error%' OR kind IN ('adapter_execution', 'ct_provider_status'))"
     params: list[object] = []
     if target:
         query += " AND target = ?"
         params.append(target)
+    if scan_id:
+        query += " AND scan_run_id = ?"
+        params.append(scan_id)
     query += " ORDER BY captured_at DESC LIMIT ?"
     params.append(max(1, min(limit, 1000)))
     with open_sync_database(database) as db:

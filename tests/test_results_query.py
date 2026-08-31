@@ -12,7 +12,7 @@ with tempfile.TemporaryDirectory() as directory:
         db.execute("CREATE TABLE nodes (id TEXT, type TEXT, value TEXT, attributes TEXT)")
         db.execute("CREATE TABLE relationships (id TEXT, from_id TEXT, to_id TEXT, type TEXT, attributes TEXT)")
         db.execute("CREATE TABLE scan_assets (scan_run_id TEXT, asset_id TEXT, relationship_id TEXT, source_plugin TEXT)")
-        db.execute("CREATE TABLE evidence (target TEXT, plugin TEXT, kind TEXT, content TEXT, captured_at TEXT)")
+        db.execute("CREATE TABLE evidence (target TEXT, plugin TEXT, kind TEXT, content TEXT, captured_at TEXT, scan_run_id TEXT)")
         db.executemany("INSERT INTO nodes VALUES (?, ?, ?, ?)", [
             ("domain:api.example.com", "domain", "api.example.com", "{}"),
             ("domain:other.test", "domain", "other.test", "{}"),
@@ -37,8 +37,12 @@ with tempfile.TemporaryDirectory() as directory:
             ("scan-1", "technology:nginx", "rel-tech", "httpx-fingerprint"),
         )
         db.execute(
-            "INSERT INTO evidence VALUES (?, ?, ?, ?, ?)",
-            ("example.com", "dns", "dns_error", json.dumps({"error": "failed"}), "2026-01-01"),
+            "INSERT INTO evidence VALUES (?, ?, ?, ?, ?, ?)",
+            ("example.com", "dns", "dns_error", json.dumps({"error": "failed"}), "2026-01-01", "scan-old"),
+        )
+        db.execute(
+            "INSERT INTO evidence VALUES (?, ?, ?, ?, ?, ?)",
+            ("example.com", "http", "http_error", json.dumps({"error": "latest"}), "2026-01-02", "scan-1"),
         )
 
     domains = list_assets(database, asset_type="domain", target="example.com")
@@ -57,5 +61,7 @@ with tempfile.TemporaryDirectory() as directory:
     assert observations[0].endpoint == "https://api.example.com/"
     assert observations[0].signal == "header:server=nginx"
     failures = list_failures(database, target="example.com")
-    assert failures[0][0:2] == ("dns", "dns_error")
+    assert failures[0][0:2] == ("http", "http_error")
+    scan_failures = list_failures(database, target="example.com", scan_id="scan-1")
+    assert [row[0:2] for row in scan_failures] == [("http", "http_error")]
 print("results query test passed")

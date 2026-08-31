@@ -42,6 +42,7 @@ def render_technology_results(rows) -> None:
             print(f"    Technology  {technology}")
             print(f"    Category    {row.category}")
             print(f"    Confidence  {row.confidence}")
+            print(f"    Source      {row.source}")
             print(f"    Status      {row.status}")
             print(f"    Signal      {_narrow_value(row.signal, 16)}")
         return
@@ -50,6 +51,7 @@ def render_technology_results(rows) -> None:
         ("TECHNOLOGY", 16),
         ("CATEGORY", 14),
         ("CONFIDENCE", 10),
+        ("SOURCE", 18),
         ("STATUS", 6),
         ("SIGNAL", 34),
     )
@@ -64,6 +66,7 @@ def render_technology_results(rows) -> None:
             technology,
             row.category,
             row.confidence,
+            row.source,
             row.status,
             row.signal,
         )
@@ -430,7 +433,17 @@ def main() -> None:
         print("  SH4Q RESULTS")
         print("  ============")
         if args.failures:
-            rows = list_failures(str(database), target=args.target, limit=args.limit)
+            scan_id = args.scan
+            if args.latest:
+                latest = latest_scan(str(database), args.target)
+                if latest is None:
+                    print("  No recorded scan run matches this query.\n")
+                    return
+                scan_id = latest.id
+                print(f"  Scan     {latest.id} ({latest.target})")
+            rows = list_failures(
+                str(database), target=args.target, scan_id=scan_id, limit=args.limit
+            )
             if not rows:
                 print("  No recorded failures.")
             else:
