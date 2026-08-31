@@ -60,6 +60,14 @@ List recent scans:
 sh4q scans
 ```
 
+Inspect durable processing health:
+
+```bash
+sh4q events --target your-domain.example
+```
+
+The default event view groups records by target, source stage, discovery kind, and status. It is mainly useful for confirming that discoveries completed, identifying retries or dead letters, and auditing recovery after interruption. Use `--details` only when individual event IDs are needed.
+
 Use an exact scan ID when comparing runs:
 
 ```bash

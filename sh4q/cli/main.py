@@ -91,22 +91,37 @@ def render_asset_results(rows) -> None:
 
 
 def render_event_results(records) -> None:
-    if _terminal_is_narrow(100):
+    if _terminal_is_narrow(120):
         for record in records:
-            print(f"  {record.status}  {record.type}  attempts={record.attempts}")
+            print(f"  {record.status}  {record.source_plugin or '-'}  {record.discovery_kind or record.type}  attempts={record.attempts}")
             print(f"    Target    {_narrow_value(record.target or '-', 14)}")
             print(f"    Event ID  {_narrow_value(record.id, 14)}")
             if record.error:
                 print(f"    Error     {_narrow_value(record.error, 14)}")
         return
-    columns = (("STATUS", 12), ("TYPE", 14), ("TARGET", 34), ("ATTEMPTS", 8), ("EVENT ID", 32))
+    columns = (("STATUS", 12), ("SOURCE", 18), ("KIND", 24), ("TARGET", 28), ("ATTEMPTS", 8), ("EVENT ID", 32))
     print("  " + "  ".join(label.ljust(width) for label, width in columns))
     print("  " + "  ".join("-" * width for _, width in columns))
     for record in records:
-        values = (record.status, record.type, record.target or "-", record.attempts, record.id)
+        values = (record.status, record.source_plugin or "-", record.discovery_kind or record.type, record.target or "-", record.attempts, record.id)
         print("  " + "  ".join(_fit(value, width).ljust(width) for value, (_, width) in zip(values, columns)))
         if record.error:
             print(f"    error: {_fit(record.error, 100)}")
+
+
+def render_event_summary(rows) -> None:
+    if _terminal_is_narrow(100):
+        for row in rows:
+            print(f"  {row.status}  {row.source_plugin or '-'}  count={row.count}  retried={row.retried}")
+            print(f"    Kind    {_narrow_value(row.discovery_kind, 12)}")
+            print(f"    Target  {_narrow_value(row.target or '-', 12)}")
+        return
+    columns = (("STATUS", 12), ("SOURCE", 18), ("KIND", 24), ("TARGET", 28), ("COUNT", 7), ("RETRIED", 7))
+    print("  " + "  ".join(label.ljust(width) for label, width in columns))
+    print("  " + "  ".join("-" * width for _, width in columns))
+    for row in rows:
+        values = (row.status, row.source_plugin or "-", row.discovery_kind, row.target or "-", row.count, row.retried)
+        print("  " + "  ".join(_fit(value, width).ljust(width) for value, (_, width) in zip(values, columns)))
 
 
 def render_scan_runs(rows) -> None:
@@ -135,6 +150,22 @@ def render_failure_results(rows) -> None:
     print("  " + "  ".join("-" * width for _, width in columns))
     for row in rows:
         print("  " + "  ".join(_fit(value, width).ljust(width) for value, (_, width) in zip(row, columns)))
+
+
+def render_metrics(title: str, rows) -> None:
+    print(f"\n  {title}")
+    print("  " + "-" * len(title))
+    print("  METRIC                         VALUE")
+    print("  -----------------------------  ----------")
+    for label, value in rows:
+        print(f"  {_fit(label, 29):<29}  {value:>10}")
+
+
+def render_identity() -> None:
+    if sys.stdout.isatty():
+        print("\n       (o)")
+        print("      / |")
+        print("  (o)---(o)  SH4Q (*_*)/")
 def render_scan_report(report) -> None:
     run = report.run
     observed = report.request_metrics.get("observed", {})
@@ -235,6 +266,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     events.add_argument("--limit", type=int, default=25)
     events.add_argument("--target", help="Filter events by scan target.")
+    events.add_argument("--details", action="store_true", help="Show individual durable event records and IDs")
 
     results = subparsers.add_parser("results", help="View stored assets without writing SQL")
     results.add_argument("--database", default="./sh4q-output/sh4q.db")
@@ -277,6 +309,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def render_summary(summary) -> None:
+    render_identity()
     print()
     print("  SH4Q SCAN SUMMARY")
     print("  =================")
@@ -293,36 +326,40 @@ def render_summary(summary) -> None:
     print("  Scope    AUTHORIZED")
     if summary.recovered_events:
         print(f"  Resume   recovered {summary.recovered_events} event(s)")
-    print()
-    print("  Assets")
-    print(f"    DNS addresses   {summary.dns_addresses:>5}")
-    print(f"    HTTP endpoints  {summary.http_endpoints:>5}")
-    print(f"    CT names        {summary.ct_names:>5}")
-    print(f"    Adapter names   {summary.adapter_names:>5}")
-    print(f"    Resolved names  {summary.resolved_discovered_addresses:>5}")
-    print(f"    DNS failures    {summary.resolved_discovered_failures:>5}")
+    asset_rows = [
+        ("DNS addresses", summary.dns_addresses),
+        ("HTTP endpoints", summary.http_endpoints),
+        ("CT names", summary.ct_names),
+        ("Adapter names", summary.adapter_names),
+        ("Resolved names", summary.resolved_discovered_addresses),
+        ("DNS failures", summary.resolved_discovered_failures),
+    ]
     for reason, count in sorted(summary.dns_failure_reasons.items()):
-        print(f"      {reason:<14} {count:>5}")
-    print(f"    Technologies    {summary.technologies:>5}")
-    print(f"    Total           {summary.discoveries:>5}")
-    print()
-    print(f"  Relationships     {summary.relationships:>5}")
-    print(f"  Evidence (scan)   {summary.evidence_this_scan:>5}")
-    print(f"  Evidence (stored)  {summary.evidence:>5}")
-    print()
-    print("  Network requests")
-    print(f"    Admitted (native) {summary.requests_admitted:>4}")
-    print(f"    Budget denied    {summary.requests_denied:>5}")
-    print(f"    Completed        {summary.requests_completed:>5}")
-    print(f"    Failed           {summary.requests_failed:>5}")
-    print(f"    Peak concurrent  {summary.peak_request_concurrency:>5}")
+        asset_rows.append((f"DNS failure: {reason}", count))
+    asset_rows.extend([
+        ("Technologies", summary.technologies),
+        ("Total unique assets", summary.discoveries),
+        ("Asset links (relationships)", summary.relationships),
+        ("Evidence from this scan", summary.evidence_this_scan),
+        ("Evidence stored", summary.evidence),
+    ])
+    render_metrics("Inventory", asset_rows)
+    render_metrics("Network Requests", [
+        ("Admitted (native)", summary.requests_admitted),
+        ("Budget denied", summary.requests_denied),
+        ("Completed", summary.requests_completed),
+        ("Failed", summary.requests_failed),
+        ("Peak concurrent", summary.peak_request_concurrency),
+    ])
     if summary.stage_durations:
-        print()
-        print("  Stage durations")
+        print("\n  Stage Durations")
+        print("  ---------------")
+        print("  STAGE                         DURATION")
+        print("  ----------------------------  ----------")
         for stage, duration in summary.stage_durations.items():
-            print(f"    {stage:<18} {duration:>8.2f}s")
-    print(f"  Duration       {summary.duration_seconds:>8.2f}s")
-    print(f"  Database       {summary.database_path}")
+            print(f"  {_fit(stage, 28):<28}  {duration:>9.2f}s")
+    print(f"\n  Duration  {summary.duration_seconds:.2f}s")
+    print(f"  Database  {summary.database_path}")
     print()
     print("  Scan complete.")
     print()
@@ -361,20 +398,23 @@ def main() -> None:
         database = Path(args.database)
         if not database.exists():
             parser.error(f"database not found: {database}")
-        records = asyncio.run(
-            DurableEventLog(str(database)).list_records(
-                status=args.status,
-                target=args.target,
-                limit=args.limit,
-            )
-        )
+        event_log = DurableEventLog(str(database))
         print()
         print("  SH4Q EVENT LOG")
         print("  ===============")
-        if not records:
-            print("  No matching events.")
+        if args.details:
+            records = asyncio.run(event_log.list_records(status=args.status, target=args.target, limit=args.limit))
+            if not records:
+                print("  No matching events.")
+            else:
+                render_event_results(records)
         else:
-            render_event_results(records)
+            rows = asyncio.run(event_log.summarize(status=args.status, target=args.target, limit=args.limit))
+            if not rows:
+                print("  No matching events.")
+            else:
+                render_event_summary(rows)
+                print("\n  Use --details to inspect individual durable records and event IDs.")
         print()
         return
 

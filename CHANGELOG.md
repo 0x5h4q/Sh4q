@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-alpha.7 - 2026-08-31
+
+- Replaced the repetitive default event listing with grouped operational status by target, source, discovery kind, status, count, and retries.
+- Kept individual durable records available through `sh4q events --details`.
+- Reformatted scan summaries as compact tables and clarified relationship counts as asset links.
+- Added a restrained graph-style ASCII identity for interactive scan summaries.
+
 ## 0.1.0-alpha.6 - 2026-08-31
 
 - Added a data-driven offline technology signature engine over already-authorised HTTP responses.

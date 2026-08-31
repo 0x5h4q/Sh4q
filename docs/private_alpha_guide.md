@@ -40,6 +40,10 @@ HTTP status codes such as `403` and `404` mean that a server responded. They do 
 
 Technology observations are matched locally from the authorised response already collected by Sh4q. Empty version fields mean the inspected response did not explicitly disclose a version.
 
+`sh4q events --target your-authorized-domain.example` shows grouped durable processing health. It helps confirm completion, retries, dead letters, and recovery after interruption. Individual records are available with `--details` when debugging.
+
+The relationship count is the number of asset links stored by the scan, such as domain-to-address, domain-to-endpoint, and endpoint-to-technology. The combined HTTP inventory export presents the most useful links together for spreadsheet review.
+
 ## Export
 
 ```bash

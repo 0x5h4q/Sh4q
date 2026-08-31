@@ -24,6 +24,12 @@ async def main() -> None:
     assert dead_letters[0].error == "deliberate"
     assert len(await log.list_records()) == 2
     assert len(await log.list_records(target="example.com")) == 1
+    summary = await log.summarize(target="example.com")
+    assert len(summary) == 1
+    assert summary[0].target == "example.com"
+    assert summary[0].status == "DEAD_LETTER"
+    assert summary[0].count == 1
+    assert summary[0].retried == 1
     print("event inspection test passed")
 
 

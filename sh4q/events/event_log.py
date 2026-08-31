@@ -21,6 +21,19 @@ class EventLogRecord:
     updated_at: str
     next_attempt_at: str | None
     target: str
+    discovery_kind: str
+    source_plugin: str
+
+
+@dataclass(frozen=True)
+class EventLogSummary:
+    target: str
+    source_plugin: str
+    discovery_kind: str
+    status: str
+    count: int
+    retried: int
+    updated_at: str
 
 
 class DurableEventLog:
@@ -123,8 +136,10 @@ class DurableEventLog:
         async with open_database(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             rows = await (await db.execute(query, parameters)).fetchall()
-        return [
-            EventLogRecord(
+        records = []
+        for row in rows:
+            payload = json.loads(row["payload"])
+            records.append(EventLogRecord(
                 id=row["id"],
                 type=row["type"],
                 status=row["status"],
@@ -133,10 +148,42 @@ class DurableEventLog:
                 created_at=row["created_at"],
                 updated_at=row["updated_at"],
                 next_attempt_at=row["next_attempt_at"],
-                target=(json.loads(row["payload"]).get("scan_target") or ""),
-            )
-            for row in rows
-        ]
+                target=(payload.get("scan_target") or ""),
+                discovery_kind=(payload.get("kind") or ""),
+                source_plugin=(payload.get("source_plugin") or ""),
+            ))
+        return records
+
+    async def summarize(
+        self,
+        *,
+        status: str | None = None,
+        target: str | None = None,
+        limit: int = 50,
+    ) -> list[EventLogSummary]:
+        conditions = []
+        parameters: list[object] = []
+        if status:
+            conditions.append("status = ?")
+            parameters.append(status.upper())
+        if target:
+            conditions.append("json_extract(payload, '$.scan_target') = ?")
+            parameters.append(target)
+        query = """SELECT
+            COALESCE(json_extract(payload, '$.scan_target'), '') AS target,
+            COALESCE(json_extract(payload, '$.source_plugin'), '') AS source_plugin,
+            COALESCE(json_extract(payload, '$.kind'), type) AS discovery_kind,
+            status, COUNT(*) AS event_count,
+            SUM(CASE WHEN attempts > 0 THEN 1 ELSE 0 END) AS retried,
+            MAX(updated_at) AS last_updated
+            FROM event_log"""
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += " GROUP BY target, source_plugin, discovery_kind, status ORDER BY last_updated DESC LIMIT ?"
+        parameters.append(max(1, min(limit, 500)))
+        async with open_database(self._db_path) as db:
+            rows = await (await db.execute(query, parameters)).fetchall()
+        return [EventLogSummary(*row) for row in rows]
 
 
 def _iso_now() -> str:

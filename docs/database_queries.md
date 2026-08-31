@@ -51,6 +51,8 @@ Exit with `.quit`.
 
 Ordinary users should not need SQL. The supported interfaces are `sh4q results` with target/type filters, `sh4q show` for scan summaries, and JSON/CSV export. A self-contained HTML report showing assets, provenance, failures, and scan metrics remains future work.
 
+Relationships are the links between stored assets: a domain `RESOLVES_TO` an address, a domain `SERVES` an HTTP endpoint, or an endpoint has a `DETECTED_TECHNOLOGY`. The scan summary labels these as asset links. The combined `http-inventory` export materializes the useful domain, address, endpoint, status, and technology links into one row per endpoint; the SQLite database retains the complete graph.
+
 The first non-SQL view is now available:
 
 ```bash
