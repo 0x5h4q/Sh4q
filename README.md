@@ -36,12 +36,6 @@ sh4q results --latest --target your-domain.example --type url
 sh4q results --latest --target your-domain.example --type technology
 ```
 
-Display the optional terminal artwork:
-
-```bash
-sh4q banner
-```
-
 Export HTTP-responsive domains:
 
 ```bash
