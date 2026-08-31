@@ -128,7 +128,7 @@ def make_discovery_handler(
             relationship = Relationship(from_id=domain_node.id, to_id=ip_node.id, type="RESOLVES_TO")
             await storage.save_relationship(relationship)
             await record_asset("resolved_discovered_addresses", domain_node.id, relationship.id, source_plugin, event_scan_run_id)
-            display_bounded("discovered DNS success", f"  SAVED: {domain} --RESOLVES_TO--> {ip}")
+            display_bounded("discovered DNS success", status_line(f"SAVED: {domain} --RESOLVES_TO--> {ip}", "ok"))
 
         elif kind == "discovered_dns_error":
             if stats is not None:
@@ -140,7 +140,7 @@ def make_discovery_handler(
                 reasons[reason] = reasons.get(reason, 0) + 1
             display_bounded(
                 "discovered DNS failure",
-                f"  FAILED  discovered_dns_error: {data.get('domain')}: {data.get('error', 'unknown error')}",
+                status_line(f"FAILED discovered_dns_error: {data.get('domain')}: {data.get('error', 'unknown error')}", "error"),
             )
 
         elif kind == "http_probe":
@@ -262,21 +262,21 @@ def make_discovery_handler(
 
         elif kind == "adapter_execution":
             if data.get("timed_out"):
-                print(
-                    f"  FAILED  {data.get('adapter', 'adapter')}: "
+                print(status_line(
+                    f"FAILED {data.get('adapter', 'adapter')}: "
                     f"execution timed out after {data.get('duration_seconds', '?')}s"
-                )
+                , "error"))
             elif data.get("output_limited"):
-                print(f"  FAILED  {data.get('adapter', 'adapter')}: output limit exceeded")
+                print(status_line(f"FAILED {data.get('adapter', 'adapter')}: output limit exceeded", "error"))
             elif data.get("returncode") != 0:
                 detail = (data.get("stderr") or "").strip().splitlines()
                 suffix = f": {detail[0]}" if detail else ""
-                print(
-                    f"  FAILED  {data.get('adapter', 'adapter')}: "
+                print(status_line(
+                    f"FAILED {data.get('adapter', 'adapter')}: "
                     f"exit {data.get('returncode')}{suffix}"
-                )
+                , "error"))
             elif not (data.get("stdout") or "").strip():
-                print(f"  {data.get('adapter', 'adapter')}: completed with no output")
+                print(status_line(f"{data.get('adapter', 'adapter')}: completed with no output"))
             return
 
         elif kind == "ct_rate_limited":
@@ -284,20 +284,20 @@ def make_discovery_handler(
             retry_after = data.get("retry_after")
 
             if retry_after is not None:
-                print(f"  CT RATE LIMITED: {source} (Retry-After: {retry_after}s)")
+                print(status_line(f"CT RATE LIMITED: {source} (Retry-After: {retry_after}s)", "error"))
             else:
-                print(f"  CT RATE LIMITED: {source}")
+                print(status_line(f"CT RATE LIMITED: {source}", "error"))
 
         elif kind in ("http_error", "dns_error", "ct_error"):
             phase = data.get("phase")
             suffix = f" [{phase}]" if phase else ""
-            message = f"  FAILED  {kind}{suffix}: {data.get('error', 'unknown error')}"
+            message = status_line(f"FAILED {kind}{suffix}: {data.get('error', 'unknown error')}", "error")
             if source_plugin == "discovered-http":
                 display_bounded("discovered HTTP failure", message)
             else:
                 print(message)
 
         else:
-            print(f"  (no handler yet for discovery kind={kind!r})")
+            print(status_line(f"(no handler yet for discovery kind={kind!r})", "error"))
 
     return handle_discovery
