@@ -4,6 +4,7 @@ from sh4q.events import Event
 from sh4q.scope import ScopeEngine
 from sh4q.storage import Node, Relationship, StorageRepository
 from sh4q.storage.evidence import Evidence, EvidenceStore
+from sh4q.cli.branding import status_line
 
 
 def _canonical_url(value: str) -> str:
@@ -101,7 +102,7 @@ def make_discovery_handler(
             relationship = Relationship(from_id=domain_node.id, to_id=ip_node.id, type="RESOLVES_TO")
             await storage.save_relationship(relationship)
             if await record_asset("dns_addresses", ip_node.id, relationship.id, source_plugin, event_scan_run_id):
-                print(f"  SAVED: {domain} --RESOLVES_TO--> {ip}")
+                print(status_line(f"SAVED: {domain} --RESOLVES_TO--> {ip}", "ok"))
 
         elif kind == "discovered_dns_resolution":
             domain = data["domain"]
@@ -176,7 +177,7 @@ def make_discovery_handler(
             relationship = Relationship(from_id=domain_node.id, to_id=url_node.id, type="SERVES")
             await storage.save_relationship(relationship)
             if await record_asset("http_endpoints", url_node.id, relationship.id, source_plugin, event_scan_run_id):
-                print(f"  SAVED: {host} --SERVES--> {final_url} [{data['status']}]")
+                print(status_line(f"SAVED: {host} --SERVES--> {final_url} [{data['status']}]", "ok"))
 
         elif kind == "http_fingerprint":
             endpoint = _canonical_url(data["endpoint"])
