@@ -31,6 +31,7 @@ from sh4q.adapters import (
     AdapterExecutionError,
     ControlledProcessRunner,
     ExternalAdapterPlugin,
+    HttpxFingerprintPlugin,
     SubfinderAdapter,
 )
 
@@ -76,6 +77,7 @@ async def run_scan(
     config_path: str | None = None,
     *,
     include_subfinder: bool = False,
+    include_httpx: bool = False,
 ) -> ScanSummary:
     start = time.monotonic()
     scan_started_at = datetime.now(timezone.utc).isoformat()
@@ -156,6 +158,19 @@ async def run_scan(
             )
             plugins.append(DiscoveredDNSPlugin(scope=scope))
             plugins.append(DiscoveredHTTPPlugin(scope=scope, limiter=limiter))
+        if include_httpx:
+            executable = shutil.which("httpx")
+            if executable is None:
+                raise AdapterExecutionError("httpx is not installed or is not available on PATH")
+            adapter_home = Path(config.output.directory) / "adapters" / "httpx-home"
+            adapter_home.mkdir(parents=True, exist_ok=True)
+            plugins.append(
+                HttpxFingerprintPlugin(
+                    AdapterContext(scope, Path(config.output.directory)),
+                    ControlledProcessRunner({executable}, environment={"HOME": str(adapter_home.resolve())}),
+                    executable=executable,
+                )
+            )
         scheduler = Scheduler(
             plugins=plugins,
             scope=scope,

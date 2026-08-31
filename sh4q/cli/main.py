@@ -251,6 +251,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run the optional passive Subfinder adapter.",
     )
+    scan.add_argument(
+        "--httpx",
+        action="store_true",
+        help="Run optional httpx technology enrichment on approved HTTP endpoints.",
+    )
 
     events = subparsers.add_parser("events", help="Inspect durable event state")
     events.add_argument(
@@ -379,7 +384,7 @@ def main() -> None:
         render_identity()
         try:
             summary = asyncio.run(
-                run_scan(args.target, args.config, include_subfinder=args.sub)
+                run_scan(args.target, args.config, include_subfinder=args.sub, include_httpx=args.httpx)
             )
         except KeyboardInterrupt:
             print()
