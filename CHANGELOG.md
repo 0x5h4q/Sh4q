@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-alpha.6 - 2026-08-31
+
+- Added a data-driven offline technology signature engine over already-authorised HTTP responses.
+- Added structured meta, script, and stylesheet extraction within the existing 64 KiB response sample.
+- Added curated signatures with explicit version capture for common CMS, frameworks, libraries, platforms, runtimes, and CDN/WAF signals.
+- Added signature-engine provenance to technology exports without generating additional network requests.
+
 ## 0.1.0-alpha.5 - 2026-08-30
 
 - Added a combined HTTP inventory export with endpoint status, resolved addresses, technologies, confidence, signals, and provenance.

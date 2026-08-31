@@ -23,6 +23,7 @@ class TechnologyObservation:
     confidence: str
     status: int | None
     signal: str
+    source: str
 
 
 def list_technology_observations(
@@ -60,6 +61,7 @@ def list_technology_observations(
             confidence=attributes.get("confidence", ""),
             status=attributes.get("status"),
             signal=attributes.get("raw_observation", ""),
+            source=attributes.get("source", ""),
         ))
         if len(observations) >= max(1, min(limit, 1000)):
             break

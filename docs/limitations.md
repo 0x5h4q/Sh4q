@@ -51,3 +51,4 @@ This list describes the private-alpha boundary. It should be read before judging
 - It does not currently crawl applications broadly or perform general port scanning.
 - It is not a direct replacement for reconFTW, Amass, Nmap, or a commercial attack-surface management platform.
 - The private-alpha package is source-based and currently requires Python and a local virtual environment; no standalone binary is provided.
+- Technology detection uses a curated offline signature set over a bounded response sample. It is intentionally smaller than Wappalyzer and does not execute page JavaScript or make additional fingerprinting requests.

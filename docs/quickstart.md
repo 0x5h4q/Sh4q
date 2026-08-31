@@ -32,6 +32,8 @@ List technology observations and their supporting signals:
 sh4q results --latest --target your-domain.example --type technology
 ```
 
+Technology matching is performed locally against responses already admitted by Sh4q. It does not create a second fingerprinting request. Exact versions appear only when an inspected header, meta value, script path, stylesheet path, cookie, or HTML marker explicitly exposes one.
+
 A `403` or `404` still means an HTTP server responded. It does not mean access was granted or the application is healthy.
 
 ## 3. Use Subfinder Only When Needed

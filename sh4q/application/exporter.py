@@ -65,7 +65,7 @@ def _http_inventory(db, scan_id: str) -> list[dict]:
                 "version": attributes.get("version", ""),
                 "confidence": attributes.get("confidence", ""),
                 "signal": attributes.get("raw_observation", ""),
-                "source": source,
+                "source": attributes.get("source", source),
             })
             if source:
                 sources.add(source)
@@ -153,6 +153,7 @@ def export_scan(
                 "confidence": item.confidence,
                 "http_status": item.status,
                 "signal": item.signal,
+                "source": item.source,
             }
             for item in observations
         ]
@@ -187,6 +188,7 @@ def export_scan(
                 fieldnames = [
                     "scan_id", "target", "endpoint", "technology", "category",
                     "version", "confidence", "http_status", "signal",
+                    "source",
                 ]
             elif asset_type == "http-inventory":
                 fieldnames = [
@@ -218,6 +220,7 @@ def export_scan(
                         "confidence": item["confidence"],
                         "http_status": item["http_status"],
                         "signal": item["signal"],
+                        "source": item["source"],
                     })
                 elif asset_type == "http-inventory":
                     observations = item["technologies"]

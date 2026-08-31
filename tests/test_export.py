@@ -46,6 +46,7 @@ with tempfile.TemporaryDirectory() as directory:
     assert technology_rows[0]["endpoint"] == "https://api.example.com/"
     assert technology_rows[0]["technology"] == "nginx"
     assert technology_rows[0]["confidence"] == "explicit"
+    assert technology_rows[0]["source"] == ""
 
     with sqlite3.connect(database) as db:
         db.execute("INSERT INTO nodes VALUES (?, ?, ?, ?)", ("ip:93.184.216.34", "ip", "93.184.216.34", "{}"))

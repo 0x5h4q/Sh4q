@@ -38,6 +38,8 @@ sh4q results --latest --target your-authorized-domain.example --failures
 
 HTTP status codes such as `403` and `404` mean that a server responded. They do not mean that access was granted or that the application is healthy.
 
+Technology observations are matched locally from the authorised response already collected by Sh4q. Empty version fields mean the inspected response did not explicitly disclose a version.
+
 ## Export
 
 ```bash
