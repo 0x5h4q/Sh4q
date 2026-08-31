@@ -6,6 +6,7 @@ from typing import Any
 from sh4q.events import Event, EventBus
 from sh4q.plugins import Plugin
 from sh4q.scope import ScopeEngine
+from sh4q.cli.branding import status_line
 
 
 class Scheduler:
@@ -133,11 +134,11 @@ class Scheduler:
 
         for attempt in range(1, total_attempts + 1):
 
-            print(
+            print(status_line(
                 f"EXECUTE {plugin.metadata.name} "
                 f"on {target} "
                 f"(attempt {attempt}/{total_attempts})"
-            )
+            ))
 
             try:
                 discoveries = await asyncio.wait_for(
@@ -146,11 +147,11 @@ class Scheduler:
                 )
 
             except asyncio.TimeoutError:
-                print(
+                print(status_line(
                     f"TIMEOUT {plugin.metadata.name} "
                     f"on {target} "
                     f"(attempt {attempt}/{total_attempts})"
-                )
+                , "error"))
 
                 # Timeout is treated as a transient execution failure.
                 # Retry it using the Scheduler's generic retry policy.
@@ -237,11 +238,11 @@ class Scheduler:
 
         decision = self._scope.authorize(target)
 
-        print(
+        print(status_line(
             f"GATE 1: {target} -> "
             f"{'ALLOW' if decision.allowed else 'DENY'} "
             f"({decision.reason})"
-        )
+        , "ok" if decision.allowed else "error"))
 
         if not decision.allowed:
             return decision
@@ -326,6 +327,6 @@ class Scheduler:
             self.stage_durations[plugin.metadata.name] = round(
                 time.monotonic() - stage_started, 3
             )
-            print(f"STAGE COMPLETE {plugin.metadata.name}")
+            print("\n" + status_line(f"STAGE COMPLETE {plugin.metadata.name}", "ok"))
 
         return decision
