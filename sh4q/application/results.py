@@ -188,7 +188,21 @@ def list_failures(
     if scan_id:
         query += " AND scan_run_id = ?"
         params.append(scan_id)
-    query += " ORDER BY captured_at DESC LIMIT ?"
-    params.append(max(1, min(limit, 1000)))
+    query += " ORDER BY captured_at DESC LIMIT 1000"
     with open_sync_database(database) as db:
-        return db.execute(query, params).fetchall()
+        rows = db.execute(query, params).fetchall()
+    failures: list[tuple[str, str, str]] = []
+    for plugin, kind, content in rows:
+        details = json.loads(content)
+        if kind == "adapter_execution" and not (
+            details.get("returncode") not in (None, 0)
+            or details.get("timed_out")
+            or details.get("output_limited")
+        ):
+            continue
+        if kind == "ct_provider_status" and details.get("status") == "success":
+            continue
+        failures.append((plugin, kind, content))
+        if len(failures) >= max(1, min(limit, 1000)):
+            break
+    return failures

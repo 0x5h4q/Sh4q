@@ -44,6 +44,14 @@ with tempfile.TemporaryDirectory() as directory:
             "INSERT INTO evidence VALUES (?, ?, ?, ?, ?, ?)",
             ("example.com", "http", "http_error", json.dumps({"error": "latest"}), "2026-01-02", "scan-1"),
         )
+        db.execute(
+            "INSERT INTO evidence VALUES (?, ?, ?, ?, ?, ?)",
+            ("example.com", "httpx-fingerprint", "adapter_execution", json.dumps({"returncode": 0}), "2026-01-03", "scan-1"),
+        )
+        db.execute(
+            "INSERT INTO evidence VALUES (?, ?, ?, ?, ?, ?)",
+            ("example.com", "ct", "ct_provider_status", json.dumps({"status": "success"}), "2026-01-04", "scan-1"),
+        )
 
     domains = list_assets(database, asset_type="domain", target="example.com")
     assert [row.value for row in domains] == ["api.example.com"]
