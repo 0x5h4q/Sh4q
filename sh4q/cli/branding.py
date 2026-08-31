@@ -1,11 +1,17 @@
 """Small terminal branding used by the interactive scan command."""
 
 SCAN_BANNER = """  ████ █   █ █  █   ███
+
  █ ░░░░█░  █░█░ █░ █ ░░█
+
   ███░░█████░█████░█░ ░█░
+
    ░░█ █░░░█░░░░█░░█░░█ ░░
+
  ████░░█░░░█░░ ░█░░░██ █ ░
+
   ░░░░ ░░░  ░░   ░░  ░░ ░
+
    ░░░░  ░   ░    ░   ░░ ░"""
 
 def render_scan_banner(colored: bool = False) -> str:
