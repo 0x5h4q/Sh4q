@@ -14,6 +14,7 @@ from sh4q.application.results import list_assets, list_failures, list_technology
 from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
 from sh4q.application.scan_report import build_scan_report
 from sh4q.storage.db import SchemaVersionError, ensure_schema_version
+from sh4q.cli.branding import COMPACT_BANNER, FULL_BANNER
 
 
 def _fit(value: object, width: int) -> str:
@@ -163,9 +164,7 @@ def render_metrics(title: str, rows) -> None:
 
 def render_identity() -> None:
     if sys.stdout.isatty():
-        print("\n       (o)")
-        print("      / |")
-        print("  (o)---(o)  SH4Q (*_*)/")
+        print("\n" + COMPACT_BANNER)
 def render_scan_report(report) -> None:
     run = report.run
     observed = report.request_metrics.get("observed", {})
@@ -239,6 +238,8 @@ def build_parser() -> argparse.ArgumentParser:
         package_version = "development"
     parser.add_argument("--version", action="version", version=f"sh4q {package_version}")
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    subparsers.add_parser("banner", help="Display the Sh4q terminal artwork")
 
     scan = subparsers.add_parser("scan", help="Scan a target")
     scan.add_argument("target", help="Hostname to scan, e.g. example.com")
@@ -368,6 +369,13 @@ def render_summary(summary) -> None:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+
+    if args.command == "banner":
+        if sys.stdout.isatty() and shutil.get_terminal_size((80, 24)).columns >= 116:
+            print("\n" + FULL_BANNER + "\n")
+        else:
+            print("\n" + COMPACT_BANNER + "\n")
+        return
 
     if args.command != "scan" and hasattr(args, "database"):
         database = Path(args.database)

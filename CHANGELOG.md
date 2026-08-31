@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-alpha.8 - 2026-08-31
+
+- Added `sh4q banner` for the full Unicode block-art identity on wide interactive terminals.
+- Preserved the compact graph identity for narrow terminals and redirected output.
+
 ## 0.1.0-alpha.7 - 2026-08-31
 
 - Replaced the repetitive default event listing with grouped operational status by target, source, discovery kind, status, count, and retries.
