@@ -156,11 +156,11 @@ class Scheduler:
                 # Timeout is treated as a transient execution failure.
                 # Retry it using the Scheduler's generic retry policy.
                 if attempt >= total_attempts:
-                    print(
+                    print(status_line(
                         f"RETRY EXHAUSTED {plugin.metadata.name} "
                         f"on {target} "
                         f"after {attempt} attempts"
-                    )
+                    , "error"))
                     self.stage_outcomes[stage_name] = {
                         "status": "timeout_exhausted", "attempts": attempt, "discoveries": 0
                     }
@@ -168,21 +168,21 @@ class Scheduler:
 
                 delay = self._backoff_delay(attempt)
 
-                print(
+                print(status_line(
                     f"RETRY {plugin.metadata.name} "
                     f"on {target}: "
                     f"attempt {attempt + 1}/{total_attempts} "
                     f"in {delay:.2f}s"
-                )
+                ))
 
                 await asyncio.sleep(delay)
                 continue
 
             except Exception as e:
-                print(
+                print(status_line(
                     f"ERROR {plugin.metadata.name} "
                     f"on {target}: {e}"
-                )
+                , "error"))
 
                 # Generic unexpected exceptions are NOT automatically
                 # retried. Plugins should explicitly report retryable
@@ -207,11 +207,11 @@ class Scheduler:
                 return discoveries
 
             if attempt >= total_attempts:
-                print(
+                print(status_line(
                     f"RETRY EXHAUSTED {plugin.metadata.name} "
                     f"on {target} "
                     f"after {attempt} attempts"
-                )
+                , "error"))
                 self.stage_outcomes[stage_name] = {
                     "status": "retry_exhausted", "attempts": attempt,
                     "discoveries": len(discoveries),
@@ -220,12 +220,12 @@ class Scheduler:
 
             delay = self._backoff_delay(attempt)
 
-            print(
+            print(status_line(
                 f"RETRY {plugin.metadata.name} "
                 f"on {target}: "
                 f"attempt {attempt + 1}/{total_attempts} "
                 f"in {delay:.2f}s"
-            )
+            ))
 
             await asyncio.sleep(delay)
 
