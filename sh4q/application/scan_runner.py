@@ -176,7 +176,6 @@ async def run_scan(
             scope=scope,
             bus=bus,
             scan_run_id=scan_run.id,
-            max_retries=0 if include_httpx else 2,
         )
         decision = await scheduler.run(target)
         await bus.drain()

@@ -33,7 +33,7 @@ class HttpxFingerprintPlugin(Plugin):
     async def execute(self, target: str) -> list[Discovery]:
         if not self._endpoints:
             return []
-        input_file = self._context.output_directory / "httpx-endpoints.txt"
+        input_file = (self._context.output_directory / "httpx-endpoints.txt").resolve()
         input_file.write_text("\n".join(self._endpoints) + "\n", encoding="utf-8")
         argv = (self._adapter.executable, "-silent", "-json", "-status-code", "-title", "-tech-detect", "-l", str(input_file))
         result = await self._runner.run(argv, cwd=self._context.output_directory, timeout=120.0)
