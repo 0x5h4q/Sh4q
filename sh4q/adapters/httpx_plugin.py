@@ -10,7 +10,7 @@ from .runner import ControlledProcessRunner
 class HttpxFingerprintPlugin(Plugin):
     """Run httpx only against HTTP endpoints discovered by this scan."""
 
-    metadata = PluginMetadata(name="httpx-fingerprint", timeout=300.0, risk_level="external-controlled")
+    metadata = PluginMetadata(name="httpx-fingerprint", timeout=150.0, risk_level="external-controlled")
 
     def __init__(self, context: AdapterContext, runner: ControlledProcessRunner, *, executable: str = "httpx", max_endpoints: int = 200):
         self._context = context
@@ -31,11 +31,13 @@ class HttpxFingerprintPlugin(Plugin):
         return parsed.scheme in {"http", "https"} and bool(parsed.hostname) and self._context.scope.authorize(parsed.hostname).allowed
 
     async def execute(self, target: str) -> list[Discovery]:
-        findings: list[Discovery] = []
-        for endpoint in self._endpoints:
-            argv = tuple(self._adapter.build_argv(endpoint, self._context))
-            result = await self._runner.run(argv, cwd=self._context.output_directory, timeout=120.0)
-            findings.append(Discovery("adapter_execution", {"adapter": self._adapter.name, "argv": self._adapter.evidence_argv(result.argv), "returncode": result.returncode, "stdout": result.stdout, "stderr": result.stderr, "timed_out": result.timed_out, "output_limited": result.output_limited, "duration_seconds": result.duration_seconds}))
-            if result.returncode == 0 and not result.timed_out and not result.output_limited:
-                findings.extend(self._adapter.parse_stdout(endpoint, result.stdout))
+        if not self._endpoints:
+            return []
+        input_file = self._context.output_directory / "httpx-endpoints.txt"
+        input_file.write_text("\n".join(self._endpoints) + "\n", encoding="utf-8")
+        argv = (self._adapter.executable, "-silent", "-json", "-status-code", "-title", "-tech-detect", "-l", str(input_file))
+        result = await self._runner.run(argv, cwd=self._context.output_directory, timeout=120.0)
+        findings = [Discovery("adapter_execution", {"adapter": self._adapter.name, "argv": self._adapter.evidence_argv(result.argv), "returncode": result.returncode, "stdout": result.stdout, "stderr": result.stderr, "timed_out": result.timed_out, "output_limited": result.output_limited, "duration_seconds": result.duration_seconds})]
+        if result.returncode == 0 and not result.timed_out and not result.output_limited:
+            findings.extend(self._adapter.parse_stdout("batch", result.stdout))
         return findings
