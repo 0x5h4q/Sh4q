@@ -34,10 +34,26 @@ class HttpxFingerprintPlugin(Plugin):
         if not self._endpoints:
             return []
         input_file = (self._context.output_directory / "httpx-endpoints.txt").resolve()
+        output_file = (self._context.output_directory / "httpx-results.jsonl").resolve()
         input_file.write_text("\n".join(self._endpoints) + "\n", encoding="utf-8")
-        argv = (self._adapter.executable, "-silent", "-json", "-status-code", "-title", "-tech-detect", "-l", str(input_file))
+        output_file.unlink(missing_ok=True)
+        argv = (
+            self._adapter.executable,
+            "-silent",
+            "-json",
+            "-status-code",
+            "-title",
+            "-tech-detect",
+            "-l",
+            str(input_file),
+            "-o",
+            str(output_file),
+        )
         result = await self._runner.run(argv, cwd=self._context.output_directory, timeout=120.0)
-        findings = [Discovery("adapter_execution", {"adapter": self._adapter.name, "argv": self._adapter.evidence_argv(result.argv), "returncode": result.returncode, "stdout": result.stdout, "stderr": result.stderr, "timed_out": result.timed_out, "output_limited": result.output_limited, "duration_seconds": result.duration_seconds})]
+        output = result.stdout
+        if output_file.exists():
+            output = output_file.read_text(encoding="utf-8", errors="replace")
+        findings = [Discovery("adapter_execution", {"adapter": self._adapter.name, "argv": self._adapter.evidence_argv(result.argv), "returncode": result.returncode, "stdout": output, "stderr": result.stderr, "timed_out": result.timed_out, "output_limited": result.output_limited, "duration_seconds": result.duration_seconds})]
         if result.returncode == 0 and not result.timed_out and not result.output_limited:
-            findings.extend(self._adapter.parse_stdout("batch", result.stdout))
+            findings.extend(self._adapter.parse_stdout("batch", output))
         return findings
