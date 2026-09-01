@@ -1,7 +1,7 @@
 
 
-import os
 import shutil
+import os
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -182,17 +182,35 @@ async def run_scan(
             plugins.append(DiscoveredDNSPlugin(scope=scope))
             plugins.append(DiscoveredHTTPPlugin(scope=scope, limiter=limiter))
         if include_httpx:
-            executable = shutil.which("httpx")
-            if executable is None:
+            candidates = []
+            for directory in os.environ.get("PATH", "").split(os.pathsep):
+                candidate = Path(directory or ".") / "httpx"
+                if candidate.is_file() and os.access(candidate, os.X_OK):
+                    resolved = str(candidate.resolve())
+                    if resolved not in candidates:
+                        candidates.append(resolved)
+            if not candidates:
                 raise AdapterExecutionError("httpx is not installed or is not available on PATH")
             adapter_home = Path(config.output.directory) / "adapters" / "httpx-home"
             adapter_home.mkdir(parents=True, exist_ok=True)
             runner = ControlledProcessRunner(
-                {executable}, environment={"HOME": str(adapter_home.resolve())}
+                set(candidates), environment={"HOME": str(adapter_home.resolve())}
             )
-            await validate_projectdiscovery_httpx(
-                executable, runner, cwd=Path(config.output.directory)
-            )
+            executable = None
+            for candidate in candidates:
+                try:
+                    await validate_projectdiscovery_httpx(
+                        candidate, runner, cwd=Path(config.output.directory)
+                    )
+                    executable = candidate
+                    break
+                except AdapterExecutionError:
+                    continue
+            if executable is None:
+                raise AdapterExecutionError(
+                    "--httpx requires the ProjectDiscovery httpx CLI; "
+                    f"found no compatible executable among {', '.join(candidates)}"
+                )
             plugins.append(
                 HttpxFingerprintPlugin(
                     AdapterContext(scope, Path(config.output.directory)),
