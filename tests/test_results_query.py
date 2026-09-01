@@ -68,6 +68,9 @@ with tempfile.TemporaryDirectory() as directory:
     observations = list_technology_observations(database, scan_id="scan-1")
     assert observations[0].endpoint == "https://api.example.com/"
     assert observations[0].signal == "header:server=nginx"
+    assert list_technology_observations(database, scan_id="scan-1", category="web-server")
+    assert list_technology_observations(database, scan_id="scan-1", category="cms") == []
+    assert list_technology_observations(database, scan_id="scan-1", status=403) == []
     failures = list_failures(database, target="example.com")
     assert failures[0][0:2] == ("http", "http_error")
     scan_failures = list_failures(database, target="example.com", scan_id="scan-1")

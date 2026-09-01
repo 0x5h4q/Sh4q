@@ -289,6 +289,9 @@ def build_parser() -> argparse.ArgumentParser:
     results.add_argument("--limit", type=int, default=100)
     results.add_argument("--failures", action="store_true", help="Show recorded errors and provider failures")
     results.add_argument("--target", help="Filter assets or failures by root target")
+    results.add_argument("--source", help="Filter technology observations by source")
+    results.add_argument("--category", help="Filter technology observations by category")
+    results.add_argument("--status", type=int, help="Filter technology observations by HTTP status")
     scan_selection = results.add_mutually_exclusive_group()
     scan_selection.add_argument("--scan", help="Show assets observed in one scan run")
     scan_selection.add_argument("--latest", action="store_true", help="Show the latest recorded scan")
@@ -383,6 +386,11 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
+    if args.command == "results" and any(
+        value is not None for value in (args.source, args.category, args.status)
+    ) and args.type != "technology":
+        parser.error("--source, --category, and --status require --type technology")
+
     if args.command != "scan" and hasattr(args, "database"):
         database = Path(args.database)
         if database.exists():
@@ -468,7 +476,9 @@ def main() -> None:
                 print(f"  Scan     {latest.id} ({latest.target})")
             if args.type == "technology":
                 rows = list_technology_observations(
-                    str(database), target=args.target, scan_id=scan_id, limit=args.limit
+                    str(database), target=args.target, scan_id=scan_id,
+                    source=args.source, category=args.category, status=args.status,
+                    limit=args.limit,
                 )
                 render_technology_results(rows)
                 print(f"\n  Showing {len(rows)} technology observation(s). Use --limit to increase the view.")

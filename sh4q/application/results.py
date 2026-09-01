@@ -31,6 +31,9 @@ def list_technology_observations(
     *,
     target: str | None = None,
     scan_id: str | None = None,
+    source: str | None = None,
+    category: str | None = None,
+    status: int | None = None,
     limit: int = 100,
 ) -> list[TechnologyObservation]:
     query = """SELECT endpoint.value, technology.value, r.attributes
@@ -53,6 +56,12 @@ def list_technology_observations(
         if normalized and not _matches_target(ResultRow("url", endpoint, {}), normalized):
             continue
         attributes = json.loads(raw_attributes)
+        if source and attributes.get("source") != source:
+            continue
+        if category and attributes.get("category") != category:
+            continue
+        if status is not None and attributes.get("status") != status:
+            continue
         observations.append(TechnologyObservation(
             endpoint=endpoint,
             technology=technology,
