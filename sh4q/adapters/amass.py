@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Sequence
 
 from sh4q.plugins import Discovery
@@ -28,11 +29,21 @@ class AmassPassiveAdapter(ExternalToolAdapter):
 
     def parse_stdout(self, target: str, stdout: str) -> list[Discovery]:
         normalized_target = target.lower().rstrip(".")
-        names = {
-            line.strip().lower().rstrip(".")
-            for line in stdout.splitlines()
-            if line.strip()
-        }
+        names: set[str] = set()
+        suffix = re.escape(normalized_target)
+        fqdn_pattern = re.compile(
+            rf"(?<![A-Za-z0-9_-])([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*\.{suffix})(?![A-Za-z0-9_-])",
+            re.IGNORECASE,
+        )
+        for line in stdout.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            matches = fqdn_pattern.findall(stripped)
+            if matches:
+                names.update(match.lower().rstrip(".") for match in matches)
+            elif "-->" not in stripped:
+                names.add(stripped.lower().rstrip("."))
         names.discard(normalized_target)
         return [
             Discovery(

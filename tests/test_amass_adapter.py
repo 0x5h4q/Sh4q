@@ -23,11 +23,14 @@ assert adapter.evidence_argv(argv) == [
 
 discoveries = adapter.parse_stdout(
     "example.com",
-    "api.example.com\nAPI.EXAMPLE.COM.\nexample.com\nevil.test\n",
+    "api.example.com\nAPI.EXAMPLE.COM.\nexample.com\nevil.test\n"
+    "example.com (FQDN) --> a_record --> 192.0.2.1 (IPAddress)\n"
+    "example.com (FQDN) --> mx_record --> mail.example.com (FQDN)\n",
 )
 assert [item.data["hostname"] for item in discoveries] == [
     "api.example.com",
     "evil.test",
+    "mail.example.com",
 ]
 assert all(item.data["source"] == "amass-passive" for item in discoveries)
 print("Amass passive adapter test passed")
