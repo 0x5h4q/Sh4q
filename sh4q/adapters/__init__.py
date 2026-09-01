@@ -5,6 +5,7 @@ from .plugin import ExternalAdapterPlugin
 from .subfinder import SubfinderAdapter
 from .httpx_fingerprint import HttpxFingerprintAdapter
 from .httpx_plugin import HttpxFingerprintPlugin
+from .httpx_identity import validate_projectdiscovery_httpx
 from .runner import AdapterExecutionError, ControlledProcessRunner, ProcessResult
 
 __all__ = [
@@ -15,6 +16,7 @@ __all__ = [
     "ExternalAdapterPlugin",
     "HttpxFingerprintAdapter",
     "HttpxFingerprintPlugin",
+    "validate_projectdiscovery_httpx",
     "SubfinderAdapter",
     "ProcessResult",
 ]

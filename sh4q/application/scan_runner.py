@@ -33,6 +33,7 @@ from sh4q.adapters import (
     ExternalAdapterPlugin,
     HttpxFingerprintPlugin,
     SubfinderAdapter,
+    validate_projectdiscovery_httpx,
 )
 
 
@@ -164,10 +165,16 @@ async def run_scan(
                 raise AdapterExecutionError("httpx is not installed or is not available on PATH")
             adapter_home = Path(config.output.directory) / "adapters" / "httpx-home"
             adapter_home.mkdir(parents=True, exist_ok=True)
+            runner = ControlledProcessRunner(
+                {executable}, environment={"HOME": str(adapter_home.resolve())}
+            )
+            await validate_projectdiscovery_httpx(
+                executable, runner, cwd=Path(config.output.directory)
+            )
             plugins.append(
                 HttpxFingerprintPlugin(
                     AdapterContext(scope, Path(config.output.directory)),
-                    ControlledProcessRunner({executable}, environment={"HOME": str(adapter_home.resolve())}),
+                    runner,
                     executable=executable,
                 )
             )
