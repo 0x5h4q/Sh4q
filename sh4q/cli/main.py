@@ -217,6 +217,14 @@ def render_scan_report(report) -> None:
             f"    Limits                  {configured.get('requests_per_second', '-')} req/s, "
             f"{configured.get('max_concurrent', '-')} concurrent, budget {configured.get('budget', '-')}"
         )
+    if report.external_adapter_metrics:
+        metrics = report.external_adapter_metrics
+        print("\n  External Adapter Requests")
+        print(f"    Adapter                 {metrics.get('adapter', '-')}")
+        print(f"    Input endpoints         {metrics.get('input_endpoints', 0):>6}")
+        print(f"    Reported responses      {metrics.get('reported_responses', 0):>6}")
+        print(f"    Unreported endpoints    {metrics.get('unreported_endpoints', 0):>6}")
+        print(f"    Tool processes          {metrics.get('tool_processes', 0):>6}")
     if report.stages:
         print("\n  Stages")
         print("    NAME                STATUS               ATTEMPTS  FINDINGS  DURATION")

@@ -12,11 +12,12 @@ class HttpxFingerprintPlugin(Plugin):
 
     metadata = PluginMetadata(name="httpx-fingerprint", timeout=150.0, risk_level="external-controlled")
 
-    def __init__(self, context: AdapterContext, runner: ControlledProcessRunner, *, executable: str = "httpx", max_endpoints: int = 200):
+    def __init__(self, context: AdapterContext, runner: ControlledProcessRunner, *, executable: str = "httpx", max_endpoints: int = 200, timeout: float = 120.0):
         self._context = context
         self._runner = runner
         self._adapter = HttpxFingerprintAdapter(executable=executable)
         self._max_endpoints = max(1, max_endpoints)
+        self._timeout = timeout
         self._endpoints: list[str] = []
 
     def accept_discoveries(self, discoveries: list[Discovery], source_plugin: str | None = None) -> None:
@@ -49,11 +50,12 @@ class HttpxFingerprintPlugin(Plugin):
             "-o",
             str(output_file),
         )
-        result = await self._runner.run(argv, cwd=self._context.output_directory, timeout=120.0)
+        result = await self._runner.run(argv, cwd=self._context.output_directory, timeout=self._timeout)
         output = result.stdout
         if output_file.exists():
             output = output_file.read_text(encoding="utf-8", errors="replace")
-        findings = [Discovery("adapter_execution", {"adapter": self._adapter.name, "argv": self._adapter.evidence_argv(result.argv), "returncode": result.returncode, "stdout": output, "stderr": result.stderr, "timed_out": result.timed_out, "output_limited": result.output_limited, "duration_seconds": result.duration_seconds})]
+        reported = sum(1 for line in output.splitlines() if line.strip())
+        findings = [Discovery("adapter_execution", {"adapter": self._adapter.name, "argv": self._adapter.evidence_argv(result.argv), "returncode": result.returncode, "stdout": output, "stderr": result.stderr, "timed_out": result.timed_out, "output_limited": result.output_limited, "duration_seconds": result.duration_seconds, "input_endpoints": len(self._endpoints), "reported_responses": reported, "unreported_endpoints": max(0, len(self._endpoints) - reported), "tool_processes": 1})]
         if result.returncode == 0 and not result.timed_out and not result.output_limited:
             findings.extend(self._adapter.parse_stdout("batch", output))
         return findings

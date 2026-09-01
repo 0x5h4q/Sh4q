@@ -33,6 +33,10 @@ async def main():
         ], "http")
         results = await plugin.execute("example.com")
         assert [item.kind for item in results] == ["adapter_execution", "http_fingerprint"]
+        assert results[0].data["input_endpoints"] == 1
+        assert results[0].data["reported_responses"] == 1
+        assert results[0].data["unreported_endpoints"] == 0
+        assert results[0].data["tool_processes"] == 1
         assert results[1].data["technologies"] == ["nginx"]
 
 

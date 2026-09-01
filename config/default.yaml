@@ -29,3 +29,8 @@ output:
 logging:
   level: "INFO"
   structured: true
+
+adapters:
+  httpx:
+    max_endpoints: 200
+    timeout_seconds: 120.0

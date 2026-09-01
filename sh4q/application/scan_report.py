@@ -24,6 +24,7 @@ class ScanReport:
     http_failures: int = 0
     request_metrics: dict = field(default_factory=dict)
     stages: list[dict] = field(default_factory=list)
+    external_adapter_metrics: dict = field(default_factory=dict)
 
 
 def build_scan_report(database: str, run: ScanRun) -> ScanReport:
@@ -70,6 +71,7 @@ def build_scan_report(database: str, run: ScanRun) -> ScanReport:
         http_failures = 0
         request_metrics = {}
         stages = []
+        external_adapter_metrics = {}
         rows = db.execute(
             "SELECT kind, content FROM evidence WHERE scan_run_id = ?",
             (run.id,),
@@ -87,6 +89,14 @@ def build_scan_report(database: str, run: ScanRun) -> ScanReport:
                 request_metrics = content
             elif kind == "stage_metrics":
                 stages = content.get("stages", [])
+            elif kind == "adapter_execution" and content.get("input_endpoints") is not None:
+                external_adapter_metrics = {
+                    "adapter": content.get("adapter", "external"),
+                    "input_endpoints": content.get("input_endpoints", 0),
+                    "reported_responses": content.get("reported_responses", 0),
+                    "unreported_endpoints": content.get("unreported_endpoints", 0),
+                    "tool_processes": content.get("tool_processes", 1),
+                }
 
     return ScanReport(
         run=run,
@@ -104,4 +114,5 @@ def build_scan_report(database: str, run: ScanRun) -> ScanReport:
         http_failures=http_failures,
         request_metrics=request_metrics,
         stages=stages,
+        external_adapter_metrics=external_adapter_metrics,
     )

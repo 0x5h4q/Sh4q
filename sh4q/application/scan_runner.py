@@ -176,6 +176,8 @@ async def run_scan(
                     AdapterContext(scope, Path(config.output.directory)),
                     runner,
                     executable=executable,
+                    max_endpoints=config.adapters.httpx.max_endpoints,
+                    timeout=config.adapters.httpx.timeout_seconds,
                 )
             )
         scheduler = Scheduler(
