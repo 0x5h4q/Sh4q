@@ -24,6 +24,22 @@ async def main():
         Discovery("subdomain_found", {"hostname": "ignored.example.com"}),
     ], "subfinder")
     assert plugin._names == ["api.example.com", "example.com"]
+    plugin.accept_discoveries([
+        Discovery("subdomain_found", {"hostname": "portal.example.com"}),
+        Discovery("subdomain_found", {"hostname": "API.EXAMPLE.COM."}),
+    ], "amass-passive")
+    assert plugin._names == ["api.example.com", "example.com"]
+    plugin.accept_discoveries([], "amass-passive")
+    assert plugin._names == ["api.example.com", "example.com"]
+    plugin.accept_discoveries([
+        Discovery("subdomain_found", {"hostname": "other.test"}),
+    ], "unrelated")
+    assert plugin._names == ["api.example.com", "example.com"]
+    amass_only = DiscoveredDNSPlugin(max_names=2)
+    amass_only.accept_discoveries([
+        Discovery("subdomain_found", {"hostname": "portal.example.com"}),
+    ], "amass-passive")
+    assert amass_only._names == ["portal.example.com"]
     results = await plugin.execute("example.com")
     assert [item.kind for item in results] == [
         "discovered_dns_resolution",

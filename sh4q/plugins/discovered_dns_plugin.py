@@ -14,7 +14,9 @@ class DiscoveredDNSPlugin(Plugin):
 
     metadata = PluginMetadata(
         name="discovered-dns",
-        dependencies=["subfinder"],
+        # Passive discovery sources are optional and may be enabled
+        # independently; scan_runner appends this stage after them.
+        dependencies=[],
         timeout=300.0,
         risk_level="passive",
     )
@@ -38,13 +40,14 @@ class DiscoveredDNSPlugin(Plugin):
     def accept_discoveries(
         self, discoveries: list[Discovery], source_plugin: str | None = None
     ) -> None:
-        if source_plugin != "subfinder":
+        if source_plugin not in {"subfinder", "amass-passive"}:
             return
-        names = {
+        names = set(self._names)
+        names.update({
             item.data.get("hostname", "").lower().rstrip(".")
             for item in discoveries
             if item.kind == "subdomain_found" and item.data.get("hostname")
-        }
+        })
         if self._scope is not None:
             names = {name for name in names if self._scope.authorize(name).allowed}
         self._names = sorted(names)[: self._max_names]
