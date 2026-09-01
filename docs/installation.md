@@ -7,6 +7,7 @@
 - Git.
 - Internet access during dependency installation.
 - Subfinder only if `--sub` will be used.
+- ProjectDiscovery httpx only if `--httpx` will be used.
 
 Sh4q is tested in CI on Python 3.11, 3.12, and 3.13.
 
@@ -53,6 +54,24 @@ If Subfinder is absent, use Sh4q without `--sub`:
 ```bash
 sh4q scan your-domain.example
 ```
+
+## Optional httpx Enrichment
+
+`--httpx` requires the ProjectDiscovery httpx CLI. Sh4q validates the tool identity and rejects unrelated executables with the same name, including the Python httpx CLI.
+
+```bash
+httpx -version
+command -v httpx
+```
+
+Use it alone or after passive hostname discovery:
+
+```bash
+sh4q scan your-domain.example --httpx
+sh4q scan your-domain.example --sub --httpx
+```
+
+The adapter receives only approved HTTP endpoints from the current scan and is bounded by `adapters.httpx` configuration. Its network activity is reported separately from native request metrics.
 
 ## Output Location
 

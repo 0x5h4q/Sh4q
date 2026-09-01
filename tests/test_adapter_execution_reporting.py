@@ -39,7 +39,7 @@ async def main():
     output = io.StringIO()
     with redirect_stdout(output):
         await handler(event)
-    assert "FAILED  subfinder: execution timed out after 30.0s" in output.getvalue()
+    assert "[-] FAILED subfinder: execution timed out after 30.0s" in output.getvalue()
     print("adapter execution reporting test passed")
 
 

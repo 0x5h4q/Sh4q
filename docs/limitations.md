@@ -27,11 +27,12 @@ This list describes the private-alpha boundary. It should be read before judging
 - CDN or WAF technology may be visible while the origin stack remains hidden.
 - Version values are retained only when explicitly exposed.
 - Technology confidence is evidence quality, not certainty.
-- The parser-only external `httpx` fingerprint candidate is not enabled in live scans.
+- Optional ProjectDiscovery `httpx` enrichment is endpoint-filtered and bounded, but its internal DNS and HTTP requests do not pass through Sh4q's native pinned-IP transport or request limiter.
 
 ## Metrics and Reporting
 
-- Native request metrics cover Sh4q's HTTP and CT traffic, not opaque provider traffic inside Subfinder.
+- Native request metrics cover Sh4q's HTTP and CT traffic, not opaque provider traffic inside Subfinder or `httpx`.
+- External `httpx` accounting reports admitted endpoints, reported responses, unreported endpoints, and tool processes separately from native requests.
 - Stage metrics exist only for scans created after stage persistence was introduced.
 - Migration-era scans may contain evidence without exact asset ownership and cannot be safely backfilled.
 - Global assets are deduplicated, while evidence remains observation-oriented; counts therefore describe different things.
@@ -46,7 +47,7 @@ This list describes the private-alpha boundary. It should be read before judging
 
 ## Product Scope
 
-- Only Subfinder has a live external-tool adapter.
+- Subfinder and ProjectDiscovery `httpx` have opt-in live external-tool adapters.
 - Sh4q does not perform vulnerability exploitation.
 - It does not currently crawl applications broadly or perform general port scanning.
 - It is not a direct replacement for reconFTW, Amass, Nmap, or a commercial attack-surface management platform.

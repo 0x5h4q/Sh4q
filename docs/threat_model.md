@@ -22,6 +22,7 @@ User input -> Scope Engine -> Scheduler/Plugins -> Network or Adapter
 ```
 
 Native HTTP requests pass through the scoped HTTP client. External-tool output passes through the adapter parser and Gate 2 before asset persistence.
+External `httpx` inputs are restricted to scan-owned, reauthorised HTTP endpoints, but packets generated inside the tool are not routed through Sh4q's native network transport.
 
 ## Controls Implemented
 
