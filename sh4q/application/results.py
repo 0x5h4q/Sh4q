@@ -26,6 +26,28 @@ class TechnologyObservation:
     source: str
 
 
+@dataclass(frozen=True)
+class TechnologySummary:
+    technology: str
+    version: str
+    category: str
+    source: str
+    endpoints: int
+
+
+SOURCE_ALIASES = {
+    "native": "offline-http-signatures",
+    "httpx": "httpx-fingerprint",
+}
+
+
+def friendly_technology_source(source: str) -> str:
+    return {
+        "offline-http-signatures": "native",
+        "httpx-fingerprint": "httpx",
+    }.get(source, source)
+
+
 def list_technology_observations(
     database: str,
     *,
@@ -34,7 +56,7 @@ def list_technology_observations(
     source: str | None = None,
     category: str | None = None,
     status: int | None = None,
-    limit: int = 100,
+    limit: int | None = 100,
 ) -> list[TechnologyObservation]:
     query = """SELECT endpoint.value, technology.value, r.attributes
         FROM relationships r
@@ -56,7 +78,8 @@ def list_technology_observations(
         if normalized and not _matches_target(ResultRow("url", endpoint, {}), normalized):
             continue
         attributes = json.loads(raw_attributes)
-        if source and attributes.get("source") != source:
+        resolved_source = SOURCE_ALIASES.get(source, source) if source else None
+        if resolved_source and attributes.get("source") != resolved_source:
             continue
         if category and attributes.get("category") != category:
             continue
@@ -72,9 +95,21 @@ def list_technology_observations(
             signal=attributes.get("raw_observation", ""),
             source=attributes.get("source", ""),
         ))
-        if len(observations) >= max(1, min(limit, 1000)):
+        if limit is not None and len(observations) >= max(1, min(limit, 1000)):
             break
     return observations
+
+
+def summarize_technology_observations(rows: list[TechnologyObservation]) -> list[TechnologySummary]:
+    grouped: dict[tuple[str, str, str, str], set[str]] = {}
+    for row in rows:
+        key = (row.technology, row.version, row.category, friendly_technology_source(row.source))
+        grouped.setdefault(key, set()).add(row.endpoint)
+    summaries = [
+        TechnologySummary(technology, version, category, source, len(endpoints))
+        for (technology, version, category, source), endpoints in grouped.items()
+    ]
+    return sorted(summaries, key=lambda item: (-item.endpoints, item.technology, item.source))
 
 
 def list_assets(

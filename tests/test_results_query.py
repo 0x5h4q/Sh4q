@@ -3,7 +3,7 @@ import sqlite3
 import tempfile
 from pathlib import Path
 
-from sh4q.application.results import list_assets, list_failures, list_technology_observations
+from sh4q.application.results import list_assets, list_failures, list_technology_observations, summarize_technology_observations
 
 
 with tempfile.TemporaryDirectory() as directory:
@@ -26,7 +26,7 @@ with tempfile.TemporaryDirectory() as directory:
         )
         db.execute(
             "INSERT INTO relationships VALUES (?, ?, ?, ?, ?)",
-            ("rel-tech", "url:https://api.example.com/", "technology:nginx", "DETECTED_TECHNOLOGY", '{"category":"web-server","confidence":"explicit","status":200,"raw_observation":"header:server=nginx"}'),
+            ("rel-tech", "url:https://api.example.com/", "technology:nginx", "DETECTED_TECHNOLOGY", '{"category":"web-server","confidence":"explicit","status":200,"raw_observation":"header:server=nginx","source":"offline-http-signatures"}'),
         )
         db.execute(
             "INSERT INTO scan_assets VALUES (?, ?, ?, ?)",
@@ -68,6 +68,10 @@ with tempfile.TemporaryDirectory() as directory:
     observations = list_technology_observations(database, scan_id="scan-1")
     assert observations[0].endpoint == "https://api.example.com/"
     assert observations[0].signal == "header:server=nginx"
+    assert list_technology_observations(database, scan_id="scan-1", source="native")
+    summaries = summarize_technology_observations(observations)
+    assert summaries[0].technology == "nginx"
+    assert summaries[0].endpoints == 1
     assert list_technology_observations(database, scan_id="scan-1", category="web-server")
     assert list_technology_observations(database, scan_id="scan-1", category="cms") == []
     assert list_technology_observations(database, scan_id="scan-1", status=403) == []

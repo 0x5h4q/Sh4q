@@ -10,7 +10,7 @@ from sh4q.application import run_scan
 from sh4q.adapters import AdapterExecutionError
 from sh4q.events.event_log import DurableEventLog
 from sh4q.storage.scan_runs import get_scan, latest_scan, list_scans, scan_asset_count
-from sh4q.application.results import list_assets, list_failures, list_technology_observations
+from sh4q.application.results import friendly_technology_source, list_assets, list_failures, list_technology_observations, summarize_technology_observations
 from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
 from sh4q.application.scan_report import build_scan_report
 from sh4q.storage.db import SchemaVersionError, ensure_schema_version
@@ -42,7 +42,7 @@ def render_technology_results(rows) -> None:
             print(f"    Technology  {technology}")
             print(f"    Category    {row.category}")
             print(f"    Confidence  {row.confidence}")
-            print(f"    Source      {row.source}")
+            print(f"    Source      {friendly_technology_source(row.source)}")
             print(f"    Status      {row.status}")
             print(f"    Signal      {_narrow_value(row.signal, 16)}")
         return
@@ -66,7 +66,7 @@ def render_technology_results(rows) -> None:
             technology,
             row.category,
             row.confidence,
-            row.source,
+            friendly_technology_source(row.source),
             row.status,
             row.signal,
         )
@@ -77,6 +77,16 @@ def render_technology_results(rows) -> None:
                 for value, (_, width) in zip(values, columns)
             )
         )
+
+
+def render_technology_summary(rows) -> None:
+    columns = (("TECHNOLOGY", 24), ("VERSION", 14), ("CATEGORY", 20), ("SOURCE", 12), ("ENDPOINTS", 9))
+    print()
+    print("  " + "  ".join(label.ljust(width) for label, width in columns))
+    print("  " + "  ".join("-" * width for _, width in columns))
+    for row in rows:
+        values = (row.technology, row.version, row.category, row.source, row.endpoints)
+        print("  " + "  ".join(_fit(value, width).ljust(width) for value, (_, width) in zip(values, columns)))
 
 
 def render_asset_results(rows) -> None:
@@ -292,6 +302,7 @@ def build_parser() -> argparse.ArgumentParser:
     results.add_argument("--source", help="Filter technology observations by source")
     results.add_argument("--category", help="Filter technology observations by category")
     results.add_argument("--status", type=int, help="Filter technology observations by HTTP status")
+    results.add_argument("--details", action="store_true", help="Show endpoint-level technology observations")
     scan_selection = results.add_mutually_exclusive_group()
     scan_selection.add_argument("--scan", help="Show assets observed in one scan run")
     scan_selection.add_argument("--latest", action="store_true", help="Show the latest recorded scan")
@@ -478,10 +489,15 @@ def main() -> None:
                 rows = list_technology_observations(
                     str(database), target=args.target, scan_id=scan_id,
                     source=args.source, category=args.category, status=args.status,
-                    limit=args.limit,
+                    limit=args.limit if args.details else None,
                 )
-                render_technology_results(rows)
-                print(f"\n  Showing {len(rows)} technology observation(s). Use --limit to increase the view.")
+                if args.details:
+                    render_technology_results(rows)
+                    print(f"\n  Showing {len(rows)} technology observation(s). Use --limit to increase the view.")
+                else:
+                    summaries = summarize_technology_observations(rows)[: max(1, min(args.limit, 1000))]
+                    render_technology_summary(summaries)
+                    print(f"\n  Showing {len(summaries)} technology group(s). Use --details for endpoints.")
             else:
                 rows = list_assets(
                     str(database), asset_type=args.type, target=args.target,
