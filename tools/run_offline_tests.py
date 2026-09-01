@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 OFFLINE_TESTS = (
+    "test_amass_adapter.py",
     "test_adapter_contract.py",
     "test_adapter_execution_reporting.py",
     "test_adapter_output_pipeline.py",

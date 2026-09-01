@@ -47,7 +47,7 @@ This list describes the private-alpha boundary. It should be read before judging
 
 ## Product Scope
 
-- Subfinder and ProjectDiscovery `httpx` have opt-in live external-tool adapters.
+- Subfinder, passive Amass, and ProjectDiscovery `httpx` have opt-in live external-tool adapters.
 - Sh4q does not perform vulnerability exploitation.
 - It does not currently crawl applications broadly or perform general port scanning.
 - It is not a direct replacement for reconFTW, Amass, Nmap, or a commercial attack-surface management platform.

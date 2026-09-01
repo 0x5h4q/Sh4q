@@ -29,6 +29,7 @@ from sh4q.application.stage_metrics import persist_stage_metrics
 from sh4q.adapters import (
     AdapterContext,
     AdapterExecutionError,
+    AmassPassiveAdapter,
     ControlledProcessRunner,
     ExternalAdapterPlugin,
     HttpxFingerprintPlugin,
@@ -78,6 +79,7 @@ async def run_scan(
     config_path: str | None = None,
     *,
     include_subfinder: bool = False,
+    include_amass: bool = False,
     include_httpx: bool = False,
 ) -> ScanSummary:
     start = time.monotonic()
@@ -157,6 +159,26 @@ async def run_scan(
                     ),
                 )
             )
+        if include_amass:
+            executable = shutil.which("amass")
+            if executable is None:
+                raise AdapterExecutionError(
+                    "Amass is not installed or is not available on PATH"
+                )
+            adapter = AmassPassiveAdapter(executable=executable)
+            adapter_home = Path(config.output.directory) / "adapters" / "amass-home"
+            adapter_home.mkdir(parents=True, exist_ok=True)
+            plugins.append(
+                ExternalAdapterPlugin(
+                    adapter,
+                    AdapterContext(scope, Path(config.output.directory)),
+                    ControlledProcessRunner(
+                        {executable}, environment={"HOME": str(adapter_home.resolve())}
+                    ),
+                    timeout=180.0,
+                )
+            )
+        if include_subfinder or include_amass:
             plugins.append(DiscoveredDNSPlugin(scope=scope))
             plugins.append(DiscoveredHTTPPlugin(scope=scope, limiter=limiter))
         if include_httpx:

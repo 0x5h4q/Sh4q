@@ -277,6 +277,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run optional httpx technology enrichment on approved HTTP endpoints.",
     )
+    scan.add_argument(
+        "--amass",
+        action="store_true",
+        help="Run optional Amass passive hostname discovery.",
+    )
 
     events = subparsers.add_parser("events", help="Inspect durable event state")
     events.add_argument(
@@ -414,7 +419,13 @@ def main() -> None:
         render_identity()
         try:
             summary = asyncio.run(
-                run_scan(args.target, args.config, include_subfinder=args.sub, include_httpx=args.httpx)
+                run_scan(
+                    args.target,
+                    args.config,
+                    include_subfinder=args.sub,
+                    include_amass=args.amass,
+                    include_httpx=args.httpx,
+                )
             )
         except KeyboardInterrupt:
             print()

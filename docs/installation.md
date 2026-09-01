@@ -8,6 +8,7 @@
 - Internet access during dependency installation.
 - Subfinder only if `--sub` will be used.
 - ProjectDiscovery httpx only if `--httpx` will be used.
+- OWASP Amass only if `--amass` will be used.
 
 Sh4q is tested in CI on Python 3.11, 3.12, and 3.13.
 
@@ -72,6 +73,16 @@ sh4q scan your-domain.example --sub --httpx
 ```
 
 The adapter receives only approved HTTP endpoints from the current scan and is bounded by `adapters.httpx` configuration. Its network activity is reported separately from native request metrics.
+
+## Optional Amass Passive Discovery
+
+`--amass` runs a fixed passive-only Amass enumeration command. Results remain untrusted until Sh4q applies Gate 2 and subsequent DNS/HTTP verification.
+
+```bash
+amass -version
+sh4q scan your-domain.example --amass
+sh4q scan your-domain.example --sub --amass --httpx
+```
 
 ## Output Location
 
