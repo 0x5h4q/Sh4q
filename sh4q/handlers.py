@@ -5,6 +5,7 @@ from sh4q.scope import ScopeEngine
 from sh4q.storage import Node, Relationship, StorageRepository
 from sh4q.storage.evidence import Evidence, EvidenceStore
 from sh4q.cli.branding import status_line
+from sh4q.fingerprints.normalize import normalize_external_technology
 
 
 def _canonical_url(value: str) -> str:
@@ -193,13 +194,16 @@ def make_discovery_handler(
             url_node = Node(type="url", value=endpoint)
             await storage.save_node(url_node)
             for technology in sorted(set(data.get("technologies") or [])):
-                normalized = str(technology).strip().lower()
+                observed_name = str(technology).strip()
+                normalized, observed_version, inferred_category = (
+                    normalize_external_technology(observed_name)
+                )
                 if not normalized:
                     continue
                 technology_node = Node(
                     type="technology",
                     value=normalized,
-                    attributes={"observed_name": str(technology).strip()},
+                    attributes={"observed_name": observed_name},
                 )
                 await storage.save_node(technology_node)
                 relationship = Relationship(
@@ -213,8 +217,8 @@ def make_discovery_handler(
                         "title": data.get("title", ""),
                         "source": data.get("source", source_plugin),
                         "raw_observation": data.get("raw_observation", ""),
-                        "category": data.get("category", ""),
-                        "version": data.get("version", ""),
+                        "category": data.get("category", "") or inferred_category,
+                        "version": data.get("version", "") or observed_version,
                         "signals": data.get("signals", []),
                         "signature_version": data.get("signature_version", ""),
                     },
