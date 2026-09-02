@@ -220,8 +220,9 @@ in `docs/pitch.md`.
 
 The `v0.1.0-alpha.39` HTML reporting slice is available through
 `sh4q export --format html`. It embeds scan-owned assets and applies client-side
-filters without network requests. The remaining report work is to add failures,
-evidence, stages, and request metrics before calling HTML reporting complete.
+filters without network requests. The `v0.1.0-alpha.40` increment completes
+the report sections with failures, stage timings, request metrics, and an
+evidence index. Browser-level verification remains.
 
 ## Realistic Timeline
 

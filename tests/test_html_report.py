@@ -11,6 +11,7 @@ with tempfile.TemporaryDirectory() as directory:
     with sqlite3.connect(database) as db:
         db.execute("CREATE TABLE nodes (id TEXT, type TEXT, value TEXT, attributes TEXT)")
         db.execute("CREATE TABLE scan_assets (scan_run_id TEXT, asset_id TEXT, relationship_id TEXT, source_plugin TEXT)")
+        db.execute("CREATE TABLE evidence (id TEXT, target TEXT, plugin TEXT, kind TEXT, content TEXT, captured_at TEXT, scan_run_id TEXT)")
         db.execute("INSERT INTO nodes VALUES (?, ?, ?, ?)", (
             "url:1", "url", "https://api.example.com/?q=<script>", '{"status":200}'
         ))
@@ -21,6 +22,11 @@ with tempfile.TemporaryDirectory() as directory:
             ("scan-1", "url:1", "rel-url", "discovered-http"),
             ("scan-1", "technology:next", "rel-tech", "native"),
         ])
+        db.executemany("INSERT INTO evidence VALUES (?, ?, ?, ?, ?, ?, ?)", [
+            ("e1", "example.com", "http", "http_error", '{"error":"timeout"}', "now", "scan-1"),
+            ("e2", "example.com", "native", "request_metrics", '{"observed":{"admitted":2}}', "now", "scan-1"),
+            ("e3", "example.com", "scheduler", "stage_metrics", '{"stages":[{"name":"dns","status":"completed","attempts":1,"discoveries":1,"duration_seconds":0.1}]}', "now", "scan-1"),
+        ])
 
     run = ScanRun("scan-1", "example.com", "start", "end", "COMPLETED")
     report = render_html_report(database, run)
@@ -30,4 +36,8 @@ with tempfile.TemporaryDirectory() as directory:
     assert "api.example.com" in report
     assert "\\u003cscript>" in report
     assert "filtered.length" in report
+    assert "Failures" in report
+    assert "Stage timings" in report
+    assert "Request metrics" in report
+    assert "Evidence index" in report
 print("HTML report test passed")
