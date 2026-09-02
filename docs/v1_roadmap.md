@@ -23,7 +23,10 @@ and useful reporting for authorised attack-surface discovery.
 
 1. **Terminal audit:** align scan overview, summary, results, events, failures,
    and export messages across wide, narrow, redirected, and non-TTY output.
-2. **HTML reporting:** browser-verify the self-contained report generated from scan-owned assets,
+2. **HTML reporting:** complete. Chromium verification passed at 1440x1000 and
+   390x844: the hero rendered, filters loaded, no page-level horizontal overflow
+   occurred, and filter/reset interactions produced the expected counts. The
+   self-contained report is generated from scan-owned assets,
    relationships, evidence references, failures, stages, and request metrics.
    It must provide offline client-side filters for status codes, host/target,
    asset type, technology/category, source, and text search, with visible
@@ -39,7 +42,8 @@ character.
 The hero now uses the supplied banner at a larger centered size, and
 non-applicable asset fields render as `-` instead of ambiguous blank cells.
    Reports also embed the project banner as a self-contained data URI with
-   responsive sizing and an accessible text fallback.
+   responsive sizing and an accessible text fallback. The banner is also
+   included in built wheels as package data.
    Narrow-terminal coverage now includes scan summaries and persisted overview
    fields as well as results, events, and failures.
 3. **Reliability evaluation:** complete. The full offline runner passed `43/43`

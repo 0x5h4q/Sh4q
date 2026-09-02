@@ -125,7 +125,13 @@ storage path is reliable on a normal supported runtime.
 
 Packaging QA also passed: a wheel was built, installed into a fresh Python
 3.12 environment, and `sh4q --help` completed successfully. The wheel includes
-the report assets required by the HTML export.
+the report assets required by the HTML export. A rebuilt wheel now explicitly
+contains `sh4q/assets/banner.png`; a fresh install embeds the banner in reports.
+
+Chromium verification passed at desktop (`1440x1000`) and mobile (`390x844`)
+viewports. The hero rendered, all five filters populated, no page-level
+horizontal overflow occurred, and search/reset interaction changed counts from
+`19 of 1510` back to `1510 of 1510`.
 
 The transparent replacement `banner.png` is rendered at a larger responsive
 size on a light full-width hero surface so the dark logo remains readable. The

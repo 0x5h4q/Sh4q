@@ -15,8 +15,12 @@ def _safe_json(value: object) -> str:
 
 
 def _banner_data_uri() -> str | None:
-    path = Path(__file__).resolve().parents[2] / "banner.png"
-    if not path.is_file():
+    candidates = (
+        Path(__file__).resolve().parents[1] / "assets" / "banner.png",
+        Path(__file__).resolve().parents[2] / "banner.png",
+    )
+    path = next((candidate for candidate in candidates if candidate.is_file()), None)
+    if path is None:
         return None
     return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode("ascii")
 
