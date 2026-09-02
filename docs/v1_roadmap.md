@@ -36,6 +36,8 @@ browser-level verification on supported desktop and mobile runtimes.
 The banner is centered as the primary report hero, with scan identity below;
 long asset values remain horizontally readable instead of wrapping per
 character.
+The hero now uses the supplied banner at a larger centered size, and
+non-applicable asset fields render as `-` instead of ambiguous blank cells.
    Reports also embed the project banner as a self-contained data URI with
    responsive sizing and an accessible text fallback.
    Narrow-terminal coverage now includes scan summaries and persisted overview

@@ -239,6 +239,8 @@ The `v0.1.0-alpha.49` terminal increment bounds long summary and overview fields
 on narrow terminals while keeping redirected output complete.
 The `v0.1.0-alpha.50` HTML presentation increment centers the supplied banner as
 the report hero and preserves long asset values using horizontal table overflow.
+The `v0.1.0-alpha.51` visual correction enlarges that hero and distinguishes
+non-applicable fields from missing data in the asset table.
 Structural QA against a real 1,510-asset export confirms the report remains
 self-contained and network-free; browser screenshot verification is still
 pending on an environment with a supported browser runtime.

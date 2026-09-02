@@ -48,6 +48,7 @@ with tempfile.TemporaryDirectory() as directory:
     assert "Reset filters" in report
     assert "data:image/png;base64," in report
     assert 'alt="SH4Q"' in report
-    assert "width: min(430px" in report
+    assert "width: min(620px" in report
     assert "white-space: nowrap" in report
+    assert "No assets match these filters" in report
 print("HTML report test passed")

@@ -127,7 +127,7 @@ def render_html_report(database: str, run: ScanRun) -> str:
 body {{ margin: 0; color: #17202a; background: #eef2f5; }}
 header {{ padding: 30px 5vw 32px; background: #17202a; color: #fff; border-bottom: 4px solid #2c9c94; text-align: center; }}
 .brand {{ max-width: 1400px; margin: 0 auto; }}
-.brand img {{ display: block; width: min(430px, 78vw); max-height: 190px; object-fit: contain; margin: 0 auto 18px; border-radius: 5px; background: #f5f7f9; }}
+.brand img {{ display: block; width: min(620px, 88vw); max-height: 250px; object-fit: contain; margin: 0 auto 20px; border-radius: 5px; background: #f5f7f9; }}
 .brand-copy {{ min-width: 0; }}
 header strong {{ display: block; color: #7de0d5; font-size: 1.35rem; letter-spacing: .12em; }}
 header div {{ margin-top: 7px; font-size: 1.2rem; }}
@@ -154,7 +154,7 @@ tbody tr:hover {{ background: #f3faf9; }}
 tbody tr:last-child td {{ border-bottom: 0; }}
 td code {{ white-space: nowrap; overflow-wrap: normal; }}
 pre {{ overflow-x: auto; padding: 14px; border: 1px solid #d5dee6; border-radius: 6px; background: #17202a; color: #dbe7ef; }}
-@media (max-width: 600px) {{ header, main {{ padding-left: 14px; padding-right: 14px; }} .brand img {{ width: min(320px, 86vw); max-height: 140px; }} header div {{ font-size: 1.05rem; }} th, td {{ padding: 8px; }} .stats {{ grid-template-columns: repeat(2,minmax(0,1fr)); }} }}
+@media (max-width: 600px) {{ header, main {{ padding-left: 14px; padding-right: 14px; }} .brand img {{ width: min(430px, 90vw); max-height: 180px; }} header div {{ font-size: 1.05rem; }} th, td {{ padding: 8px; }} .stats {{ grid-template-columns: repeat(2,minmax(0,1fr)); }} }}
 </style></head><body>
 <header><div class="brand">{f'<img src="{banner_uri}" alt="SH4Q" />' if banner_uri else ''}<div class="brand-copy">{'' if banner_uri else '<strong>SH4Q</strong>'}<div>Scan report for <code>{html.escape(run.target)}</code></div><small>{html.escape(run.id)} · {html.escape(run.status)}</small></div></div></header>
 <main><div class="stats">
@@ -187,7 +187,8 @@ function render() {{
  const filtered = report.assets.filter(a => (!fields.type.value || a.type === fields.type.value) && (!fields.host.value || a.host === fields.host.value) && (!fields.status.value || String(a.status) === fields.status.value) && (!fields.technology.value || a.technology === fields.technology.value || a.category === fields.technology.value) && (!fields.source.value || a.sources.includes(fields.source.value)) && (!query || JSON.stringify(a).toLowerCase().includes(query)));
  document.querySelector('#count').textContent = `${{filtered.length}} of ${{report.assets.length}} scan-owned assets`;
  const esc = value => String(value ?? '').replace(/[&<>\"']/g, char => ({{'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}}[char]));
- document.querySelector('#rows').innerHTML = filtered.map(a => `<tr><td>${{esc(a.type)}}</td><td><code>${{esc(a.value)}}</code></td><td>${{esc(a.host)}}</td><td>${{esc(a.status)}}</td><td>${{esc(a.technology)}}</td><td>${{esc(a.category)}}</td><td>${{esc(a.sources.join(', '))}}</td></tr>`).join('');
+ const shown = value => value === '' || value == null ? '-' : value;
+ document.querySelector('#rows').innerHTML = filtered.map(a => `<tr><td>${{esc(a.type)}}</td><td><code>${{esc(a.value)}}</code></td><td>${{esc(shown(a.host))}}</td><td>${{esc(shown(a.status))}}</td><td>${{esc(shown(a.technology))}}</td><td>${{esc(shown(a.category))}}</td><td>${{esc(a.sources.length ? a.sources.join(', ') : '-')}}</td></tr>`).join('') || '<tr><td colspan="7">No assets match these filters.</td></tr>';
 }}
 Object.values(fields).forEach(input => input.addEventListener('input', render)); render();
 document.querySelector('#reset').addEventListener('click', () => {{

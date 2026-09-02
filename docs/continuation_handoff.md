@@ -100,6 +100,10 @@ from wrapping character-by-character in the asset table. Structural HTML QA and
 real-data export pass; browser screenshot verification still requires a browser
 runtime unavailable in this environment.
 
+Alpha.51 enlarges the centered banner hero and makes empty/non-applicable table
+fields explicit with `-`; empty filter results now have a clear table message.
+The real 1,510-asset HTML export and fixture pass.
+
 The Amass enumeration command itself can stall after a successful version probe
 (observed with the installed `/usr/bin/amass`). Its opt-in process ceiling is
 now 45 seconds, so future scans record the timeout and continue without the
