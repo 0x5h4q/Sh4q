@@ -7,9 +7,9 @@ making changes.
 ## Current Checkpoint
 
 - Branch: `main`
-- Release: `v0.1.0-alpha.51`
-- Commit: `8e6f0f9` (`Improve HTML banner and empty fields`).
-- Remote: `origin/main` and tag `v0.1.0-alpha.51` are published.
+- Release: `v0.1.0-alpha.51` plus post-alpha v1 hardening commits.
+- Commit: `1925c83` (`Record packaging validation for v1`).
+- Remote: `origin/main` is pushed at `1925c83`; tag `v0.1.0-alpha.51` remains the latest published tag.
 - Untracked user files `tesla.html` and `tyler.html` are intentionally preserved.
 
 Alpha.34 added `tests/test_amass_scheduler_integration.py`. It proves the
