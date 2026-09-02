@@ -4,7 +4,7 @@ import shutil
 import sys
 from types import SimpleNamespace
 
-from sh4q.cli.branding import SCAN_BANNER
+from sh4q.cli.branding import SCAN_BANNER, render_scan_banner
 from sh4q.cli.main import render_event_results, render_failure_results, render_scan_runs, render_technology_results
 
 
@@ -28,6 +28,9 @@ finally:
     shutil.get_terminal_size = original_terminal_size
 
 assert max(len(line) for line in output.getvalue().splitlines()) <= 60
-assert "____" in SCAN_BANNER
+assert "S H 4 Q" in SCAN_BANNER
 assert max(len(line) for line in SCAN_BANNER.splitlines()) < 80
+banner_lines = render_scan_banner(width=60).splitlines()
+assert all(len(line) == 60 for line in banner_lines)
+assert banner_lines[0].index("S H 4 Q") == (60 - len("S H 4 Q")) // 2
 print("CLI narrow formatting test passed")

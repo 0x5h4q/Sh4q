@@ -1,16 +1,21 @@
 """Small terminal branding used by the interactive scan command."""
 
-SCAN_BANNER = r"""  ____  _  _  ____  ____
- / ___)( \/ )( ___)( ___)
- \___ \ )  (  )__)  )__)
- (____/(_/\\_)(____)(____)
- policy-controlled recon"""
+import shutil
 
-def render_scan_banner(colored: bool = False) -> str:
+
+SCAN_BANNER = "S H 4 Q\npolicy-controlled recon"
+
+
+def render_scan_banner(colored: bool = False, width: int | None = None) -> str:
+    terminal_width = width or shutil.get_terminal_size((80, 24)).columns
+    lines = [line.center(max(1, terminal_width)) for line in SCAN_BANNER.splitlines()]
     if not colored:
-        return SCAN_BANNER
+        return "\n".join(lines)
     cyan, green, reset = "\033[36m", "\033[32m", "\033[0m"
-    return "\n".join(f"{cyan if i % 2 == 0 else green}{line}{reset}" for i, line in enumerate(SCAN_BANNER.splitlines()))
+    return "\n".join(
+        f"{cyan if i % 2 == 0 else green}{line}{reset}"
+        for i, line in enumerate(lines)
+    )
 
 
 def status_line(text: str, status: str = "info") -> str:

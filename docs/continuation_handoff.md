@@ -7,9 +7,9 @@ making changes.
 ## Current Checkpoint
 
 - Branch: `main`
-- Release: `v0.1.0-alpha.36`
-- Commit: documented by the latest release commit (`Bound discovery output`).
-- Remote: `origin/main` and tag `v0.1.0-alpha.36` are published.
+- Release: `v0.1.0-alpha.37`
+- Commit: documented by the latest release commit (`Center SH4Q terminal banner`).
+- Remote: `origin/main` and tag `v0.1.0-alpha.37` are published.
 - Worktree should contain no intentional changes after the release commit.
 
 Alpha.34 added `tests/test_amass_scheduler_integration.py`. It proves the
@@ -42,6 +42,10 @@ Alpha.36 bounds discovered-HTTP success output to ten representative lines,
 retains every event and relationship in evidence/storage, and renders empty
 HTTP exception messages as `unknown error`. The alpha.34 Amass scheduler test
 and the new handler presentation test are now included in the offline runner.
+
+Alpha.37 replaces the ambiguous font-style banner with an explicit `S H 4 Q`
+wordmark centered to the active terminal width, including narrow-terminal
+coverage.
 
 ## Next Work
 

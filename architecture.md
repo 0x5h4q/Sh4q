@@ -193,6 +193,8 @@ The `v0.1.0-alpha.36` presentation increment bounds discovered-HTTP success
 lines while preserving all durable evidence and graph records, and replaces
 blank HTTP failure details with `unknown error`. The Amass scheduler provenance
 and handler presentation regressions are included in the standard offline suite.
+The `v0.1.0-alpha.37` correction replaces the ambiguous banner with a centered,
+portable `S H 4 Q` wordmark and verifies its narrow-terminal placement.
 
 SQLite now has an explicit schema metadata version (`1`), rejects newer unsupported databases, establishes WAL once during schema initialization, and applies a 10-second busy timeout plus foreign-key enforcement consistently across production connections. Synchronous reporting/query paths and asynchronous storage paths share the same connection policy. A post-change concurrency validation completed 50 parallel synthetic work units in 1.156 seconds with the expected 100 nodes, 50 relationships, 50 events, and 50 evidence rows. Numbered structural migrations and broader transaction grouping remain future work.
 
