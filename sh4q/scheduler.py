@@ -155,14 +155,17 @@ class Scheduler:
 
                 # Timeout is treated as a transient execution failure.
                 # Retry it using the Scheduler's generic retry policy.
-                if attempt >= total_attempts:
-                    print(status_line(
-                        f"RETRY EXHAUSTED {plugin.metadata.name} "
-                        f"on {target} "
+                if attempt >= total_attempts or not plugin.metadata.retry_on_timeout:
+                    message = (
+                        f"RETRY EXHAUSTED {plugin.metadata.name} on {target} "
                         f"after {attempt} attempts"
-                    , "error"))
+                        if plugin.metadata.retry_on_timeout
+                        else f"TIMEOUT {plugin.metadata.name} on {target}; retries disabled"
+                    )
+                    print(status_line(message, "error"))
                     self.stage_outcomes[stage_name] = {
-                        "status": "timeout_exhausted", "attempts": attempt, "discoveries": 0
+                        "status": "timeout_exhausted" if plugin.metadata.retry_on_timeout else "timeout",
+                        "attempts": attempt, "discoveries": 0
                     }
                     return []
 

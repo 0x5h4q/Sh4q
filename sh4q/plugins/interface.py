@@ -14,6 +14,7 @@ class PluginMetadata:
     timeout: float = 30.0
     required_scope: list[str] = field(default_factory=list)  # reserved for future use
     risk_level: str = "passive"   
+    retry_on_timeout: bool = True
 
 
 class Plugin(ABC):

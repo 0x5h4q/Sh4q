@@ -68,6 +68,11 @@ widths, cards and tables have a restrained hierarchy, mobile spacing is covered,
 and a reset-filters action is available. Browser screenshot verification remains
 the next QA task.
 
+Alpha.44 prevents whole-batch retries for discovered HTTP when its stage times
+out. Completed per-host results are preserved during cancellation, and the
+scheduler reports retries as disabled for this enrichment stage. This avoids
+repeating hundreds of probes after a budget or stage-timeout event.
+
 The Amass enumeration command itself can stall after a successful version probe
 (observed with the installed `/usr/bin/amass`). Its opt-in process ceiling is
 now 45 seconds, so future scans record the timeout and continue without the
@@ -76,8 +81,8 @@ previous 180-second delay.
 ## Next Work
 
 The threat-model and limitations review, first terminal presentation pass, core
-HTML report, and adapter fail-fast handling are now documented. The next
-engineering milestone is browser
+HTML report, adapter fail-fast handling, and discovered-HTTP timeout policy are
+now documented. The next engineering milestone is browser
 verification and visual polish, then the broader terminal audit:
 consistent aligned tables for scan overviews and summaries, redirected-output
 readability, and narrow-terminal verification across every command. After that,

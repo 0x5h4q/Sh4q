@@ -9,6 +9,8 @@ This list describes the private-alpha boundary. It should be read before judging
 - Passive names can be stale, wildcard-generated, or nonexistent.
 - Discovered-host DNS resolution is bounded to the first 500 accepted Subfinder names per scan.
 - Discovered HTTP probing is bounded to the first 200 successfully resolved names.
+- A discovered-HTTP stage timeout does not retry the entire batch; completed
+  per-host results are retained and unfinished probes are recorded as absent.
 - A scan is not proof that every asset was found.
 
 ## DNS and HTTP

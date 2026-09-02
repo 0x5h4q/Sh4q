@@ -228,6 +228,9 @@ stalled tools are recorded as timed-out executions and their expensive
 enumeration command is skipped.
 The `v0.1.0-alpha.43` HTML presentation pass fixes responsive filter sizing,
 adds clearer report hierarchy and table states, and preserves offline operation.
+The `v0.1.0-alpha.44` reliability increment disables whole-batch retries for
+discovered-HTTP timeouts and preserves completed per-host results on
+cancellation.
 The `v0.1.0-alpha.42` increment adds a 45-second Amass enumeration ceiling for
 stalls that occur after a successful version probe.
 

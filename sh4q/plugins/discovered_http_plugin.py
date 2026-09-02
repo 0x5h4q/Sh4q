@@ -18,6 +18,7 @@ class DiscoveredHTTPPlugin(Plugin):
         dependencies=["discovered-dns"],
         timeout=300.0,
         risk_level="active-low",
+        retry_on_timeout=False,
     )
 
     def __init__(
@@ -64,8 +65,13 @@ class DiscoveredHTTPPlugin(Plugin):
             for task in tasks:
                 if not task.done():
                     task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
-            raise
+            batches = await asyncio.gather(*tasks, return_exceptions=True)
+            return [
+                item
+                for batch in batches
+                if isinstance(batch, list)
+                for item in batch
+            ]
         return [item for batch in batches for item in batch]
 
     async def _probe(self, name: str) -> list[Discovery]:

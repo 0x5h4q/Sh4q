@@ -24,6 +24,7 @@ OFFLINE_TESTS = (
     "test_ct_reporting.py",
     "test_discovered_dns_plugin.py",
     "test_discovered_http_plugin.py",
+    "test_discovered_http_timeout.py",
     "test_event_bus.py",
     "test_event_failure.py",
     "test_event_inspection.py",
