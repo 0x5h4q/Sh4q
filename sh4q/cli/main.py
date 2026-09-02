@@ -185,11 +185,11 @@ def render_scan_report(report) -> None:
     duration = report.request_metrics.get("duration_seconds")
     print("\n  SH4Q SCAN OVERVIEW")
     print("  ==================")
-    print(f"  Target       {run.target}")
-    print(f"  Scan ID      {run.id}")
+    print(f"  Target       {_narrow_value(run.target, 14) if _terminal_is_narrow(100) else run.target}")
+    print(f"  Scan ID      {_narrow_value(run.id, 14) if _terminal_is_narrow(100) else run.id}")
     print(f"  Status       {run.status}")
-    print(f"  Started      {run.started_at}")
-    print(f"  Completed    {run.completed_at or '-'}")
+    print(f"  Started      {_narrow_value(run.started_at, 14) if _terminal_is_narrow(100) else run.started_at}")
+    print(f"  Completed    {_narrow_value(run.completed_at or '-', 14) if _terminal_is_narrow(100) else run.completed_at or '-'}")
     if duration is not None:
         print(f"  Duration     {duration:.2f}s")
 
@@ -392,7 +392,8 @@ def render_summary(summary) -> None:
         for stage, duration in summary.stage_durations.items():
             print(f"  {_fit(stage, 28):<28}  {duration:>9.2f}s")
     print(f"\n  Duration  {summary.duration_seconds:.2f}s")
-    print(f"  Database  {summary.database_path}")
+    database = _narrow_value(summary.database_path, 12) if _terminal_is_narrow(100) else summary.database_path
+    print(f"  Database  {database}")
     print()
     print("  Scan complete.")
     print()

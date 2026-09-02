@@ -90,6 +90,10 @@ Alpha.48 embeds the repository `banner.png` in exported HTML reports as a data
 URI with responsive header sizing and an accessible `SH4Q` fallback. Reports
 remain portable without adjacent asset files.
 
+Alpha.49 completes the next terminal-audit slice: long targets, scan IDs,
+timestamps, and database paths in scan summaries and persisted overviews are
+bounded on narrow terminals. Redirected output retains the full values.
+
 The Amass enumeration command itself can stall after a successful version probe
 (observed with the installed `/usr/bin/amass`). Its opt-in process ceiling is
 now 45 seconds, so future scans record the timeout and continue without the

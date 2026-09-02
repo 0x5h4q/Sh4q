@@ -33,8 +33,10 @@ and useful reporting for authorised attack-surface discovery.
    implemented; technology rows are endpoint-aware and the status control is
 explicitly labelled as HTTP status. Structural QA passes; remaining work is
 browser-level verification on supported desktop and mobile runtimes.
-Reports also embed the project banner as a self-contained data URI with
-responsive sizing and an accessible text fallback.
+   Reports also embed the project banner as a self-contained data URI with
+   responsive sizing and an accessible text fallback.
+   Narrow-terminal coverage now includes scan summaries and persisted overview
+   fields as well as results, events, and failures.
 3. **Reliability evaluation:** fix the full offline-runner/SQLite initialization
    hang, repeat concurrency and recovery checks, and publish measured results.
 4. **Packaging and operations:** verify clean installation, configuration
