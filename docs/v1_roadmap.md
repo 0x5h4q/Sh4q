@@ -34,8 +34,8 @@ and useful reporting for authorised attack-surface discovery.
    The report now includes the asset table/filter slice, failure details, stage
    timings, request metrics, and an evidence index. Responsive visual polish is
    implemented; technology rows are endpoint-aware and the status control is
-explicitly labelled as HTTP status. Structural QA passes; remaining work is
-browser-level verification on supported desktop and mobile runtimes.
+   explicitly labelled as HTTP status. Structural QA and Chromium desktop/mobile
+   verification pass.
 The banner is centered as the primary report hero, with scan identity below;
 long asset values remain horizontally readable instead of wrapping per
 character.
