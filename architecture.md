@@ -223,6 +223,9 @@ The `v0.1.0-alpha.39` HTML reporting slice is available through
 filters without network requests. The `v0.1.0-alpha.40` increment completes
 the report sections with failures, stage timings, request metrics, and an
 evidence index. Browser-level verification remains.
+The `v0.1.0-alpha.41` increment adds a bounded adapter version-probe gate:
+stalled tools are recorded as timed-out executions and their expensive
+enumeration command is skipped.
 
 ## Realistic Timeline
 

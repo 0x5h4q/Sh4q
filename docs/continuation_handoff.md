@@ -58,10 +58,16 @@ type, host, status, technology/category, source, and text search. It also
 includes failure details, stage timings, native request metrics, and an
 evidence index. Remaining work is visual/browser polish and final release QA.
 
+Alpha.41 makes external adapter version probing a preflight gate. A hanging
+version probe records a timed-out adapter execution and skips enumeration, so a
+broken Amass binary cannot consume its full 180-second process budget. The
+offline adapter pipeline and runner tests cover this behavior.
+
 ## Next Work
 
-The threat-model and limitations review, first terminal presentation pass, and
-core HTML report are now documented. The next engineering milestone is browser
+The threat-model and limitations review, first terminal presentation pass, core
+HTML report, and adapter fail-fast handling are now documented. The next
+engineering milestone is browser
 verification and visual polish, then the broader terminal audit:
 consistent aligned tables for scan overviews and summaries, redirected-output
 readability, and narrow-terminal verification across every command. After that,

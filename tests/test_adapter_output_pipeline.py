@@ -39,6 +39,14 @@ class FakeHostnameAdapter(ExternalToolAdapter):
         return [argv[0], "-c", "<script redacted>"]
 
 
+class HangingVersionAdapter(FakeHostnameAdapter):
+    name = "hanging-version"
+    version_arguments = ("-c", "import time; time.sleep(2)")
+
+    def build_argv(self, target, context):
+        return (self.executable, "-c", "raise SystemExit('enumeration should be skipped')")
+
+
 class MemoryEvidenceStore:
     def __init__(self):
         self.records = []
@@ -99,6 +107,16 @@ async def main() -> None:
     assert "domain:api.example.com" in storage.nodes
     assert "domain:evil.test" not in storage.nodes
     assert len(storage.relationships) == 1
+
+    fast_fail = ExternalAdapterPlugin(
+        HangingVersionAdapter(),
+        context,
+        ControlledProcessRunner({sys.executable}, timeout=0.1),
+    )
+    skipped = await fast_fail.execute("example.com")
+    assert len(skipped) == 1
+    assert skipped[0].data["timed_out"] is True
+    assert "enumeration skipped" in skipped[0].data["stderr"]
     print("adapter output pipeline test passed")
 
 

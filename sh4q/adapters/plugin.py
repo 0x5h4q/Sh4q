@@ -35,6 +35,22 @@ class ExternalAdapterPlugin(Plugin):
             arguments=self.adapter.version_arguments,
             cwd=self.context.output_directory,
         )
+        if tool_version == "[version probe timed out]":
+            return [Discovery(
+                kind="adapter_execution",
+                data={
+                    "adapter": self.adapter.name,
+                    "adapter_version": self.adapter.version,
+                    "tool_version": tool_version,
+                    "argv": self.adapter.evidence_argv(argv),
+                    "returncode": -15,
+                    "duration_seconds": 5.0,
+                    "timed_out": True,
+                    "output_limited": False,
+                    "stdout": "",
+                    "stderr": "version probe timed out; enumeration skipped",
+                },
+            )]
         result = await self.runner.run(
             argv,
             cwd=self.context.output_directory,

@@ -37,6 +37,14 @@ async def main() -> None:
         )
         assert version.startswith("Python ")
 
+        timed_version = ControlledProcessRunner({sys.executable}, timeout=0.1)
+        probe = await timed_version.probe_version(
+            sys.executable,
+            arguments=("-c", "import time; time.sleep(2)"),
+            cwd=cwd,
+        )
+        assert probe == "[version probe timed out]"
+
         try:
             await runner.run(("/bin/sh", "-c", "echo unsafe"), cwd=cwd)
         except AdapterExecutionError:

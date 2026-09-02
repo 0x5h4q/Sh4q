@@ -53,6 +53,7 @@ This list describes the private-alpha boundary. It should be read before judging
 - It is not a direct replacement for reconFTW, Amass, Nmap, or a commercial attack-surface management platform.
 - The private-alpha package is source-based and currently requires Python and a local virtual environment; no standalone binary is provided.
 - Technology detection uses a curated offline signature set over a bounded response sample. It is intentionally smaller than Wappalyzer and does not execute page JavaScript or make additional fingerprinting requests.
+- External adapter tools can be unavailable, misinstalled, or provider-blocked. Sh4q now fails fast when an adapter's bounded version probe hangs, but a working tool installation and provider configuration remain the operator's responsibility.
 
 ## Review Status
 

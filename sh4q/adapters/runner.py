@@ -117,6 +117,8 @@ class ControlledProcessRunner:
         result = await self.run(
             (executable, *arguments), cwd=cwd, timeout=min(self._timeout, 5.0)
         )
+        if result.timed_out:
+            return "[version probe timed out]"
         output = (result.stdout or result.stderr).strip()
         return output.splitlines()[0] if output else f"exit {result.returncode}"
 
