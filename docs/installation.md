@@ -3,7 +3,7 @@
 ## Requirements
 
 - Linux 64-bit.
-- Python 3.11 or newer.
+- Python 3.11, 3.12, or 3.13.
 - Git.
 - Internet access during dependency installation.
 - Subfinder only if `--sub` will be used.
@@ -17,7 +17,7 @@ Sh4q is tested in CI on Python 3.11, 3.12, and 3.13.
 ```bash
 git clone <repository-url>
 cd sh4q
-python3 -m venv venv
+python3.13 -m venv venv
 source venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e .

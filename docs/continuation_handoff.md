@@ -7,10 +7,10 @@ making changes.
 ## Current Checkpoint
 
 - Branch: `main`
-- Release: `v0.1.0-alpha.37`
-- Commit: documented by the latest release commit (`Center SH4Q terminal banner`).
-- Remote: `origin/main` and tag `v0.1.0-alpha.37` are published.
-- Worktree should contain no intentional changes after the release commit.
+- Release: `v0.1.0-alpha.51`
+- Commit: `8e6f0f9` (`Improve HTML banner and empty fields`).
+- Remote: `origin/main` and tag `v0.1.0-alpha.51` are published.
+- Untracked user files `tesla.html` and `tyler.html` are intentionally preserved.
 
 Alpha.34 added `tests/test_amass_scheduler_integration.py`. It proves the
 offline Amass process path through `ExternalAdapterPlugin`, Scheduler, EventBus,
@@ -104,6 +104,14 @@ Alpha.51 enlarges the centered banner hero and makes empty/non-applicable table
 fields explicit with `-`; empty filter results now have a clear table message.
 The real 1,510-asset HTML export and fixture pass.
 
+The narrow-terminal audit remains green (`tests/test_cli_formatting.py`). A
+full offline run is currently blocked by the environment's CPython 3.14:
+`aiosqlite 0.22.1` stalls even on `aiosqlite.connect(':memory:')`, while
+synchronous SQLite succeeds. Packaging now declares Python `<3.14`, and the
+installation/troubleshooting docs require Python 3.13 or another supported
+interpreter. Full-suite and concurrency timings must be rerun there before a
+v1 readiness claim.
+
 The Amass enumeration command itself can stall after a successful version probe
 (observed with the installed `/usr/bin/amass`). Its opt-in process ceiling is
 now 45 seconds, so future scans record the timeout and continue without the
@@ -111,14 +119,12 @@ previous 180-second delay.
 
 ## Next Work
 
-The threat-model and limitations review, first terminal presentation pass, core
-HTML report, adapter fail-fast handling, and discovered-HTTP timeout policy are
-now documented. The next engineering milestone is browser
-verification and visual polish, then the broader terminal audit:
-consistent aligned tables for scan overviews and summaries, redirected-output
-readability, and narrow-terminal verification across every command. After that,
-implement HTML reporting using scan-owned data and
-preserve the same provenance and evidence semantics.
+The next milestone is to run the complete offline suite under Python 3.13,
+repeat SQLite concurrency/recovery tests, and record timing statistics. Then run
+browser-level desktop/mobile verification with Chromium/Playwright, apply any
+visual polish, perform packaging/install QA, and complete the v1 threat-model
+and authorized-domain acceptance review. Do not claim pixel-level browser
+verification in an environment without a browser runtime.
 
 Do not begin another live target scan as a substitute for these milestones.
 Do not add active scanners or broaden claims about liveness, completeness, or
