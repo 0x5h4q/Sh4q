@@ -53,3 +53,9 @@ This list describes the private-alpha boundary. It should be read before judging
 - It is not a direct replacement for reconFTW, Amass, Nmap, or a commercial attack-surface management platform.
 - The private-alpha package is source-based and currently requires Python and a local virtual environment; no standalone binary is provided.
 - Technology detection uses a curated offline signature set over a bounded response sample. It is intentionally smaller than Wappalyzer and does not execute page JavaScript or make additional fingerprinting requests.
+
+## Review Status
+
+The threat-model and limitations review was updated for `v0.1.0-alpha.34`.
+The Amass scheduler/provenance path is covered offline, but this does not turn
+third-party tool output into a completeness or liveness guarantee.

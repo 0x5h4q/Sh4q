@@ -38,6 +38,11 @@ External `httpx` inputs are restricted to scan-owned, reauthorised HTTP endpoint
 - Technology results retain signals and confidence rather than being treated as certain facts.
 - SQLite schema versions prevent silent use of unsupported newer databases.
 
+The alpha.34 offline Amass scheduler integration test exercises these boundaries
+together: controlled process execution, relationship-format parsing, EventBus
+delivery, Gate 2 rejection, evidence retention, and source-plugin ownership.
+It uses deterministic fakes and does not contact a live target.
+
 ## Threats Addressed
 
 - An out-of-scope initial target.
