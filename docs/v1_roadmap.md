@@ -29,8 +29,8 @@ and useful reporting for authorised attack-surface discovery.
    asset type, technology/category, source, and text search, with visible
    filtered-versus-total counts.
    The report now includes the asset table/filter slice, failure details, stage
-   timings, request metrics, and an evidence index. Remaining work is visual
-   polish and browser-level verification.
+   timings, request metrics, and an evidence index. Responsive visual polish is
+   implemented; remaining work is browser-level verification.
 3. **Reliability evaluation:** fix the full offline-runner/SQLite initialization
    hang, repeat concurrency and recovery checks, and publish measured results.
 4. **Packaging and operations:** verify clean installation, configuration

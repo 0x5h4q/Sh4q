@@ -63,6 +63,11 @@ version probe records a timed-out adapter execution and skips enumeration, so a
 broken Amass binary cannot consume its full 180-second process budget. The
 offline adapter pipeline and runner tests cover this behavior.
 
+Alpha.43 refines the HTML report layout: controls no longer overlap at desktop
+widths, cards and tables have a restrained hierarchy, mobile spacing is covered,
+and a reset-filters action is available. Browser screenshot verification remains
+the next QA task.
+
 The Amass enumeration command itself can stall after a successful version probe
 (observed with the installed `/usr/bin/amass`). Its opt-in process ceiling is
 now 45 seconds, so future scans record the timeout and continue without the

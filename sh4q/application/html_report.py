@@ -90,24 +90,34 @@ def render_html_report(database: str, run: ScanRun) -> str:
 <title>{title}</title>
 <style>
 :root {{ color-scheme: light; font: 15px system-ui, sans-serif; }}
-body {{ margin: 0; color: #17202a; background: #f5f7f9; }}
-header {{ padding: 24px 5vw; background: #17202a; color: #fff; }}
-main {{ max-width: 1400px; margin: 0 auto; padding: 24px 5vw; }}
-.filters {{ display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 10px; margin-bottom: 18px; }}
-label {{ display: grid; gap: 4px; font-size: 12px; font-weight: 650; }}
-input, select {{ min-height: 36px; border: 1px solid #c7d0d9; border-radius: 4px; padding: 6px 8px; background: #fff; }}
-.count {{ margin: 10px 0; color: #52606d; }}
-.stats {{ display: grid; grid-template-columns: repeat(auto-fit,minmax(130px,1fr)); gap: 10px; margin: 18px 0; }}
-.stat {{ padding: 12px; background: #fff; border: 1px solid #d9e0e6; }}
-.stat strong {{ display: block; font-size: 1.35rem; }}
-section {{ margin-top: 24px; }}
-section h2 {{ font-size: 1.1rem; }}
-.table-wrap {{ overflow-x: auto; background: #fff; border: 1px solid #d9e0e6; }}
+body {{ margin: 0; color: #17202a; background: #eef2f5; }}
+header {{ padding: 30px 5vw 26px; background: #17202a; color: #fff; border-bottom: 4px solid #2c9c94; }}
+header strong {{ display: block; color: #7de0d5; font-size: 1.45rem; letter-spacing: .08em; }}
+header div {{ margin-top: 6px; font-size: 1.15rem; }}
+header small {{ display: block; margin-top: 9px; color: #b9c6d1; }}
+main {{ max-width: 1400px; margin: 0 auto; padding: 26px 5vw 40px; }}
+.stats {{ display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 12px; margin: 0 0 22px; }}
+.stat {{ padding: 16px; background: #fff; border: 1px solid #d5dee6; border-radius: 6px; box-shadow: 0 2px 8px rgba(23,32,42,.05); }}
+.stat strong {{ display: block; color: #17202a; font-size: 1.55rem; line-height: 1.2; }}
+.filters {{ display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 12px; align-items: end; padding: 16px; margin-bottom: 14px; background: #fff; border: 1px solid #d5dee6; border-radius: 6px; }}
+label {{ display: grid; min-width: 0; gap: 5px; color: #344454; font-size: 12px; font-weight: 700; }}
+input, select {{ box-sizing: border-box; width: 100%; min-width: 0; min-height: 38px; border: 1px solid #bdc9d3; border-radius: 4px; padding: 7px 9px; color: #17202a; background: #fff; font: inherit; }}
+input:focus, select:focus {{ outline: 2px solid #7de0d5; outline-offset: 1px; border-color: #2c9c94; }}
+.filter-actions {{ display: flex; align-items: end; }}
+button {{ min-height: 38px; border: 1px solid #8797a5; border-radius: 4px; padding: 7px 12px; color: #17202a; background: #f4f7f9; font: inherit; font-weight: 650; cursor: pointer; }}
+button:hover {{ background: #e6edf1; }}
+.count {{ margin: 12px 0; color: #52606d; font-weight: 600; }}
+section {{ margin-top: 28px; }}
+section h2 {{ margin: 0 0 10px; color: #253647; font-size: 1.1rem; }}
+.table-wrap {{ overflow-x: auto; background: #fff; border: 1px solid #d5dee6; border-radius: 6px; box-shadow: 0 2px 8px rgba(23,32,42,.04); }}
 table {{ width: 100%; border-collapse: collapse; }}
-th, td {{ padding: 9px 10px; border-bottom: 1px solid #e8edf1; text-align: left; vertical-align: top; }}
-th {{ background: #eef2f5; position: sticky; top: 0; }}
+th, td {{ padding: 10px 11px; border-bottom: 1px solid #e8edf1; text-align: left; vertical-align: top; }}
+th {{ color: #344454; background: #e8eef2; position: sticky; top: 0; font-size: 12px; text-transform: uppercase; }}
+tbody tr:hover {{ background: #f3faf9; }}
+tbody tr:last-child td {{ border-bottom: 0; }}
 code {{ overflow-wrap: anywhere; }}
-@media (max-width: 600px) {{ header, main {{ padding-left: 14px; padding-right: 14px; }} th, td {{ padding: 7px; }} }}
+pre {{ overflow-x: auto; padding: 14px; border: 1px solid #d5dee6; border-radius: 6px; background: #17202a; color: #dbe7ef; }}
+@media (max-width: 600px) {{ header, main {{ padding-left: 14px; padding-right: 14px; }} th, td {{ padding: 8px; }} .stats {{ grid-template-columns: repeat(2,minmax(0,1fr)); }} }}
 </style></head><body>
 <header><strong>SH4Q</strong><div>Scan report for <code>{html.escape(run.target)}</code></div><small>{html.escape(run.id)} · {html.escape(run.status)}</small></header>
 <main><div class="stats">
@@ -122,6 +132,7 @@ code {{ overflow-wrap: anywhere; }}
 <label>Status<select id="status"><option value="">All</option></select></label>
 <label>Technology / category<select id="technology"><option value="">All</option></select></label>
 <label>Source<select id="source"><option value="">All</option></select></label>
+<div class="filter-actions"><button id="reset" type="button">Reset filters</button></div>
 </section><div class="count" id="count"></div>
 <div class="table-wrap"><table><thead><tr><th>Type</th><th>Value</th><th>Host / target</th><th>Status</th><th>Technology</th><th>Category</th><th>Source</th></tr></thead>
 <tbody id="rows"></tbody></table></div>
@@ -142,4 +153,7 @@ function render() {{
  document.querySelector('#rows').innerHTML = filtered.map(a => `<tr><td>${{esc(a.type)}}</td><td><code>${{esc(a.value)}}</code></td><td>${{esc(a.host)}}</td><td>${{esc(a.status)}}</td><td>${{esc(a.technology)}}</td><td>${{esc(a.category)}}</td><td>${{esc(a.sources.join(', '))}}</td></tr>`).join('');
 }}
 Object.values(fields).forEach(input => input.addEventListener('input', render)); render();
+document.querySelector('#reset').addEventListener('click', () => {{
+ Object.values(fields).forEach(input => input.value = ''); render();
+}});
 </script></body></html>\n"""
