@@ -233,6 +233,8 @@ discovered-HTTP timeouts and preserves completed per-host results on
 cancellation.
 The `v0.1.0-alpha.45` diagnostics increment preserves exception class and phase
 when transports provide an empty error string.
+The `v0.1.0-alpha.46` report-polish increment derives technology hosts/statuses
+from scan-owned endpoint relationships and clarifies the HTTP status filter.
 The `v0.1.0-alpha.42` increment adds a 45-second Amass enumeration ceiling for
 stalls that occur after a successful version probe.
 

@@ -23,17 +23,41 @@ def _owned_rows(database: str, run: ScanRun) -> list[dict]:
             ORDER BY n.type, n.value""",
             (run.id,),
         ).fetchall()
+        endpoint_rows = db.execute(
+            """SELECT DISTINCT technology.id, endpoint.value, endpoint.attributes
+            FROM scan_assets sa
+            JOIN relationships r ON r.id = sa.relationship_id
+            JOIN nodes technology ON technology.id = r.to_id
+            JOIN nodes endpoint ON endpoint.id = r.from_id
+            WHERE sa.scan_run_id = ? AND r.type = 'DETECTED_TECHNOLOGY'
+              AND technology.type = 'technology' AND endpoint.type = 'url'
+            ORDER BY endpoint.value""",
+            (run.id,),
+        ).fetchall()
+    tech_endpoints = {}
+    for technology_id, endpoint, raw_attributes in endpoint_rows:
+        tech_endpoints.setdefault(technology_id, []).append({
+            "endpoint": endpoint,
+            "host": urlsplit(endpoint).hostname or endpoint,
+            "status": json.loads(raw_attributes).get("status", ""),
+        })
     assets = []
     for asset_type, value, raw_attributes, raw_sources in rows:
         attributes = json.loads(raw_attributes)
         host = value
+        status = attributes.get("status", "")
         if asset_type == "url":
             host = urlsplit(value).hostname or value
+        elif asset_type == "technology":
+            endpoints = tech_endpoints.get(f"technology:{value}", [])
+            if endpoints:
+                host = ", ".join(sorted({item["host"] for item in endpoints}))
+                status = ", ".join(sorted({str(item["status"]) for item in endpoints if item["status"]}))
         assets.append({
             "type": asset_type,
             "value": value,
             "host": host,
-            "status": attributes.get("status", ""),
+            "status": status,
             "technology": value if asset_type == "technology" else "",
             "category": attributes.get("category", ""),
             "version": attributes.get("version", ""),
@@ -129,7 +153,7 @@ pre {{ overflow-x: auto; padding: 14px; border: 1px solid #d5dee6; border-radius
 <label>Search<input id="search" type="search" placeholder="hostname, URL, technology"></label>
 <label>Asset type<select id="type"><option value="">All</option></select></label>
 <label>Target / host<select id="host"><option value="">All</option></select></label>
-<label>Status<select id="status"><option value="">All</option></select></label>
+<label>HTTP status<select id="status"><option value="">All</option></select></label>
 <label>Technology / category<select id="technology"><option value="">All</option></select></label>
 <label>Source<select id="source"><option value="">All</option></select></label>
 <div class="filter-actions"><button id="reset" type="button">Reset filters</button></div>

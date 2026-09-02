@@ -76,6 +76,10 @@ repeating hundreds of probes after a budget or stage-timeout event.
 Alpha.45 normalizes blank HTTP transport exceptions to a useful class-based
 diagnostic instead of emitting repeated `unknown error` lines.
 
+Alpha.46 makes HTML technology rows endpoint-aware and labels the status filter
+as HTTP status, addressing ambiguity seen in browser screenshots. A clipped
+wordmark in a screenshot taken after scrolling is expected browser behavior.
+
 The Amass enumeration command itself can stall after a successful version probe
 (observed with the installed `/usr/bin/amass`). Its opt-in process ceiling is
 now 45 seconds, so future scans record the timeout and continue without the

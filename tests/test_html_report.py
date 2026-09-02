@@ -11,6 +11,7 @@ with tempfile.TemporaryDirectory() as directory:
     with sqlite3.connect(database) as db:
         db.execute("CREATE TABLE nodes (id TEXT, type TEXT, value TEXT, attributes TEXT)")
         db.execute("CREATE TABLE scan_assets (scan_run_id TEXT, asset_id TEXT, relationship_id TEXT, source_plugin TEXT)")
+        db.execute("CREATE TABLE relationships (id TEXT, from_id TEXT, to_id TEXT, type TEXT, attributes TEXT)")
         db.execute("CREATE TABLE evidence (id TEXT, target TEXT, plugin TEXT, kind TEXT, content TEXT, captured_at TEXT, scan_run_id TEXT)")
         db.execute("INSERT INTO nodes VALUES (?, ?, ?, ?)", (
             "url:1", "url", "https://api.example.com/?q=<script>", '{"status":200}'
@@ -22,6 +23,7 @@ with tempfile.TemporaryDirectory() as directory:
             ("scan-1", "url:1", "rel-url", "discovered-http"),
             ("scan-1", "technology:next", "rel-tech", "native"),
         ])
+        db.execute("INSERT INTO relationships VALUES (?, ?, ?, ?, ?)", ("rel-tech", "url:1", "technology:next", "DETECTED_TECHNOLOGY", '{"status":200}'))
         db.executemany("INSERT INTO evidence VALUES (?, ?, ?, ?, ?, ?, ?)", [
             ("e1", "example.com", "http", "http_error", '{"error":"timeout"}', "now", "scan-1"),
             ("e2", "example.com", "native", "request_metrics", '{"observed":{"admitted":2}}', "now", "scan-1"),
@@ -40,4 +42,5 @@ with tempfile.TemporaryDirectory() as directory:
     assert "Stage timings" in report
     assert "Request metrics" in report
     assert "Evidence index" in report
+    assert "HTTP status" in report
 print("HTML report test passed")
