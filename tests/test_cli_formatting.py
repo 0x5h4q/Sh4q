@@ -28,6 +28,6 @@ finally:
     shutil.get_terminal_size = original_terminal_size
 
 assert max(len(line) for line in output.getvalue().splitlines()) <= 60
-assert "████" in SCAN_BANNER
+assert "____" in SCAN_BANNER
 assert max(len(line) for line in SCAN_BANNER.splitlines()) < 80
 print("CLI narrow formatting test passed")

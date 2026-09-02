@@ -7,9 +7,9 @@ making changes.
 ## Current Checkpoint
 
 - Branch: `main`
-- Release: `v0.1.0-alpha.34`
-- Commit: `08f9eb5` (`Test Amass scheduler provenance pipeline`)
-- Remote: `origin/main` and tag `v0.1.0-alpha.34` are published.
+- Release: `v0.1.0-alpha.35`
+- Commit: documented by the latest release commit (`Terminal presentation checkpoint`).
+- Remote: `origin/main` and tag `v0.1.0-alpha.35` are published.
 - Worktree should contain no intentional changes after the release commit.
 
 Alpha.34 added `tests/test_amass_scheduler_integration.py`. It proves the
@@ -35,12 +35,16 @@ The repository-wide deterministic command remains:
 venv/bin/python tools/run_offline_tests.py
 ```
 
+Alpha.35 replaces the block-art banner with a portable ASCII wordmark and keeps
+the narrow-terminal formatting test green without escape warnings.
+
 ## Next Work
 
-The threat-model and limitations review is now documented. The next engineering
-milestone is the terminal presentation pass: restrained ASCII branding,
-consistent aligned tables, redirected-output readability, and narrow-terminal
-verification. After that, implement HTML reporting using scan-owned data and
+The threat-model and limitations review and the core terminal presentation pass
+are now documented. The next engineering milestone is a broader terminal audit:
+consistent aligned tables for scan overviews and summaries, redirected-output
+readability, and narrow-terminal verification across every command. After that,
+implement HTML reporting using scan-owned data and
 preserve the same provenance and evidence semantics.
 
 Do not begin another live target scan as a substitute for these milestones.

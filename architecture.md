@@ -184,12 +184,18 @@ Current readiness is: strong academic/MVP architecture, credible but early orche
 The threat model and known-limitations documents have been reviewed and updated
 for `v0.1.0-alpha.34`. The offline Amass scheduler integration test now covers
 controlled execution, event delivery, Gate 2 filtering, evidence retention, and
-scan-source provenance as one path. The next Gate 4 increment is terminal
-presentation and narrow-terminal verification, followed by HTML reporting.
+scan-source provenance as one path. The first terminal increment is complete in
+`v0.1.0-alpha.35`: the banner is portable ASCII and the narrow formatting
+regression remains green. The next increment is a broader terminal audit across
+scan overviews and summaries, followed by HTML reporting.
 
 SQLite now has an explicit schema metadata version (`1`), rejects newer unsupported databases, establishes WAL once during schema initialization, and applies a 10-second busy timeout plus foreign-key enforcement consistently across production connections. Synchronous reporting/query paths and asynchronous storage paths share the same connection policy. A post-change concurrency validation completed 50 parallel synthetic work units in 1.156 seconds with the expected 100 nodes, 50 relationships, 50 events, and 50 evidence rows. Numbered structural migrations and broader transaction grouping remain future work.
 
-Before private-alpha distribution, complete a presentation pass: add a restrained ASCII Sh4q wordmark, use consistent aligned tables for scans/results/events/summaries, preserve plain-text and redirected-output readability, and verify narrow-terminal behavior. Presentation must clarify evidence and status rather than imitate a decorative dashboard.
+Before private-alpha distribution, complete the remaining terminal audit: use
+consistent aligned tables for scan overviews and summaries, preserve plain-text
+and redirected-output readability, and verify narrow-terminal behavior across
+every command. Presentation must clarify evidence and status rather than imitate
+a decorative dashboard.
 
 The deterministic offline suite is now standardized through `tools/run_offline_tests.py`. It uses an explicit allow-list, aligned pass/fail output, per-test timing and timeout enforcement, captured failure diagnostics, and a nonzero failure exit code. The current validation run passed 37/37 tests in 12.89 seconds. GitHub Actions runs the same command on Python 3.11, 3.12, and 3.13. Optional local-TLS checks and manual/live scripts remain separately classified in `docs/testing.md`.
 
