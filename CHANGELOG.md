@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.0-alpha.52 - 2026-09-03
+
+- Added the transparent branded banner to HTML report package data so wheel
+  installations embed the same hero as source checkouts.
+- Verified HTML reports in Chromium at desktop and mobile viewports, including
+  filter/reset interactions and overflow checks.
+- Recorded 43/43 offline tests and repeated SQLite concurrency validation under
+  Python 3.12.
+- Bounded and clearly labelled passive Amass as an experimental best-effort
+  adapter with a 20-second process ceiling.
+- Updated architecture and academic review documents with current evidence,
+  limitations, and v1 release status.
+
 ## 0.1.0-alpha.8 - 2026-08-31
 
 - Added `sh4q banner` for the full Unicode block-art identity on wide interactive terminals.

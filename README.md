@@ -72,16 +72,20 @@ The default database is `./sh4q-output/sh4q.db`. It may contain sensitive target
 - Gate 1 target authorisation and Gate 2 discovery validation.
 - Reserved/private address controls and redirect validation.
 - DNS, HTTP, certificate-transparency, and optional Subfinder discovery.
+- Optional passive Amass discovery and ProjectDiscovery HTTPX enrichment.
 - Bounded discovered-host DNS and HTTP enrichment.
 - Durable events, retries, interruption handling, and evidence storage.
 - Per-scan ownership, results, scan overview, JSON/CSV export, and liveness filters.
 - Conservative native technology observations from already-authorised HTTP responses.
 - A deterministic offline suite used by CI.
 - A self-contained HTML asset report with client-side filters for type, host,
-  status, technology/category, source, and text search (early v1 slice).
+  status, technology/category, source, and text search.
 
 ## Project Status
 
-Sh4q is available as a limited private alpha for trusted testers. Expect variable live-provider results and breaking changes between early versions.
+Sh4q is available as a limited private alpha for trusted testers. The v1 review
+release is nearing completion; expect variable live-provider results and the
+documented limitations around completeness, active scanning, and external-tool
+availability.
 
 Sh4q is released under the [MIT License](LICENSE).
