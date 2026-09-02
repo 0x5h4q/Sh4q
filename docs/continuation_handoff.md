@@ -8,8 +8,8 @@ making changes.
 
 - Branch: `main`
 - Release: `v0.1.0-alpha.51` plus post-alpha v1 hardening commits.
-- Commit: `1925c83` (`Record packaging validation for v1`).
-- Remote: `origin/main` is pushed at `1925c83`; tag `v0.1.0-alpha.51` remains the latest published tag.
+- Commit: `c0ac096` (`Update review materials for v1 readiness`).
+- Remote: `origin/main` is pushed at `c0ac096`; `v0.1.0-alpha.52` is the latest published tag.
 - Untracked user files `tesla.html` and `tyler.html` are intentionally preserved.
 
 Alpha.34 added `tests/test_amass_scheduler_integration.py`. It proves the
@@ -141,6 +141,11 @@ The Amass enumeration command itself can stall after a successful version probe
 (observed with the installed `/usr/bin/amass`). It is explicitly experimental
 with a 20-second opt-in process ceiling, so scans record the timeout and
 continue without depending on Amass results.
+
+The tracked architecture progress review, README, and changelog now reflect the
+alpha.52 reliability, browser, packaging, and Amass-policy results. The academic
+draft also has a dated local evaluation addendum, but remains intentionally
+ignored as a private academic document.
 
 ## Next Work
 
