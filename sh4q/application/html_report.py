@@ -125,13 +125,13 @@ def render_html_report(database: str, run: ScanRun) -> str:
 <style>
 :root {{ color-scheme: light; font: 15px system-ui, sans-serif; }}
 body {{ margin: 0; color: #17202a; background: #eef2f5; }}
-header {{ padding: 22px 5vw 24px; background: #17202a; color: #fff; border-bottom: 4px solid #2c9c94; }}
-.brand {{ display: flex; align-items: center; gap: 16px; max-width: 1400px; margin: 0 auto; }}
-.brand img {{ display: block; width: min(190px, 34vw); height: auto; border-radius: 4px; background: #f5f7f9; }}
+header {{ padding: 30px 5vw 32px; background: #17202a; color: #fff; border-bottom: 4px solid #2c9c94; text-align: center; }}
+.brand {{ max-width: 1400px; margin: 0 auto; }}
+.brand img {{ display: block; width: min(430px, 78vw); max-height: 190px; object-fit: contain; margin: 0 auto 18px; border-radius: 5px; background: #f5f7f9; }}
 .brand-copy {{ min-width: 0; }}
-header strong {{ display: block; color: #7de0d5; font-size: 1.45rem; letter-spacing: .08em; }}
-header div {{ margin-top: 6px; font-size: 1.15rem; }}
-header small {{ display: block; margin-top: 9px; color: #b9c6d1; }}
+header strong {{ display: block; color: #7de0d5; font-size: 1.35rem; letter-spacing: .12em; }}
+header div {{ margin-top: 7px; font-size: 1.2rem; }}
+header small {{ display: block; margin-top: 10px; color: #b9c6d1; }}
 main {{ max-width: 1400px; margin: 0 auto; padding: 26px 5vw 40px; }}
 .stats {{ display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 12px; margin: 0 0 22px; }}
 .stat {{ padding: 16px; background: #fff; border: 1px solid #d5dee6; border-radius: 6px; box-shadow: 0 2px 8px rgba(23,32,42,.05); }}
@@ -152,11 +152,11 @@ th, td {{ padding: 10px 11px; border-bottom: 1px solid #e8edf1; text-align: left
 th {{ color: #344454; background: #e8eef2; position: sticky; top: 0; font-size: 12px; text-transform: uppercase; }}
 tbody tr:hover {{ background: #f3faf9; }}
 tbody tr:last-child td {{ border-bottom: 0; }}
-code {{ overflow-wrap: anywhere; }}
+td code {{ white-space: nowrap; overflow-wrap: normal; }}
 pre {{ overflow-x: auto; padding: 14px; border: 1px solid #d5dee6; border-radius: 6px; background: #17202a; color: #dbe7ef; }}
-@media (max-width: 600px) {{ header, main {{ padding-left: 14px; padding-right: 14px; }} .brand {{ gap: 10px; }} .brand img {{ width: 120px; }} th, td {{ padding: 8px; }} .stats {{ grid-template-columns: repeat(2,minmax(0,1fr)); }} }}
+@media (max-width: 600px) {{ header, main {{ padding-left: 14px; padding-right: 14px; }} .brand img {{ width: min(320px, 86vw); max-height: 140px; }} header div {{ font-size: 1.05rem; }} th, td {{ padding: 8px; }} .stats {{ grid-template-columns: repeat(2,minmax(0,1fr)); }} }}
 </style></head><body>
-<header><div class="brand">{f'<img src="{banner_uri}" alt="SH4Q" />' if banner_uri else ''}<div class="brand-copy"><strong>SH4Q</strong><div>Scan report for <code>{html.escape(run.target)}</code></div><small>{html.escape(run.id)} · {html.escape(run.status)}</small></div></div></header>
+<header><div class="brand">{f'<img src="{banner_uri}" alt="SH4Q" />' if banner_uri else ''}<div class="brand-copy">{'' if banner_uri else '<strong>SH4Q</strong>'}<div>Scan report for <code>{html.escape(run.target)}</code></div><small>{html.escape(run.id)} · {html.escape(run.status)}</small></div></div></header>
 <main><div class="stats">
 <div class="stat"><strong>{len(assets)}</strong>scan-owned assets</div>
 <div class="stat"><strong>{len(metadata["evidence"])}</strong>evidence records</div>

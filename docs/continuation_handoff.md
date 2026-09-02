@@ -94,6 +94,12 @@ Alpha.49 completes the next terminal-audit slice: long targets, scan IDs,
 timestamps, and database paths in scan summaries and persisted overviews are
 bounded on narrow terminals. Redirected output retains the full values.
 
+Alpha.50 updates the HTML report hero to center `banner.png` as the dominant
+brand visual, places scan identity beneath it, and prevents long domains/URLs
+from wrapping character-by-character in the asset table. Structural HTML QA and
+real-data export pass; browser screenshot verification still requires a browser
+runtime unavailable in this environment.
+
 The Amass enumeration command itself can stall after a successful version probe
 (observed with the installed `/usr/bin/amass`). Its opt-in process ceiling is
 now 45 seconds, so future scans record the timeout and continue without the

@@ -33,6 +33,9 @@ and useful reporting for authorised attack-surface discovery.
    implemented; technology rows are endpoint-aware and the status control is
 explicitly labelled as HTTP status. Structural QA passes; remaining work is
 browser-level verification on supported desktop and mobile runtimes.
+The banner is centered as the primary report hero, with scan identity below;
+long asset values remain horizontally readable instead of wrapping per
+character.
    Reports also embed the project banner as a self-contained data URI with
    responsive sizing and an accessible text fallback.
    Narrow-terminal coverage now includes scan summaries and persisted overview
