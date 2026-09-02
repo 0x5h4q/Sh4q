@@ -94,11 +94,12 @@ class DiscoveredHTTPPlugin(Plugin):
             except asyncio.CancelledError:
                 raise
             except Exception as error:
+                detail = str(error).strip() or f"{error.__class__.__name__} without detail"
                 return [Discovery(
                     kind="http_error",
                     data={
                         "url": name,
-                        "error": str(error) or error.__class__.__name__,
+                        "error": detail,
                         "phase": "host-probe",
                     },
                 )]

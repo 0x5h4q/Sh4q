@@ -79,11 +79,12 @@ class HTTPPlugin(Plugin):
                         data={"url": url, "error": "request timed out", "phase": "overall", "timeout": self.metadata.timeout, "duration_seconds": round(time.monotonic() - started, 3)},
                     )]
                 except (httpx.HTTPError, ScopedHTTPError, ssl.SSLError) as e:
+                    detail = str(e).strip() or f"{e.__class__.__name__} without detail"
                     return [Discovery(
                         kind="http_error",
                         data={
                             "url": url,
-                            "error": str(e),
+                            "error": detail,
                             "phase": getattr(e, "phase", "http"),
                             "duration_seconds": round(time.monotonic() - started, 3),
                             "address": getattr(e, "address", None),

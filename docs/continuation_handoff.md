@@ -73,6 +73,9 @@ out. Completed per-host results are preserved during cancellation, and the
 scheduler reports retries as disabled for this enrichment stage. This avoids
 repeating hundreds of probes after a budget or stage-timeout event.
 
+Alpha.45 normalizes blank HTTP transport exceptions to a useful class-based
+diagnostic instead of emitting repeated `unknown error` lines.
+
 The Amass enumeration command itself can stall after a successful version probe
 (observed with the installed `/usr/bin/amass`). Its opt-in process ceiling is
 now 45 seconds, so future scans record the timeout and continue without the

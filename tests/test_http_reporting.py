@@ -48,6 +48,7 @@ async def main() -> None:
         slow = await slow_plugin.execute("example.com")
         assert len([item for item in slow if item.kind == "http_error"]) == 2
         assert all(item.data["phase"] == "overall" for item in slow)
+        assert all(item.data["error"] for item in slow if item.kind == "http_error")
     finally:
         HTTPPlugin.metadata.timeout = original_timeout
     print("HTTP per-scheme reporting test passed")
