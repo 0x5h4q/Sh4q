@@ -47,9 +47,14 @@ Alpha.37 replaces the ambiguous font-style banner with an explicit `S H 4 Q`
 wordmark centered to the active terminal width, including narrow-terminal
 coverage.
 
+The v1 roadmap and outreach pitch are now documented in `docs/v1_roadmap.md`
+and `docs/pitch.md`. The v1 adapter policy keeps the current proven set and
+defers active scanners; a passive URL-history adapter is only a post-v1
+candidate until its policy and provenance tests exist.
+
 ## Next Work
 
-The threat-model and limitations review and the core terminal presentation pass
+The threat-model and limitations review and the first terminal presentation pass
 are now documented. The next engineering milestone is a broader terminal audit:
 consistent aligned tables for scan overviews and summaries, redirected-output
 readability, and narrow-terminal verification across every command. After that,

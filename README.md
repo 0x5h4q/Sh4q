@@ -52,6 +52,8 @@ sh4q export --latest --target your-domain.example \
 - [Threat model](docs/threat_model.md)
 - [Known limitations](docs/limitations.md)
 - [Continuation handoff](docs/continuation_handoff.md)
+- [v1 roadmap](docs/v1_roadmap.md)
+- [Outreach pitch](docs/pitch.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Testing](docs/testing.md)
 - [Feedback guide](docs/feedback.md)

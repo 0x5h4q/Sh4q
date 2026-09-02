@@ -212,6 +212,12 @@ Stage performance is now durable. Each scan writes ordered `stage_metrics` evide
 
 Work in small, reviewable increments. Each increment must add regression tests before expanding discovery breadth. Do not add active scanners until the safety boundary and event guarantees pass their gates.
 
+The v1 roadmap is now explicit in `docs/v1_roadmap.md`. The current adapter
+policy keeps native DNS/HTTP/CT, Subfinder, passive Amass, and opt-in HTTPX;
+active scanners are deferred until after v1 because they need stronger policy
+and resource controls. Outreach language and comparison claims are maintained
+in `docs/pitch.md`.
+
 ## Realistic Timeline
 
 For one motivated developer working part-time (8–12 hours/week):
