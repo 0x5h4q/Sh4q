@@ -178,7 +178,14 @@ def make_discovery_handler(
             relationship = Relationship(from_id=domain_node.id, to_id=url_node.id, type="SERVES")
             await storage.save_relationship(relationship)
             if await record_asset("http_endpoints", url_node.id, relationship.id, source_plugin, event_scan_run_id):
-                print(status_line(f"SAVED: {host} --SERVES--> {final_url} [{data['status']}]", "ok"))
+                message = status_line(
+                    f"SAVED: {host} --SERVES--> {final_url} [{data['status']}]",
+                    "ok",
+                )
+                if source_plugin == "discovered-http":
+                    display_bounded("discovered HTTP success", message)
+                else:
+                    print(message)
 
         elif kind == "http_fingerprint":
             endpoint = _canonical_url(data["endpoint"])
@@ -295,7 +302,8 @@ def make_discovery_handler(
         elif kind in ("http_error", "dns_error", "ct_error"):
             phase = data.get("phase")
             suffix = f" [{phase}]" if phase else ""
-            message = status_line(f"FAILED {kind}{suffix}: {data.get('error', 'unknown error')}", "error")
+            error = data.get("error") or "unknown error"
+            message = status_line(f"FAILED {kind}{suffix}: {error}", "error")
             if source_plugin == "discovered-http":
                 display_bounded("discovered HTTP failure", message)
             else:

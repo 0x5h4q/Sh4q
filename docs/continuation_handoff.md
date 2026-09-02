@@ -7,9 +7,9 @@ making changes.
 ## Current Checkpoint
 
 - Branch: `main`
-- Release: `v0.1.0-alpha.35`
-- Commit: documented by the latest release commit (`Terminal presentation checkpoint`).
-- Remote: `origin/main` and tag `v0.1.0-alpha.35` are published.
+- Release: `v0.1.0-alpha.36`
+- Commit: documented by the latest release commit (`Bound discovery output`).
+- Remote: `origin/main` and tag `v0.1.0-alpha.36` are published.
 - Worktree should contain no intentional changes after the release commit.
 
 Alpha.34 added `tests/test_amass_scheduler_integration.py`. It proves the
@@ -37,6 +37,11 @@ venv/bin/python tools/run_offline_tests.py
 
 Alpha.35 replaces the block-art banner with a portable ASCII wordmark and keeps
 the narrow-terminal formatting test green without escape warnings.
+
+Alpha.36 bounds discovered-HTTP success output to ten representative lines,
+retains every event and relationship in evidence/storage, and renders empty
+HTTP exception messages as `unknown error`. The alpha.34 Amass scheduler test
+and the new handler presentation test are now included in the offline runner.
 
 ## Next Work
 

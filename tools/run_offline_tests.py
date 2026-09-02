@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 OFFLINE_TESTS = (
     "test_amass_adapter.py",
+    "test_amass_scheduler_integration.py",
     "test_adapter_contract.py",
     "test_adapter_execution_reporting.py",
     "test_adapter_output_pipeline.py",
@@ -33,6 +34,7 @@ OFFLINE_TESTS = (
     "test_fingerprint_output_pipeline.py",
     "test_http_reporting.py",
     "test_httpx_fingerprint_adapter.py",
+    "test_handler_presentation.py",
     "test_idempotency.py",
     "test_native_fingerprints.py",
     "test_plugins.py",
