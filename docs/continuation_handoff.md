@@ -105,16 +105,17 @@ fields explicit with `-`; empty filter results now have a clear table message.
 The real 1,510-asset HTML export and fixture pass.
 
 The narrow-terminal audit remains green (`tests/test_cli_formatting.py`). A
-full offline run is currently blocked by the environment's CPython 3.14:
-`aiosqlite 0.22.1` stalls even on `aiosqlite.connect(':memory:')`, while
-synchronous SQLite succeeds. Packaging now declares Python `<3.14`, and the
-installation/troubleshooting docs require Python 3.13 or another supported
-interpreter. Full-suite and concurrency timings must be rerun there before a
-v1 readiness claim.
+full offline run is currently blocked by this environment's async SQLite path:
+`aiosqlite.connect(':memory:')` stalls under both CPython 3.14.4 and the
+Python 3.12 control environment, while synchronous SQLite succeeds. This is
+not isolated to one Python minor version or aiosqlite release. Full-suite and
+concurrency timings must be rerun in a known-good environment before a v1
+readiness claim.
 
 Compatibility checks also reproduced the hang with aiosqlite `0.20.0` and
 `0.21.0`; downgrading the dependency is not a workaround. The environment was
-restored to `0.22.1`.
+restored to `0.22.1`. The package metadata remains open to Python 3.14, but
+3.14 support is experimental until a working runtime is verified.
 
 The transparent replacement `banner.png` is rendered at a larger responsive
 size on a light full-width hero surface so the dark logo remains readable. The

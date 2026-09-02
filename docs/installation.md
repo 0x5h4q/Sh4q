@@ -3,14 +3,15 @@
 ## Requirements
 
 - Linux 64-bit.
-- Python 3.11, 3.12, or 3.13.
+- Python 3.11 or newer.
 - Git.
 - Internet access during dependency installation.
 - Subfinder only if `--sub` will be used.
 - ProjectDiscovery httpx only if `--httpx` will be used.
 - OWASP Amass only if `--amass` will be used.
 
-Sh4q is tested in CI on Python 3.11, 3.12, and 3.13.
+Sh4q is tested in CI on Python 3.11, 3.12, and 3.13. Python 3.14 remains
+experimental until CI coverage is available.
 
 ## Install from the Repository
 

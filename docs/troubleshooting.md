@@ -95,10 +95,10 @@ Do not edit `schema_metadata` manually. Confirm the Sh4q version and database pa
 Follow [feedback.md](feedback.md). Include the scan ID and command, but redact sensitive hostnames, evidence, credentials, and client data.
 ## SQLite initialization hangs
 
-Sh4q requires CPython 3.11 through 3.13. The current `aiosqlite` release can
-stall while opening a connection under CPython 3.14, before any Sh4q schema or
-scan work begins. Recreate the virtual environment with Python 3.13 (or an
-older supported interpreter) and reinstall the package:
+If `aiosqlite.connect()` stalls before any Sh4q schema or scan work begins,
+verify the environment with a minimal in-memory connection. This indicates an
+async-thread/runtime problem rather than a scan or database-file problem. Use
+a supported interpreter with a working aiosqlite installation and reinstall:
 
 ```text
 python3.13 -m venv venv

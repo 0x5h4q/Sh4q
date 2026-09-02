@@ -2,8 +2,7 @@
 name = "sh4q"
 version = "0.1.0a51"
 description = "Sh4q — scope-aware, discovery-only reconnaissance orchestration framework"
-# aiosqlite currently has a startup deadlock under CPython 3.14.
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.11"
 license = "MIT"
 dependencies = [
     "pydantic>=2",
