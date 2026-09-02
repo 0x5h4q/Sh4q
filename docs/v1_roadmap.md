@@ -45,8 +45,10 @@ non-applicable asset fields render as `-` instead of ambiguous blank cells.
 3. **Reliability evaluation:** complete. The full offline runner passed `43/43`
    on Python 3.12, and five consecutive SQLite concurrency runs passed. Python
    3.14 remains experimental until it receives equivalent runtime coverage.
-4. **Packaging and operations:** verify clean installation, configuration
-   examples, database handling, sensitive-output guidance, and upgrade notes.
+4. **Packaging and operations:** complete. A wheel was built and installed in
+   a fresh Python 3.12 environment; `sh4q --help` completed successfully.
+   Configuration, database handling, and sensitive-output guidance remain
+   documented.
 5. **Release review:** audit every public claim against the threat model and
    limitations, then run a clean authorised-domain acceptance scan.
 

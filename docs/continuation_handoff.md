@@ -123,6 +123,10 @@ durations of `0.869s`, `0.971s`, `0.676s`, `0.573s`, and `0.576s` (mean
 `0.733s`, median `0.676s`, min `0.573s`, max `0.971s`). This confirms the
 storage path is reliable on a normal supported runtime.
 
+Packaging QA also passed: a wheel was built, installed into a fresh Python
+3.12 environment, and `sh4q --help` completed successfully. The wheel includes
+the report assets required by the HTML export.
+
 The transparent replacement `banner.png` is rendered at a larger responsive
 size on a light full-width hero surface so the dark logo remains readable. The
 HTML fixture passes with the updated sizing.
