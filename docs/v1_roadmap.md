@@ -23,7 +23,7 @@ and useful reporting for authorised attack-surface discovery.
 
 1. **Terminal audit:** align scan overview, summary, results, events, failures,
    and export messages across wide, narrow, redirected, and non-TTY output.
-2. **HTML reporting:** generate a self-contained report from scan-owned assets,
+2. **HTML reporting:** browser-verify the self-contained report generated from scan-owned assets,
    relationships, evidence references, failures, stages, and request metrics.
    It must provide offline client-side filters for status codes, host/target,
    asset type, technology/category, source, and text search, with visible
@@ -42,8 +42,11 @@ non-applicable asset fields render as `-` instead of ambiguous blank cells.
    responsive sizing and an accessible text fallback.
    Narrow-terminal coverage now includes scan summaries and persisted overview
    fields as well as results, events, and failures.
-3. **Reliability evaluation:** fix the full offline-runner/SQLite initialization
-   hang, repeat concurrency and recovery checks, and publish measured results.
+3. **Reliability evaluation:** run the full offline runner and repeat concurrency
+   and recovery checks under supported Python 3.11-3.13 interpreters. CPython
+   3.14 is intentionally deferred because the current aiosqlite release hangs
+   during connection startup; add 3.14 only after an upstream fix or a tested
+   storage compatibility layer.
 4. **Packaging and operations:** verify clean installation, configuration
    examples, database handling, sensitive-output guidance, and upgrade notes.
 5. **Release review:** audit every public claim against the threat model and
