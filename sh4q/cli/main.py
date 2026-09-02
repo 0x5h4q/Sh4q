@@ -280,7 +280,7 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument(
         "--amass",
         action="store_true",
-        help="Run optional Amass passive hostname discovery.",
+        help="Run experimental Amass passive discovery (bounded to 20 seconds).",
     )
 
     events = subparsers.add_parser("events", help="Inspect durable event state")

@@ -61,7 +61,8 @@ non-applicable asset fields render as `-` instead of ambiguous blank cells.
 The v1 adapter set is intentionally small:
 
 - Native DNS, HTTP, CT, and technology observation paths remain the baseline.
-- Subfinder and passive Amass remain opt-in passive discovery adapters.
+- Subfinder remains an opt-in passive discovery adapter. Amass remains opt-in
+  and experimental; v1 acceptance does not depend on it producing results.
 - ProjectDiscovery HTTPX remains opt-in endpoint enrichment with separately
   reported external-tool accounting.
 - A passive URL-history adapter such as gau or waybackurls is a post-v1

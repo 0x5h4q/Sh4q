@@ -58,7 +58,7 @@ This list describes the private-alpha boundary. It should be read before judging
 - The private-alpha package is source-based and currently requires Python and a local virtual environment; no standalone binary is provided.
 - Technology detection uses a curated offline signature set over a bounded response sample. It is intentionally smaller than Wappalyzer and does not execute page JavaScript or make additional fingerprinting requests.
 - External adapter tools can be unavailable, misinstalled, or provider-blocked. Sh4q now fails fast when an adapter's bounded version probe hangs, but a working tool installation and provider configuration remain the operator's responsibility.
-- Passive Amass enumeration has an explicit 45-second process ceiling. A tool
+- Passive Amass enumeration has an explicit 20-second process ceiling. A tool
   that stalls during provider or local-database work may still yield no names;
   Sh4q records the timeout and continues with other stages.
 

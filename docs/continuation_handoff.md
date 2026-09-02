@@ -138,9 +138,9 @@ size on a light full-width hero surface so the dark logo remains readable. The
 HTML fixture passes with the updated sizing.
 
 The Amass enumeration command itself can stall after a successful version probe
-(observed with the installed `/usr/bin/amass`). Its opt-in process ceiling is
-now 45 seconds, so future scans record the timeout and continue without the
-previous 180-second delay.
+(observed with the installed `/usr/bin/amass`). It is explicitly experimental
+with a 20-second opt-in process ceiling, so scans record the timeout and
+continue without depending on Amass results.
 
 ## Next Work
 

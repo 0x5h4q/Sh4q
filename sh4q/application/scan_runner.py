@@ -175,10 +175,10 @@ async def run_scan(
                     ControlledProcessRunner(
                         {executable}, environment={"HOME": str(adapter_home.resolve())}
                     ),
-                    # Passive Amass can stall inside provider/database work even
-                    # when its version probe succeeds. Keep the opt-in stage
-                    # bounded so it cannot dominate an otherwise useful scan.
-                    timeout=45.0,
+                    # Passive Amass is experimental and can stall inside
+                    # provider/database work even when its version probe succeeds.
+                    # Keep the opt-in stage short so it cannot dominate a scan.
+                    timeout=20.0,
                 )
             )
         if include_subfinder or include_amass:

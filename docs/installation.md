@@ -77,7 +77,10 @@ The adapter receives only approved HTTP endpoints from the current scan and is b
 
 ## Optional Amass Passive Discovery
 
-`--amass` runs a fixed passive-only Amass enumeration command. Results remain untrusted until Sh4q applies Gate 2 and subsequent DNS/HTTP verification.
+`--amass` runs a fixed passive-only Amass enumeration command. It is an
+experimental, best-effort adapter with a 20-second process ceiling; provider
+or local-database stalls are recorded and the scan continues. Results remain
+untrusted until Sh4q applies Gate 2 and subsequent DNS/HTTP verification.
 
 ```bash
 amass -version
