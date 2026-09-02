@@ -31,8 +31,8 @@ and useful reporting for authorised attack-surface discovery.
    The report now includes the asset table/filter slice, failure details, stage
    timings, request metrics, and an evidence index. Responsive visual polish is
    implemented; technology rows are endpoint-aware and the status control is
-   explicitly labelled as HTTP status. Remaining work is browser-level
-   verification.
+   explicitly labelled as HTTP status. Structural QA passes; remaining work is
+   browser-level verification on supported desktop and mobile runtimes.
 3. **Reliability evaluation:** fix the full offline-runner/SQLite initialization
    hang, repeat concurrency and recovery checks, and publish measured results.
 4. **Packaging and operations:** verify clean installation, configuration

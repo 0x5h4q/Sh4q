@@ -43,4 +43,7 @@ with tempfile.TemporaryDirectory() as directory:
     assert "Request metrics" in report
     assert "Evidence index" in report
     assert "HTTP status" in report
+    assert "fetch(" not in report
+    assert report.count("<select") == 5
+    assert "Reset filters" in report
 print("HTML report test passed")

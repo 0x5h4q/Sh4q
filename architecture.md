@@ -235,6 +235,9 @@ The `v0.1.0-alpha.45` diagnostics increment preserves exception class and phase
 when transports provide an empty error string.
 The `v0.1.0-alpha.46` report-polish increment derives technology hosts/statuses
 from scan-owned endpoint relationships and clarifies the HTTP status filter.
+Structural QA against a real 1,510-asset export confirms the report remains
+self-contained and network-free; browser screenshot verification is still
+pending on an environment with a supported browser runtime.
 The `v0.1.0-alpha.42` increment adds a 45-second Amass enumeration ceiling for
 stalls that occur after a successful version probe.
 

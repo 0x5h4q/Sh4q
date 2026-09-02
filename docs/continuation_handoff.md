@@ -80,6 +80,12 @@ Alpha.46 makes HTML technology rows endpoint-aware and labels the status filter
 as HTTP status, addressing ambiguity seen in browser screenshots. A clipped
 wordmark in a screenshot taken after scrolling is expected browser behavior.
 
+The generated HTML was checked against the real 1,510-asset scan and passes
+structural QA: all filters and reset control are present, the embedded script
+has no network calls, and the report is self-contained. This environment lacks
+a browser/Playwright runtime, so pixel-level desktop/mobile verification remains
+an explicit release-QA task.
+
 The Amass enumeration command itself can stall after a successful version probe
 (observed with the installed `/usr/bin/amass`). Its opt-in process ceiling is
 now 45 seconds, so future scans record the timeout and continue without the
