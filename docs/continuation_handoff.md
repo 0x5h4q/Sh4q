@@ -112,6 +112,10 @@ installation/troubleshooting docs require Python 3.13 or another supported
 interpreter. Full-suite and concurrency timings must be rerun there before a
 v1 readiness claim.
 
+Compatibility checks also reproduced the hang with aiosqlite `0.20.0` and
+`0.21.0`; downgrading the dependency is not a workaround. The environment was
+restored to `0.22.1`.
+
 The transparent replacement `banner.png` is rendered at a larger responsive
 size on a light full-width hero surface so the dark logo remains readable. The
 HTML fixture passes with the updated sizing.
