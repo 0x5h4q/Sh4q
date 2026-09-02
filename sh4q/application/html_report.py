@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import html
 import json
+import base64
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from sh4q.storage.db import open_sync_database
@@ -10,6 +12,13 @@ from sh4q.storage.scan_runs import ScanRun
 
 def _safe_json(value: object) -> str:
     return json.dumps(value, ensure_ascii=True).replace("<", "\\u003c")
+
+
+def _banner_data_uri() -> str | None:
+    path = Path(__file__).resolve().parents[2] / "banner.png"
+    if not path.is_file():
+        return None
+    return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode("ascii")
 
 
 def _owned_rows(database: str, run: ScanRun) -> list[dict]:
@@ -97,6 +106,7 @@ def _report_metadata(database: str, run: ScanRun) -> dict:
 def render_html_report(database: str, run: ScanRun) -> str:
     assets = _owned_rows(database, run)
     metadata = _report_metadata(database, run)
+    banner_uri = _banner_data_uri()
     payload = {
         "scan": {
             "id": run.id,
@@ -115,7 +125,10 @@ def render_html_report(database: str, run: ScanRun) -> str:
 <style>
 :root {{ color-scheme: light; font: 15px system-ui, sans-serif; }}
 body {{ margin: 0; color: #17202a; background: #eef2f5; }}
-header {{ padding: 30px 5vw 26px; background: #17202a; color: #fff; border-bottom: 4px solid #2c9c94; }}
+header {{ padding: 22px 5vw 24px; background: #17202a; color: #fff; border-bottom: 4px solid #2c9c94; }}
+.brand {{ display: flex; align-items: center; gap: 16px; max-width: 1400px; margin: 0 auto; }}
+.brand img {{ display: block; width: min(190px, 34vw); height: auto; border-radius: 4px; background: #f5f7f9; }}
+.brand-copy {{ min-width: 0; }}
 header strong {{ display: block; color: #7de0d5; font-size: 1.45rem; letter-spacing: .08em; }}
 header div {{ margin-top: 6px; font-size: 1.15rem; }}
 header small {{ display: block; margin-top: 9px; color: #b9c6d1; }}
@@ -141,9 +154,9 @@ tbody tr:hover {{ background: #f3faf9; }}
 tbody tr:last-child td {{ border-bottom: 0; }}
 code {{ overflow-wrap: anywhere; }}
 pre {{ overflow-x: auto; padding: 14px; border: 1px solid #d5dee6; border-radius: 6px; background: #17202a; color: #dbe7ef; }}
-@media (max-width: 600px) {{ header, main {{ padding-left: 14px; padding-right: 14px; }} th, td {{ padding: 8px; }} .stats {{ grid-template-columns: repeat(2,minmax(0,1fr)); }} }}
+@media (max-width: 600px) {{ header, main {{ padding-left: 14px; padding-right: 14px; }} .brand {{ gap: 10px; }} .brand img {{ width: 120px; }} th, td {{ padding: 8px; }} .stats {{ grid-template-columns: repeat(2,minmax(0,1fr)); }} }}
 </style></head><body>
-<header><strong>SH4Q</strong><div>Scan report for <code>{html.escape(run.target)}</code></div><small>{html.escape(run.id)} · {html.escape(run.status)}</small></header>
+<header><div class="brand">{f'<img src="{banner_uri}" alt="SH4Q" />' if banner_uri else ''}<div class="brand-copy"><strong>SH4Q</strong><div>Scan report for <code>{html.escape(run.target)}</code></div><small>{html.escape(run.id)} · {html.escape(run.status)}</small></div></div></header>
 <main><div class="stats">
 <div class="stat"><strong>{len(assets)}</strong>scan-owned assets</div>
 <div class="stat"><strong>{len(metadata["evidence"])}</strong>evidence records</div>

@@ -46,4 +46,6 @@ with tempfile.TemporaryDirectory() as directory:
     assert "fetch(" not in report
     assert report.count("<select") == 5
     assert "Reset filters" in report
+    assert "data:image/png;base64," in report
+    assert 'alt="SH4Q"' in report
 print("HTML report test passed")

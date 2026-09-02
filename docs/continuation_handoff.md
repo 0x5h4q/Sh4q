@@ -86,6 +86,10 @@ has no network calls, and the report is self-contained. This environment lacks
 a browser/Playwright runtime, so pixel-level desktop/mobile verification remains
 an explicit release-QA task.
 
+Alpha.48 embeds the repository `banner.png` in exported HTML reports as a data
+URI with responsive header sizing and an accessible `SH4Q` fallback. Reports
+remain portable without adjacent asset files.
+
 The Amass enumeration command itself can stall after a successful version probe
 (observed with the installed `/usr/bin/amass`). Its opt-in process ceiling is
 now 45 seconds, so future scans record the timeout and continue without the
