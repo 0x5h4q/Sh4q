@@ -112,6 +112,10 @@ installation/troubleshooting docs require Python 3.13 or another supported
 interpreter. Full-suite and concurrency timings must be rerun there before a
 v1 readiness claim.
 
+The transparent replacement `banner.png` is rendered at a larger responsive
+size on a light full-width hero surface so the dark logo remains readable. The
+HTML fixture passes with the updated sizing.
+
 The Amass enumeration command itself can stall after a successful version probe
 (observed with the installed `/usr/bin/amass`). Its opt-in process ceiling is
 now 45 seconds, so future scans record the timeout and continue without the

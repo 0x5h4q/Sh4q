@@ -125,13 +125,13 @@ def render_html_report(database: str, run: ScanRun) -> str:
 <style>
 :root {{ color-scheme: light; font: 15px system-ui, sans-serif; }}
 body {{ margin: 0; color: #17202a; background: #eef2f5; }}
-header {{ padding: 30px 5vw 32px; background: #17202a; color: #fff; border-bottom: 4px solid #2c9c94; text-align: center; }}
+header {{ padding: 24px 5vw 30px; background: #f5f7f9; color: #17202a; border-bottom: 4px solid #2c9c94; text-align: center; }}
 .brand {{ max-width: 1400px; margin: 0 auto; }}
-.brand img {{ display: block; width: min(620px, 88vw); max-height: 250px; object-fit: contain; margin: 0 auto 20px; border-radius: 5px; background: #f5f7f9; }}
+.brand img {{ display: block; width: min(820px, 92vw); max-height: 340px; object-fit: contain; margin: 0 auto 18px; }}
 .brand-copy {{ min-width: 0; }}
-header strong {{ display: block; color: #7de0d5; font-size: 1.35rem; letter-spacing: .12em; }}
+header strong {{ display: block; color: #167d76; font-size: 1.35rem; letter-spacing: .12em; }}
 header div {{ margin-top: 7px; font-size: 1.2rem; }}
-header small {{ display: block; margin-top: 10px; color: #b9c6d1; }}
+header small {{ display: block; margin-top: 10px; color: #52606d; }}
 main {{ max-width: 1400px; margin: 0 auto; padding: 26px 5vw 40px; }}
 .stats {{ display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 12px; margin: 0 0 22px; }}
 .stat {{ padding: 16px; background: #fff; border: 1px solid #d5dee6; border-radius: 6px; box-shadow: 0 2px 8px rgba(23,32,42,.05); }}
@@ -154,7 +154,7 @@ tbody tr:hover {{ background: #f3faf9; }}
 tbody tr:last-child td {{ border-bottom: 0; }}
 td code {{ white-space: nowrap; overflow-wrap: normal; }}
 pre {{ overflow-x: auto; padding: 14px; border: 1px solid #d5dee6; border-radius: 6px; background: #17202a; color: #dbe7ef; }}
-@media (max-width: 600px) {{ header, main {{ padding-left: 14px; padding-right: 14px; }} .brand img {{ width: min(430px, 90vw); max-height: 180px; }} header div {{ font-size: 1.05rem; }} th, td {{ padding: 8px; }} .stats {{ grid-template-columns: repeat(2,minmax(0,1fr)); }} }}
+@media (max-width: 600px) {{ header, main {{ padding-left: 14px; padding-right: 14px; }} .brand img {{ width: min(540px, 94vw); max-height: 220px; }} header div {{ font-size: 1.05rem; }} th, td {{ padding: 8px; }} .stats {{ grid-template-columns: repeat(2,minmax(0,1fr)); }} }}
 </style></head><body>
 <header><div class="brand">{f'<img src="{banner_uri}" alt="SH4Q" />' if banner_uri else ''}<div class="brand-copy">{'' if banner_uri else '<strong>SH4Q</strong>'}<div>Scan report for <code>{html.escape(run.target)}</code></div><small>{html.escape(run.id)} · {html.escape(run.status)}</small></div></div></header>
 <main><div class="stats">
