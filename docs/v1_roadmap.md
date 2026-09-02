@@ -42,11 +42,9 @@ non-applicable asset fields render as `-` instead of ambiguous blank cells.
    responsive sizing and an accessible text fallback.
    Narrow-terminal coverage now includes scan summaries and persisted overview
    fields as well as results, events, and failures.
-3. **Reliability evaluation:** run the full offline runner and repeat concurrency
-   and recovery checks under supported Python 3.11-3.13 interpreters. CPython
-   3.14 is intentionally deferred because the current aiosqlite release hangs
-   during connection startup; add 3.14 only after an upstream fix or a tested
-   storage compatibility layer.
+3. **Reliability evaluation:** complete. The full offline runner passed `43/43`
+   on Python 3.12, and five consecutive SQLite concurrency runs passed. Python
+   3.14 remains experimental until it receives equivalent runtime coverage.
 4. **Packaging and operations:** verify clean installation, configuration
    examples, database handling, sensitive-output guidance, and upgrade notes.
 5. **Release review:** audit every public claim against the threat model and

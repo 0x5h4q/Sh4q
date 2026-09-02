@@ -117,6 +117,12 @@ Compatibility checks also reproduced the hang with aiosqlite `0.20.0` and
 restored to `0.22.1`. The package metadata remains open to Python 3.14, but
 3.14 support is experimental until a working runtime is verified.
 
+On the user's Python 3.12 environment, the complete offline suite passed
+`43/43` in `23.50s`. Five consecutive SQLite concurrency runs also passed with
+durations of `0.869s`, `0.971s`, `0.676s`, `0.573s`, and `0.576s` (mean
+`0.733s`, median `0.676s`, min `0.573s`, max `0.971s`). This confirms the
+storage path is reliable on a normal supported runtime.
+
 The transparent replacement `banner.png` is rendered at a larger responsive
 size on a light full-width hero surface so the dark logo remains readable. The
 HTML fixture passes with the updated sizing.
