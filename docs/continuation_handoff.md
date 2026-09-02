@@ -63,6 +63,11 @@ version probe records a timed-out adapter execution and skips enumeration, so a
 broken Amass binary cannot consume its full 180-second process budget. The
 offline adapter pipeline and runner tests cover this behavior.
 
+The Amass enumeration command itself can stall after a successful version probe
+(observed with the installed `/usr/bin/amass`). Its opt-in process ceiling is
+now 45 seconds, so future scans record the timeout and continue without the
+previous 180-second delay.
+
 ## Next Work
 
 The threat-model and limitations review, first terminal presentation pass, core
