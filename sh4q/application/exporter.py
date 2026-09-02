@@ -7,6 +7,7 @@ from pathlib import Path
 from sh4q.storage.scan_runs import ScanRun
 from sh4q.application.results import list_technology_observations
 from sh4q.storage.db import open_sync_database
+from sh4q.application.html_report import render_html_report
 
 
 class ScanOwnershipUnavailableError(Exception):
@@ -169,7 +170,9 @@ def export_scan(
         for row in rows
         ]
 
-    if format == "json":
+    if format == "html":
+        output.write_text(render_html_report(database, run), encoding="utf-8")
+    elif format == "json":
         document = {
             "scan": {
                 "id": run.id,

@@ -43,6 +43,13 @@ sh4q export --latest --target your-domain.example \
   --alive http --format csv --output alive.csv
 ```
 
+Generate a self-contained, offline-filterable HTML asset report:
+
+```bash
+sh4q export --latest --target your-domain.example \
+  --format html --output report.html
+```
+
 ## Read Before Testing
 
 - [Private-alpha guide (PDF)](Sh4q_Private_Alpha_Guide.pdf)
@@ -70,6 +77,8 @@ The default database is `./sh4q-output/sh4q.db`. It may contain sensitive target
 - Per-scan ownership, results, scan overview, JSON/CSV export, and liveness filters.
 - Conservative native technology observations from already-authorised HTTP responses.
 - A deterministic offline suite used by CI.
+- A self-contained HTML asset report with client-side filters for type, host,
+  status, technology/category, source, and text search (early v1 slice).
 
 ## Project Status
 

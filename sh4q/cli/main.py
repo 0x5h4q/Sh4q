@@ -325,7 +325,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     export = subparsers.add_parser("export", help="Export one scan to JSON or CSV")
     export.add_argument("--database", default="./sh4q-output/sh4q.db")
-    export.add_argument("--format", choices=["json", "csv"], required=True)
+    export.add_argument("--format", choices=["json", "csv", "html"], required=True)
     export.add_argument("--output", type=Path, required=True)
     export.add_argument("--target", help="Select the latest scan for this target")
     export_selection = export.add_mutually_exclusive_group(required=True)

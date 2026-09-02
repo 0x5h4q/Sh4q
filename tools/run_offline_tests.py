@@ -33,6 +33,7 @@ OFFLINE_TESTS = (
     "test_fingerprint_inputs.py",
     "test_fingerprint_output_pipeline.py",
     "test_http_reporting.py",
+    "test_html_report.py",
     "test_httpx_fingerprint_adapter.py",
     "test_handler_presentation.py",
     "test_idempotency.py",

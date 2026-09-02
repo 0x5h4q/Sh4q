@@ -25,6 +25,11 @@ and useful reporting for authorised attack-surface discovery.
    and export messages across wide, narrow, redirected, and non-TTY output.
 2. **HTML reporting:** generate a self-contained report from scan-owned assets,
    relationships, evidence references, failures, stages, and request metrics.
+   It must provide offline client-side filters for status codes, host/target,
+   asset type, technology/category, source, and text search, with visible
+   filtered-versus-total counts.
+   The initial asset table/filter slice is implemented; failures, evidence,
+   stages, and request metrics remain to be added.
 3. **Reliability evaluation:** fix the full offline-runner/SQLite initialization
    hang, repeat concurrency and recovery checks, and publish measured results.
 4. **Packaging and operations:** verify clean installation, configuration
@@ -52,4 +57,3 @@ v1 is ready when a new user can install Sh4q, run an authorised scan, understand
 what was contacted and why, distinguish discovery from verification, inspect a
 terminal or HTML report, reproduce the offline tests, and see documented limits
 without relying on undocumented assumptions.
-

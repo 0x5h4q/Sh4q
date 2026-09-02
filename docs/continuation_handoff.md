@@ -52,10 +52,18 @@ and `docs/pitch.md`. The v1 adapter policy keeps the current proven set and
 defers active scanners; a passive URL-history adapter is only a post-v1
 candidate until its policy and provenance tests exist.
 
+The first HTML report slice is now implemented behind `sh4q export --format
+html`. It embeds scan-owned assets and provides offline client-side filters for
+asset type, host, status, technology/category, source, and text search. It does
+not yet include the complete failures, evidence, stage, and request-metrics
+overview required by the v1 roadmap.
+
 ## Next Work
 
 The threat-model and limitations review and the first terminal presentation pass
-are now documented. The next engineering milestone is a broader terminal audit:
+are now documented. The next engineering milestone is to complete the HTML
+report with failures, evidence, stage, and request-metrics sections, then run
+the broader terminal audit:
 consistent aligned tables for scan overviews and summaries, redirected-output
 readability, and narrow-terminal verification across every command. After that,
 implement HTML reporting using scan-owned data and

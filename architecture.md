@@ -218,6 +218,11 @@ active scanners are deferred until after v1 because they need stronger policy
 and resource controls. Outreach language and comparison claims are maintained
 in `docs/pitch.md`.
 
+The `v0.1.0-alpha.39` HTML reporting slice is available through
+`sh4q export --format html`. It embeds scan-owned assets and applies client-side
+filters without network requests. The remaining report work is to add failures,
+evidence, stages, and request metrics before calling HTML reporting complete.
+
 ## Realistic Timeline
 
 For one motivated developer working part-time (8–12 hours/week):
