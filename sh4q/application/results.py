@@ -118,11 +118,17 @@ def list_assets(
     asset_type: str | None = None,
     target: str | None = None,
     scan_id: str | None = None,
+    source: str | None = None,
     limit: int = 100,
 ) -> list[ResultRow]:
-    query = "SELECT type, value, attributes FROM nodes"
+    query = "SELECT DISTINCT n.type, n.value, n.attributes FROM nodes n"
     params: list[object] = []
     conditions: list[str] = []
+    if scan_id and source:
+        query += " JOIN scan_assets sa ON sa.asset_id = n.id AND sa.scan_run_id = ?"
+        params.append(scan_id)
+        conditions.append("sa.source_plugin = ?")
+        params.append(source)
     if asset_type:
         conditions.append("type = ?")
         params.append(asset_type)
@@ -136,12 +142,18 @@ def list_assets(
     params.append(max(1, min(limit, 1000)))
     with open_sync_database(database) as db:
         if scan_id:
+            source_clause = ""
+            source_params: tuple[object, ...] = ()
+            if source:
+                source_clause = " AND sa.source_plugin = ?"
+                source_params = (source,)
             scan_rows = db.execute(
                 """SELECT DISTINCT n.type, n.value, n.attributes
                 FROM scan_assets sa JOIN nodes n ON n.id = sa.asset_id
                 WHERE sa.scan_run_id = ? AND (? IS NULL OR n.type = ?)
+                """ + source_clause + """
                 ORDER BY n.type, n.value LIMIT ?""",
-                (scan_id, asset_type, asset_type, max(1, min(limit, 1000))),
+                (scan_id, asset_type, asset_type, *source_params, max(1, min(limit, 1000))),
             ).fetchall()
             return [ResultRow(row[0], row[1], json.loads(row[2])) for row in scan_rows]
         if normalized and asset_type == "url":

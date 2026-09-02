@@ -304,7 +304,7 @@ def build_parser() -> argparse.ArgumentParser:
     results.add_argument("--limit", type=int, default=100)
     results.add_argument("--failures", action="store_true", help="Show recorded errors and provider failures")
     results.add_argument("--target", help="Filter assets or failures by root target")
-    results.add_argument("--source", help="Filter technology observations by source")
+    results.add_argument("--source", help="Filter results by source plugin")
     results.add_argument("--category", help="Filter technology observations by category")
     results.add_argument("--status", type=int, help="Filter technology observations by HTTP status")
     results.add_argument("--details", action="store_true", help="Show endpoint-level technology observations")
@@ -403,9 +403,9 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "results" and any(
-        value is not None for value in (args.source, args.category, args.status)
+        value is not None for value in (args.category, args.status)
     ) and args.type != "technology":
-        parser.error("--source, --category, and --status require --type technology")
+        parser.error("--category and --status require --type technology")
 
     if args.command != "scan" and hasattr(args, "database"):
         database = Path(args.database)
@@ -512,7 +512,7 @@ def main() -> None:
             else:
                 rows = list_assets(
                     str(database), asset_type=args.type, target=args.target,
-                    scan_id=scan_id, limit=args.limit
+                    scan_id=scan_id, source=args.source, limit=args.limit
                 )
                 render_asset_results(rows)
                 print(f"\n  Showing {len(rows)} asset(s). Use --limit to increase the view.")
