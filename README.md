@@ -95,6 +95,8 @@ sh4q export --latest --target your-domain.example --format html --output report.
 - [Troubleshooting](docs/troubleshooting.md)
 - [Testing](docs/testing.md)
 - [Feedback guide](docs/feedback.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
 
 The roadmap, threat model, and limitations are included for reviewers. The
 continuation handoff and outreach pitch are maintained as project-internal
