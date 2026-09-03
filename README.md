@@ -76,20 +76,21 @@ Generate a self-contained, offline-filterable HTML asset report:
 sh4q export --latest --target your-domain.example --format html --output report.html
 ```
 
-## Read Before Testing
+## Documentation
 
-- [Private-alpha guide (PDF)](Sh4q_Private_Alpha_Guide.pdf)
 - [Installation](docs/installation.md)
 - [Quick start](docs/quickstart.md)
 - [Authorised use](docs/authorized_use.md)
 - [Threat model](docs/threat_model.md)
 - [Known limitations](docs/limitations.md)
-- [Continuation handoff](docs/continuation_handoff.md)
 - [v1 roadmap](docs/v1_roadmap.md)
-- [Outreach pitch](docs/pitch.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Testing](docs/testing.md)
 - [Feedback guide](docs/feedback.md)
+
+The roadmap, threat model, and limitations are included for reviewers. The
+continuation handoff and outreach pitch are maintained as project-internal
+working documents and are not part of the public quick-start path.
 
 The default database is `./sh4q-output/sh4q.db`. It may contain sensitive target data and must not be committed or shared without review.
 
