@@ -1,4 +1,4 @@
-# Sh4q
+<h1 align="center">Sh4q</h1>
 
 <table><tr><td align="center" bgcolor="#f5f7f9"><img src="banner.png" alt="Sh4q" width="720"></td></tr></table>
 
@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/offline%20tests-43%2F43-2ea043.svg" alt="43 of 43 offline tests passing">
 </p>
 
-**Policy-controlled reconnaissance with durable evidence and explainable scope decisions.**
+<p align="center"><strong>Policy-controlled reconnaissance with durable evidence and explainable scope decisions.</strong></p>
 
 Sh4q is a scope-aware reconnaissance orchestration tool for authorised domain
 discovery. It combines centralized policy checks, DNS and HTTP verification,
