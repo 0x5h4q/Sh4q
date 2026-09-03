@@ -72,6 +72,27 @@ The v1 adapter set is intentionally small:
   They require a separate policy decision, stronger resource controls, and
   explicit authorization UX; adding them now would weaken the v1 focus.
 
+## Post-v1 Capability Map
+
+The following is the current planning boundary; “post-v1” does not imply a
+guaranteed delivery date or automatic inclusion in v2:
+
+- **Phase 3 / post-v1:** JavaScript endpoint and secret-pattern extraction,
+  deeper passive intelligence, cloud enumeration, and screenshots.
+- **Post-v1 candidate:** passive URL history through gau, waybackurls, or a
+  comparable provider. It requires scope filtering, provenance, bounded output,
+  licensing review, and offline tests before adoption.
+- **Post-v1 candidate:** virtual-host enumeration and directory/content
+  discovery. These are active or potentially high-volume workflows and need a
+  separate authorization and resource-control design.
+- **Separate policy candidates:** Nmap, Naabu, Nuclei, ffuf, and other active
+  scanners. They are not promised v2 features and must not be enabled by
+  implication through a generic adapter interface.
+- **Phase 4 / v2.0 direction:** dashboard, API, distributed workers,
+  PostgreSQL/Redis/NATS, authentication, and RBAC.
+- **Phase 5 / later direction:** historical tracking, scan diffs, graph
+  visualization, AI summarization, and prioritization.
+
 ## v1 Definition Of Done
 
 v1 is ready when a new user can install Sh4q, run an authorised scan, understand
