@@ -52,15 +52,13 @@ sh4q results --latest --target your-domain.example --type technology
 Export HTTP-responsive domains:
 
 ```bash
-sh4q export --latest --target your-domain.example \
-  --alive http --format csv --output alive.csv
+sh4q export --latest --target your-domain.example --alive http --format csv --output alive.csv
 ```
 
 Generate a self-contained, offline-filterable HTML asset report:
 
 ```bash
-sh4q export --latest --target your-domain.example \
-  --format html --output report.html
+sh4q export --latest --target your-domain.example --format html --output report.html
 ```
 
 ## Read Before Testing
