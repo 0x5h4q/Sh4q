@@ -1,6 +1,13 @@
 # Sh4q
 
-Sh4q is a policy-controlled reconnaissance orchestration prototype for authorised domain discovery. It combines scope checks, DNS and HTTP verification, durable evidence, scan-specific results, exports, and conservative technology observations.
+<table><tr><td align="center" bgcolor="#f5f7f9"><img src="banner.png" alt="Sh4q" width="720"></td></tr></table>
+
+**Policy-controlled reconnaissance with durable evidence and explainable scope decisions.**
+
+Sh4q is a scope-aware reconnaissance orchestration tool for authorised domain
+discovery. It combines centralized policy checks, DNS and HTTP verification,
+certificate-transparency discovery, durable evidence, scan-specific results,
+exports, and conservative technology observations.
 
 It is a research prototype. It is not a vulnerability scanner, an exploitation framework, or a replacement for mature reconnaissance suites.
 
@@ -89,9 +96,9 @@ The default database is `./sh4q-output/sh4q.db`. It may contain sensitive target
 
 ## Project Status
 
-Sh4q is available as a limited private alpha for trusted testers. The v1 review
-release is nearing completion; expect variable live-provider results and the
-documented limitations around completeness, active scanning, and external-tool
-availability.
+Sh4q `v0.1.0-alpha.53` is available as a limited private alpha for trusted
+testers. Expect variable live-provider results and the documented limitations
+around completeness, active scanning, and external-tool availability. Passive
+Amass support is experimental and optional.
 
 Sh4q is released under the [MIT License](LICENSE).
