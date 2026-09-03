@@ -147,6 +147,12 @@ alpha.52 reliability, browser, packaging, and Amass-policy results. The academic
 draft also has a dated local evaluation addendum, but remains intentionally
 ignored as a private academic document.
 
+The native Tesla acceptance scan completed successfully under
+`v0.1.0-alpha.53`: scan `144ef8a5a49047aea3c65b61b5b6f911` recorded 10 DNS
+addresses, 2 HTTP endpoints, 534 deduplicated CT names, 1 technology
+observation, 552 evidence records, and completed all native stages. Its HTML
+report was reviewed by the user and matches the intended presentation.
+
 ## Next Work
 
 The next milestone is to run the complete offline suite under Python 3.13,
