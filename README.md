@@ -2,6 +2,14 @@
 
 <table><tr><td align="center" bgcolor="#f5f7f9"><img src="banner.png" alt="Sh4q" width="720"></td></tr></table>
 
+<p align="center">
+  <a href="https://github.com/0x5h4q/Sh4q/releases/tag/v0.1.0"><img src="https://img.shields.io/badge/release-v0.1.0-2c9c94.svg" alt="Release v0.1.0"></a>
+  <a href="https://github.com/0x5h4q/Sh4q/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-167d76.svg" alt="MIT License"></a>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.11%2B-3776ab.svg" alt="Python 3.11+"></a>
+  <a href="https://github.com/0x5h4q/Sh4q"><img src="https://img.shields.io/badge/platform-Linux-lightgrey.svg" alt="Linux"></a>
+  <img src="https://img.shields.io/badge/offline%20tests-43%2F43-2ea043.svg" alt="43 of 43 offline tests passing">
+</p>
+
 **Policy-controlled reconnaissance with durable evidence and explainable scope decisions.**
 
 Sh4q is a scope-aware reconnaissance orchestration tool for authorised domain
