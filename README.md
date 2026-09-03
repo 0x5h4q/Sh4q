@@ -11,6 +11,21 @@ exports, and conservative technology observations.
 
 It is a research prototype. It is not a vulnerability scanner, an exploitation framework, or a replacement for mature reconnaissance suites.
 
+## Why Sh4q Exists
+
+Tools such as reconFTW are optimized for breadth: they coordinate a large
+number of enumeration, crawling, fuzzing, OSINT, and vulnerability-testing
+utilities. Sh4q deliberately operates at a different layer. It provides a
+scope and evidence control plane around discovery workflows so that each
+accepted asset has an authorization decision, provenance, durable state, and
+reviewable output.
+
+Use reconFTW or other specialist tools when maximum collection breadth is the
+goal. Use Sh4q when you need to understand what was contacted, why it was
+accepted, what failed, and which observations are actually supported by
+evidence. Sh4q can orchestrate selected external tools, but it does not claim
+reconFTW's scanning breadth or replace active security testing.
+
 ## Quick Start
 
 Requirements: Linux, Python 3.11 or newer, and Git. Subfinder is optional.
