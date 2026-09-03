@@ -30,6 +30,21 @@ Confirm the CLI is available:
 sh4q --help
 ```
 
+## Install with pipx
+
+If you want the `sh4q` command available globally while keeping its
+dependencies isolated, `pipx` can manage the virtual environment for you:
+
+```bash
+pipx install git+https://github.com/0x5h4q/Sh4q.git@v0.1.0-alpha.53
+sh4q --help
+```
+
+The explicit virtual-environment method above remains useful for development,
+source changes, and repeatable test runs. Installing directly into a system
+Python is possible where the operating system permits it, but is not the
+recommended deployment path.
+
 Run the offline checks:
 
 ```bash

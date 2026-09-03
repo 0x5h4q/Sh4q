@@ -16,6 +16,12 @@ source venv/bin/activate
 python -m pip install -e .
 ```
 
+For a globally available command with isolated dependencies, use `pipx`:
+
+```bash
+pipx install git+https://github.com/0x5h4q/Sh4q.git@v0.1.0-alpha.53
+```
+
 Scan a domain you own or are explicitly authorised to test:
 
 ```bash
