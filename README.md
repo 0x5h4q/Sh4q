@@ -41,7 +41,7 @@ python -m pip install -e .
 For a globally available command with isolated dependencies, use `pipx`:
 
 ```bash
-pipx install git+https://github.com/0x5h4q/Sh4q.git@v0.1.0-alpha.53
+pipx install git+https://github.com/0x5h4q/Sh4q.git@v0.1.0
 ```
 
 Scan a domain you own or are explicitly authorised to test:
@@ -109,8 +109,8 @@ The default database is `./sh4q-output/sh4q.db`. It may contain sensitive target
 
 ## Project Status
 
-Sh4q `v0.1.0-alpha.53` is available as a limited private alpha for trusted
-testers. Expect variable live-provider results and the documented limitations
+Sh4q `v0.1.0` is available as a limited review release for trusted testers.
+Expect variable live-provider results and the documented limitations
 around completeness, active scanning, and external-tool availability. Passive
 Amass support is experimental and optional.
 

@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.1.0 - 2026-09-03
+
+First v1 review release. Sh4q provides policy-controlled, evidence-backed
+reconnaissance orchestration for authorised domain discovery.
+
+- Native DNS, HTTP, CT, discovered-host enrichment, and conservative technology
+  observations.
+- Scope authorization and discovery validation with redirect and reserved-
+  address controls.
+- Durable evidence, event recovery, scan ownership, retries, and structured
+  JSON/CSV/HTML exports.
+- Self-contained responsive HTML reports with offline filters and packaged
+  branded banner assets.
+- Controlled Subfinder and ProjectDiscovery HTTPX adapters; passive Amass is
+  experimental and optional with a bounded process ceiling.
+- 43/43 deterministic offline tests, repeated SQLite concurrency validation,
+  Chromium desktop/mobile report checks, and fresh-wheel installation QA.
+
+Known limitations and post-v1 work are documented in `docs/limitations.md` and
+`docs/v1_roadmap.md`.
+
 ## 0.1.0-alpha.53 - 2026-09-03
 
 - Bounded and clearly labelled passive Amass as an experimental best-effort

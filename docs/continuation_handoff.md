@@ -7,9 +7,9 @@ making changes.
 ## Current Checkpoint
 
 - Branch: `main`
-- Release: `v0.1.0-alpha.53` release preparation.
-- Commit: updated by the alpha.53 release commit.
-- Remote: `origin/main` is current; `v0.1.0-alpha.53` is the next published tag.
+- Release: `v0.1.0` review release preparation.
+- Commit: updated by the v1 review release commit.
+- Remote: `origin/main` is current; `v0.1.0` is the formal review-release tag.
 - Untracked user files `tesla.html` and `tyler.html` are intentionally preserved.
 
 Alpha.34 added `tests/test_amass_scheduler_integration.py`. It proves the
