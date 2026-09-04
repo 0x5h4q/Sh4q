@@ -301,6 +301,15 @@ def make_discovery_handler(
                 limit=1,
             )
 
+        elif kind == "javascript_secret_like_pattern":
+            display_bounded(
+                "JavaScript secret-like observations",
+                status_line(
+                    f"OBSERVED JavaScript pattern: {data.get('pattern', data.get('value', 'unknown'))} "
+                    "(not validated or persisted as a secret)",
+                ),
+            )
+
         elif kind in {"javascript_script_url", "javascript_endpoint_reference"}:
             raw_url = data.get("value")
             if not raw_url:
