@@ -17,6 +17,7 @@ from sh4q.plugins.discovered_dns_plugin import DiscoveredDNSPlugin
 from sh4q.plugins.discovered_http_plugin import DiscoveredHTTPPlugin
 from sh4q.plugins.dns_plugin import DNSPlugin
 from sh4q.plugins.http_plugin import HTTPPlugin
+from sh4q.plugins.javascript_extraction_plugin import JavaScriptExtractionPlugin
 from sh4q.scheduler import Scheduler
 from sh4q.scope import ScopeEngine
 from sh4q.storage import SQLiteStorage
@@ -86,6 +87,7 @@ async def run_scan(
     include_amass: bool = False,
     include_httpx: bool = False,
     include_url_history: bool = False,
+    include_javascript: bool = False,
 ) -> ScanSummary:
     start = time.monotonic()
     scan_started_at = datetime.now(timezone.utc).isoformat()
@@ -148,7 +150,21 @@ async def run_scan(
     outcome = "completed"
     scheduler = None
     try:
-        plugins = [DNSPlugin(), HTTPPlugin(scope, limiter=limiter), CTPlugin(limiter=limiter)]
+        plugins = [DNSPlugin(), HTTPPlugin(scope, limiter=limiter)]
+        if include_javascript:
+            async def http_observations(scan_target: str) -> list[dict]:
+                evidence = await evidence_store.list_for_scan(scan_run.id, kind="http_probe")
+                return [
+                    {
+                        "endpoint": item.content.get("final_url"),
+                        "content": item.content.get("html_sample", ""),
+                    }
+                    for item in evidence
+                    if item.target == scan_target and item.content.get("html_sample")
+                ]
+
+            plugins.append(JavaScriptExtractionPlugin(http_observations))
+        plugins.append(CTPlugin(limiter=limiter))
         if include_subfinder:
             executable = shutil.which("subfinder")
             if executable is None:

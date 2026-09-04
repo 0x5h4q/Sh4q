@@ -301,6 +301,32 @@ def make_discovery_handler(
                 limit=1,
             )
 
+        elif kind in {"javascript_script_url", "javascript_endpoint_reference"}:
+            raw_url = data.get("value")
+            if not raw_url:
+                return
+            try:
+                reference_url = _canonical_url(raw_url)
+                host = HttpURL(reference_url).host
+            except Exception:
+                return
+            decision = scope.authorize(host)
+            if not decision.allowed:
+                print(f"  GATE 2 DENY: {host} -> {decision.reason} ({reference_url} not persisted)")
+                return
+            domain_node = Node(type="domain", value=host)
+            url_node = Node(type="url", value=reference_url, attributes={"javascript_reference": True})
+            relationship = Relationship(
+                from_id=domain_node.id,
+                to_id=url_node.id,
+                type="JAVASCRIPT_REFERENCE",
+                attributes={"source_endpoint": data.get("source_endpoint", "")},
+            )
+            await storage.save_node(domain_node)
+            await storage.save_node(url_node)
+            await storage.save_relationship(relationship)
+            await record_asset("javascript_references", url_node.id, relationship.id, source_plugin, event_scan_run_id)
+
         elif kind == "http_fingerprint":
             endpoint = _canonical_url(data["endpoint"])
             host = HttpURL(endpoint).host

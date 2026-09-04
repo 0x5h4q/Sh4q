@@ -67,6 +67,7 @@ class HTTPPlugin(Plugin):
                             "cookie_names": metadata["cookie_names"],
                             "sample_bytes": metadata["sample_bytes"],
                             "sample_truncated": metadata["sample_truncated"],
+                            "html_sample": metadata.get("html_sample", ""),
                             "duration_seconds": round(time.monotonic() - started, 3),
                             "address": getattr(response, "extensions", {}).get("sh4q_pinned_ip"),
                         },

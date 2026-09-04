@@ -39,17 +39,7 @@ def _absolute_reference(reference: str, base_url: str) -> str | None:
     return absolute
 
 
-def extract_javascript_observations(
-    html: str,
-    base_url: str,
-    limits: JavaScriptExtractionLimits | None = None,
-) -> list[dict[str, str | int]]:
-    """Extract script URLs, endpoint references, and secret-like signals.
-
-    This function parses bounded text only. It never executes JavaScript or
-    performs network requests.
-    """
-
+def extract_javascript_observations(html: str, base_url: str, limits: JavaScriptExtractionLimits | None = None) -> list[dict[str, str | int]]:
     limits = limits or JavaScriptExtractionLimits()
     bounded_html = _bounded_text(html, limits.max_input_bytes)
     observations: list[dict[str, str | int]] = []
@@ -65,16 +55,13 @@ def extract_javascript_observations(
         script_url = _absolute_reference(raw_src, base_url)
         if script_url:
             add("script_url", script_url)
-
     for match in _URL_RE.finditer(bounded_html):
         reference = _absolute_reference(match.group(0), base_url)
         if reference:
             add("endpoint_reference", reference)
-
     for pattern_name, pattern in _SECRET_PATTERNS:
         for _ in pattern.finditer(bounded_html):
             add("secret_like_pattern", pattern_name, pattern=pattern_name, context=f"matched {pattern_name}")
             if len(observations) >= limits.max_results:
                 break
-
     return observations

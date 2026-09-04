@@ -293,6 +293,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run the opt-in passive Wayback URL-history adapter.",
     )
+    scan.add_argument(
+        "--javascript",
+        action="store_true",
+        help="Run bounded passive extraction on authorised HTTP response samples.",
+    )
 
     events = subparsers.add_parser("events", help="Inspect durable event state")
     events.add_argument(
@@ -448,6 +453,7 @@ def main() -> None:
                     include_amass=args.amass,
                     include_httpx=args.httpx,
                     include_url_history=args.url_history,
+                    include_javascript=args.javascript,
                 )
             )
         except KeyboardInterrupt:

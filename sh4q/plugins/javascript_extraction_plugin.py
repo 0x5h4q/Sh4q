@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 
-from sh4q.application.javascript_extraction import (
+from sh4q.javascript_extraction import (
     JavaScriptExtractionLimits,
     extract_javascript_observations,
 )
