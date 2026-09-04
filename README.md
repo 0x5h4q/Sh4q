@@ -19,6 +19,17 @@ and produces reports you can inspect or share.
 
 It is a research prototype. It is not a vulnerability scanner, an exploitation framework, or a replacement for mature reconnaissance suites.
 
+## Walkthrough
+
+This short recording shows an authorised Sh4q scan, reviewing discovered
+assets, filtering results, and exporting an HTML report.
+
+![Sh4q walkthrough](docs/demo/sh4q-basic.gif)
+
+The example uses a bug-bounty target with permission to test. Always confirm
+the target's current program scope and disclosure rules before running or
+publishing a scan.
+
 ## Start Here
 
 If you are new to reconnaissance, think of Sh4q as a careful inventory tool:
