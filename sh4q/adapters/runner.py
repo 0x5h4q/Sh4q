@@ -49,6 +49,7 @@ class ControlledProcessRunner:
         *,
         cwd: Path,
         timeout: float | None = None,
+        stdin: bytes | None = None,
     ) -> ProcessResult:
         command = self._validate_argv(argv)
         workdir = cwd.resolve()
@@ -60,8 +61,13 @@ class ControlledProcessRunner:
             env=self._safe_environment(),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            stdin=asyncio.subprocess.PIPE if stdin is not None else None,
             start_new_session=True,
         )
+        if stdin is not None:
+            process.stdin.write(stdin)
+            await process.stdin.drain()
+            process.stdin.close()
         stdout_task = asyncio.create_task(self._read_bounded(process.stdout, process))
         stderr_task = asyncio.create_task(self._read_bounded(process.stderr, process))
         timed_out = False

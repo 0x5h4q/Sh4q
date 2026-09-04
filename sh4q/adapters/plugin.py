@@ -55,6 +55,7 @@ class ExternalAdapterPlugin(Plugin):
             argv,
             cwd=self.context.output_directory,
             timeout=self._process_timeout,
+            stdin=self.adapter.build_stdin(target, self.context),
         )
         execution = Discovery(
             kind="adapter_execution",

@@ -25,6 +25,7 @@ class ScanReport:
     request_metrics: dict = field(default_factory=dict)
     stages: list[dict] = field(default_factory=list)
     external_adapter_metrics: dict = field(default_factory=dict)
+    historical_urls: int = 0
 
 
 def build_scan_report(database: str, run: ScanRun) -> ScanReport:
@@ -60,6 +61,7 @@ def build_scan_report(database: str, run: ScanRun) -> ScanReport:
         dns_hostnames, dns_addresses = relationship_counts("RESOLVES_TO")
         http_hosts, http_endpoints = relationship_counts("SERVES")
         _, technology_observations = relationship_counts("DETECTED_TECHNOLOGY")
+        _, historical_urls = relationship_counts("HISTORICAL_URL")
         technology_relation_count = db.execute(
             """SELECT COUNT(*) FROM scan_assets sa
             JOIN relationships r ON r.id = sa.relationship_id
@@ -115,4 +117,5 @@ def build_scan_report(database: str, run: ScanRun) -> ScanReport:
         request_metrics=request_metrics,
         stages=stages,
         external_adapter_metrics=external_adapter_metrics,
+        historical_urls=historical_urls,
     )

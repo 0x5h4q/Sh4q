@@ -58,6 +58,20 @@ class SQLiteStorage:
         # Read back the current state so the caller gets what's actually stored (including merged attributes and the true first_seen).
         return await self.get_node(node.id)
 
+    async def save_nodes_batch(self, nodes: list[Node]) -> None:
+        if not nodes:
+            return
+        async with open_database(self._db_path) as db:
+            await db.executemany(
+                """INSERT INTO nodes (id, type, value, attributes, first_seen, last_seen)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    attributes = json_patch(nodes.attributes, excluded.attributes),
+                    last_seen = excluded.last_seen""",
+                [(node.id, node.type, node.value, json.dumps(node.attributes), node.first_seen, node.last_seen) for node in nodes],
+            )
+            await db.commit()
+
     async def get_node(self, node_id: str) -> Node | None:
         async with open_database(self._db_path) as db:
             db.row_factory = aiosqlite.Row
@@ -83,6 +97,16 @@ class SQLiteStorage:
             )
             await db.commit()
         return relationship
+
+    async def save_relationships_batch(self, relationships: list[Relationship]) -> None:
+        if not relationships:
+            return
+        async with open_database(self._db_path) as db:
+            await db.executemany(
+                "INSERT OR IGNORE INTO relationships (id, from_id, to_id, type, attributes, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                [(item.id, item.from_id, item.to_id, item.type, json.dumps(item.attributes), item.created_at) for item in relationships],
+            )
+            await db.commit()
 
     async def get_relationships(self, node_id: str) -> list[Relationship]:
         async with open_database(self._db_path) as db:

@@ -10,6 +10,8 @@ assert args.amass is False
 
 amass_args = parser.parse_args(["scan", "example.com", "--amass"])
 assert amass_args.amass is True
+history_args = parser.parse_args(["scan", "example.com", "--url-history"])
+assert history_args.url_history is True
 assert amass_args.sub is False
 
 default_args = parser.parse_args(["scan", "example.com"])

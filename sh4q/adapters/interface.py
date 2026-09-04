@@ -34,3 +34,7 @@ class ExternalToolAdapter:
     def evidence_argv(self, argv: Sequence[str]) -> list[str]:
         """Return a secret-safe command representation for durable evidence."""
         return [argv[0], "<arguments redacted>"]
+
+    def build_stdin(self, target: str, context: AdapterContext) -> bytes | None:
+        """Return bounded stdin input for tools that read targets from stdin."""
+        return None

@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 
 from sh4q.storage.db import open_sync_database
 from sh4q.storage.scan_runs import ScanRun
+from sh4q.application.redaction import redact_url
 
 
 def _safe_json(value: object) -> str:
@@ -25,12 +26,15 @@ def _banner_data_uri() -> str | None:
     return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode("ascii")
 
 
-def _owned_rows(database: str, run: ScanRun) -> list[dict]:
+def _owned_rows(database: str, run: ScanRun, *, redact: bool = False) -> list[dict]:
     with open_sync_database(database) as db:
         rows = db.execute(
             """SELECT n.type, n.value, n.attributes,
-            group_concat(DISTINCT sa.source_plugin)
+            group_concat(DISTINCT sa.source_plugin),
+            MAX(CASE WHEN r.type = 'HISTORICAL_URL' THEN 1 ELSE 0 END),
+            MAX(CASE WHEN r.type = 'SERVES' THEN 1 ELSE 0 END)
             FROM scan_assets sa JOIN nodes n ON n.id = sa.asset_id
+            LEFT JOIN relationships r ON r.id = sa.relationship_id
             WHERE sa.scan_run_id = ?
             GROUP BY n.id, n.type, n.value, n.attributes
             ORDER BY n.type, n.value""",
@@ -55,7 +59,7 @@ def _owned_rows(database: str, run: ScanRun) -> list[dict]:
             "status": json.loads(raw_attributes).get("status", ""),
         })
     assets = []
-    for asset_type, value, raw_attributes, raw_sources in rows:
+    for asset_type, value, raw_attributes, raw_sources, has_history, has_live in rows:
         attributes = json.loads(raw_attributes)
         host = value
         status = attributes.get("status", "")
@@ -66,9 +70,11 @@ def _owned_rows(database: str, run: ScanRun) -> list[dict]:
             if endpoints:
                 host = ", ".join(sorted({item["host"] for item in endpoints}))
                 status = ", ".join(sorted({str(item["status"]) for item in endpoints if item["status"]}))
+        display_type = "historical-url" if asset_type == "url" and has_history and not has_live else asset_type
+        display_value = redact_url(value) if redact and display_type in {"url", "historical-url"} else value
         assets.append({
-            "type": asset_type,
-            "value": value,
+            "type": display_type,
+            "value": display_value,
             "host": host,
             "status": status,
             "technology": value if asset_type == "technology" else "",
@@ -85,6 +91,8 @@ def _report_metadata(database: str, run: ScanRun) -> dict:
     failures = []
     stages = []
     request_metrics = {}
+    historical_urls_truncated = 0
+    historical_urls_rejected = 0
     with open_sync_database(database) as db:
         table = db.execute(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name='evidence'"
@@ -101,14 +109,20 @@ def _report_metadata(database: str, run: ScanRun) -> dict:
                     request_metrics = content
                 elif kind == "stage_metrics":
                     stages = content.get("stages", [])
+                elif kind == "url_history_truncated":
+                    historical_urls_truncated += max(0, content.get("available", 0) - content.get("retained", 0))
+                elif kind == "url_history_rejected":
+                    historical_urls_rejected += 1
                 elif kind in {"http_error", "dns_error", "discovered_dns_error", "ct_error"}:
                     failures.append(record | {"detail": content.get("error") or content.get("reason") or "unknown error"})
                 evidence.append(record)
-    return {"evidence": evidence, "failures": failures, "stages": stages, "request_metrics": request_metrics}
+    return {"evidence": evidence, "failures": failures, "stages": stages, "request_metrics": request_metrics,
+            "historical_urls_rejected": historical_urls_rejected,
+            "historical_urls_truncated": historical_urls_truncated}
 
 
-def render_html_report(database: str, run: ScanRun) -> str:
-    assets = _owned_rows(database, run)
+def render_html_report(database: str, run: ScanRun, *, redact: bool = False) -> str:
+    assets = _owned_rows(database, run, redact=redact)
     metadata = _report_metadata(database, run)
     banner_uri = _banner_data_uri()
     payload = {
@@ -166,6 +180,8 @@ pre {{ overflow-x: auto; padding: 14px; border: 1px solid #d5dee6; border-radius
 <div class="stat"><strong>{len(metadata["evidence"])}</strong>evidence records</div>
 <div class="stat"><strong>{len(metadata["failures"])}</strong>failures</div>
 <div class="stat"><strong>{len(metadata["stages"])}</strong>stages</div>
+<div class="stat"><strong>{metadata["historical_urls_truncated"]}</strong>history truncated</div>
+<div class="stat"><strong>{metadata["historical_urls_rejected"]}</strong>history rejected</div>
 </div><section class="filters" aria-label="Report filters">
 <label>Search<input id="search" type="search" placeholder="hostname, URL, technology"></label>
 <label>Asset type<select id="type"><option value="">All</option></select></label>

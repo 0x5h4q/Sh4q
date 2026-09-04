@@ -6,6 +6,22 @@ Sh4q is a policy-controlled reconnaissance control plane that turns noisy
 multi-tool discovery into a scope-checked, evidence-backed, reviewable asset
 inventory.
 
+## Plain-English Version
+
+Sh4q is a careful way to map a domain you are allowed to test. It brings the
+results from DNS, certificate logs, HTTP checks, and optional tools into one
+place, explains what each result means, and keeps failed or rejected results
+visible instead of hiding them.
+
+## Beginner-Friendly Examples
+
+- A learner can scan a lab domain and see the difference between a hostname
+  that was mentioned, one that resolved, and one that actually answered.
+- A bug-bounty researcher can combine passive tools without losing track of
+  which source produced each hostname.
+- A team can share an HTML report showing the scope, findings, failures, and
+  limitations of an authorised scan.
+
 ## Short Pitch
 
 Bug hunters already build powerful workflows around tools like Subfinder,

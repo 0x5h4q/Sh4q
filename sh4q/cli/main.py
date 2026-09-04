@@ -1,6 +1,10 @@
 
 import argparse
 import asyncio
+import json
+import csv
+import json
+import csv
 import shutil
 import sys
 from importlib.metadata import PackageNotFoundError, version
@@ -13,6 +17,7 @@ from sh4q.storage.scan_runs import get_scan, latest_scan, list_scans, scan_asset
 from sh4q.application.results import friendly_technology_source, list_assets, list_failures, list_technology_observations, summarize_technology_observations
 from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
 from sh4q.application.scan_report import build_scan_report
+from sh4q.application.diff import build_scan_diff, diff_document
 from sh4q.storage.db import SchemaVersionError, ensure_schema_version
 from sh4q.cli.branding import render_scan_banner
 
@@ -198,6 +203,7 @@ def render_scan_report(report) -> None:
     print(f"    DNS addresses          {report.dns_addresses:>6}")
     print(f"    HTTP hosts             {report.http_hosts:>6}")
     print(f"    HTTP endpoints         {report.http_endpoints:>6}")
+    print(f"    Historical URLs        {getattr(report, 'historical_urls', 0):>6}")
     print(f"    Technologies           {report.technology_assets:>6}")
     print(f"    Tech observations      {report.technology_observations:>6}")
 
@@ -282,6 +288,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run experimental Amass passive discovery (bounded to 20 seconds).",
     )
+    scan.add_argument(
+        "--url-history",
+        action="store_true",
+        help="Run the opt-in passive Wayback URL-history adapter.",
+    )
 
     events = subparsers.add_parser("events", help="Inspect durable event state")
     events.add_argument(
@@ -332,12 +343,19 @@ def build_parser() -> argparse.ArgumentParser:
     export_selection.add_argument("--scan", help="Export one scan run ID")
     export_selection.add_argument("--latest", action="store_true", help="Export the latest scan")
     export.add_argument("--force", action="store_true", help="Overwrite an existing output file")
+    export.add_argument("--redact", action="store_true", help="Redact URL query values in the exported report")
     export.add_argument("--alive", choices=["http", "dns"], help="Export only domains with observed HTTP or DNS liveness evidence")
     export.add_argument(
         "--type",
         choices=["technology", "http-inventory"],
         help="Export a structured technology or combined HTTP inventory view",
     )
+
+    diff = subparsers.add_parser("diff", help="Compare scan-owned assets between two scans")
+    diff.add_argument("--database", default="./sh4q-output/sh4q.db")
+    diff.add_argument("--before", required=True, help="Earlier scan run ID")
+    diff.add_argument("--after", required=True, help="Later scan run ID")
+    diff.add_argument("--format", choices=["text", "json", "csv"], default="text")
 
     return parser
 
@@ -371,6 +389,9 @@ def render_summary(summary) -> None:
         asset_rows.append((f"DNS failure: {reason}", count))
     asset_rows.extend([
         ("Technologies", summary.technologies),
+        ("Historical URLs", getattr(summary, "historical_urls", 0)),
+        ("Historical URLs rejected", getattr(summary, "historical_urls_rejected", 0)),
+        ("Historical URLs truncated", getattr(summary, "historical_urls_truncated", 0)),
         ("Total unique assets", summary.discoveries),
         ("Asset links (relationships)", summary.relationships),
         ("Evidence from this scan", summary.evidence_this_scan),
@@ -426,6 +447,7 @@ def main() -> None:
                     include_subfinder=args.sub,
                     include_amass=args.amass,
                     include_httpx=args.httpx,
+                    include_url_history=args.url_history,
                 )
             )
         except KeyboardInterrupt:
@@ -439,6 +461,39 @@ def main() -> None:
             sys.exit(2)
         render_summary(summary)
         sys.exit(0 if summary.scope_allowed else 1)
+
+    if args.command == "diff":
+        before_run = get_scan(args.database, args.before)
+        after_run = get_scan(args.database, args.after)
+        if before_run is None or after_run is None:
+            parser.error("both scan IDs must exist")
+        if before_run.target != after_run.target:
+            parser.error("scan diff requires both scans to have the same target")
+        result = build_scan_diff(args.database, args.before, args.after)
+        if args.format == "json":
+            print(json.dumps(diff_document(result), indent=2, sort_keys=True))
+            sys.exit(0)
+        if args.format == "csv":
+            writer = csv.writer(sys.stdout)
+            writer.writerow(("change", "kind", "from", "type", "to", "value"))
+            for change, rows in (("added", result.added_assets), ("removed", result.removed_assets)):
+                for item in rows:
+                    writer.writerow((change, "asset", "", item["type"], "", item["value"]))
+            for change, rows in (("added", result.added_relationships), ("removed", result.removed_relationships)):
+                for item in rows:
+                    writer.writerow((change, "relationship", item["from"], item["type"], item["to"], ""))
+            sys.exit(0)
+        print(f"\n  SH4Q SCAN DIFF\n  ==============\n  Before  {result.before}\n  After   {result.after}")
+        print(f"\n  Added assets          {len(result.added_assets)}")
+        print(f"  Removed assets        {len(result.removed_assets)}")
+        print(f"  Added relationships   {len(result.added_relationships)}")
+        print(f"  Removed relationships {len(result.removed_relationships)}")
+        for label, rows in (("Added assets", result.added_assets), ("Removed assets", result.removed_assets)):
+            if rows:
+                print(f"\n  {label}")
+                for item in rows[:100]:
+                    print(f"    {item['type']:<14} {item['value']}")
+        sys.exit(0)
 
     if args.command == "events":
         database = Path(args.database)
@@ -556,7 +611,7 @@ def main() -> None:
         try:
             count = export_scan(
                 str(database), run, format=args.format, output=args.output,
-                force=args.force, alive=args.alive, asset_type=args.type
+                force=args.force, alive=args.alive, asset_type=args.type, redact=args.redact
             )
         except FileExistsError as error:
             parser.error(f"{error}; pass --force to overwrite it")

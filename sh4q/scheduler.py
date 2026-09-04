@@ -140,11 +140,24 @@ class Scheduler:
                 f"(attempt {attempt}/{total_attempts})"
             ))
 
+            progress_stop = asyncio.Event()
+            progress_started = time.monotonic()
+
+            async def report_progress() -> None:
+                # External providers often cannot expose a meaningful percent;
+                # report elapsed time without inventing completion estimates.
+                while not progress_stop.is_set():
+                    try:
+                        await asyncio.wait_for(progress_stop.wait(), timeout=5.0)
+                    except asyncio.TimeoutError:
+                        print(status_line(
+                            f"IN PROGRESS {plugin.metadata.name} on {target} "
+                            f"(elapsed {time.monotonic() - progress_started:.0f}s)"
+                        ))
+
+            progress_task = asyncio.create_task(report_progress())
             try:
-                discoveries = await asyncio.wait_for(
-                    plugin.execute(target),
-                    timeout=plugin.metadata.timeout,
-                )
+                discoveries = await asyncio.wait_for(plugin.execute(target), timeout=plugin.metadata.timeout)
 
             except asyncio.TimeoutError:
                 print(status_line(
@@ -195,6 +208,11 @@ class Scheduler:
                     "error": f"{type(e).__name__}: {e}",
                 }
                 return []
+
+            finally:
+                progress_stop.set()
+                progress_task.cancel()
+                await asyncio.gather(progress_task, return_exceptions=True)
 
             # ---------------------------------------------------------
             # Plugin completed successfully.

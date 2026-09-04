@@ -14,13 +14,15 @@ class URLHistoryAdapter(ExternalToolAdapter):
     name = "url-history"
     version_arguments: Sequence[str] = ("--version",)
 
-    def __init__(self, executable: str = "gau"):
+    def __init__(self, executable: str = "waybackurls", *, max_urls: int = 2000):
+        if max_urls < 1:
+            raise ValueError("max_urls must be positive")
         self.executable = executable
+        self.max_urls = max_urls
 
     def build_argv(self, target: str, context: AdapterContext) -> Sequence[str]:
-        # gau accepts a target argument and --subs expands to subdomains. No
-        # active crawling or arbitrary input/output paths are enabled here.
-        return (self.executable, "--subs", target)
+        # Waybackurls accepts one target and performs passive archive lookup.
+        return (self.executable,)
 
     def parse_stdout(self, target: str, stdout: str) -> list[Discovery]:
         root = target.lower().rstrip(".")
@@ -44,13 +46,20 @@ class URLHistoryAdapter(ExternalToolAdapter):
                     continue
                 normalized = parsed._replace(netloc=host).geturl()
                 urls.add(normalized)
-        return [
-            Discovery(
-                kind="url_history_found",
-                data={"domain": target, "url": value, "source": self.name},
-            )
-            for value in sorted(urls)
-        ]
+        values = sorted(urls)
+        discoveries = [Discovery(
+            kind="url_history_batch",
+            data={"domain": target, "urls": values[: self.max_urls], "source": self.name},
+        )]
+        if len(values) > self.max_urls:
+            discoveries.append(Discovery(
+                kind="url_history_truncated",
+                data={"domain": target, "retained": self.max_urls, "available": len(urls), "source": self.name},
+            ))
+        return discoveries
 
     def evidence_argv(self, argv: Sequence[str]) -> list[str]:
-        return [argv[0], "--subs", "<target>"]
+        return [argv[0], "<stdin>"]
+
+    def build_stdin(self, target: str, context: AdapterContext) -> bytes:
+        return (target.rstrip(".\n") + "\n").encode("utf-8")

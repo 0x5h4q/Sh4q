@@ -8,6 +8,7 @@ from sh4q.storage.scan_runs import ScanRun
 from sh4q.application.results import list_technology_observations
 from sh4q.storage.db import open_sync_database
 from sh4q.application.html_report import render_html_report
+from sh4q.application.redaction import redact_url
 
 
 class ScanOwnershipUnavailableError(Exception):
@@ -92,6 +93,7 @@ def export_scan(
     force: bool = False,
     alive: str | None = None,
     asset_type: str | None = None,
+    redact: bool = False,
 ) -> int:
     if alive not in (None, "http", "dns"):
         raise ValueError(f"unsupported alive filter: {alive}")
@@ -119,8 +121,11 @@ def export_scan(
         else:
             rows = db.execute(
                 """SELECT n.type, n.value, n.attributes,
-                group_concat(DISTINCT sa.source_plugin)
+                group_concat(DISTINCT sa.source_plugin),
+                MAX(CASE WHEN r.type = 'HISTORICAL_URL' THEN 1 ELSE 0 END),
+                MAX(CASE WHEN r.type = 'SERVES' THEN 1 ELSE 0 END)
                 FROM scan_assets sa JOIN nodes n ON n.id = sa.asset_id
+                LEFT JOIN relationships r ON r.id = sa.relationship_id
                 WHERE sa.scan_run_id = ?
                 GROUP BY n.id, n.type, n.value, n.attributes
                 ORDER BY n.type, n.value""",
@@ -161,7 +166,7 @@ def export_scan(
     else:
         assets = [
         {
-            "type": row[0],
+            "type": "historical-url" if row[0] == "url" and row[4] and not row[5] else row[0],
             "value": row[1],
             "attributes": json.loads(row[2]),
             "sources": sorted((row[3] or "").split(",")),
@@ -171,7 +176,7 @@ def export_scan(
         ]
 
     if format == "html":
-        output.write_text(render_html_report(database, run), encoding="utf-8")
+        output.write_text(render_html_report(database, run, redact=redact), encoding="utf-8")
     elif format == "json":
         document = {
             "scan": {
@@ -182,7 +187,7 @@ def export_scan(
                 "status": run.status,
             },
             "asset_count": len(assets),
-            "assets": assets,
+            "assets": [(item | {"value": redact_url(item["value"])}) if redact and item.get("type") in {"url", "historical-url"} else item for item in assets],
         }
         output.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     elif format == "csv":
@@ -242,6 +247,8 @@ def export_scan(
                         "sources": ";".join(item["sources"]),
                     })
                 else:
+                    if redact and item.get("type") in {"url", "historical-url"}:
+                        item = item | {"value": redact_url(item["value"])}
                     writer.writerow({
                         "scan_id": run.id,
                         "target": run.target,

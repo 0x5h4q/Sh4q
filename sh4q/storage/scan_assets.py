@@ -24,3 +24,13 @@ class SQLiteScanAssetStore:
                 (scan_run_id, asset_id, relationship_id, source_plugin),
             )
             await db.commit()
+
+    async def record_batch(self, scan_run_id, records: list[tuple[str, str, str]]) -> None:
+        if not scan_run_id or not records:
+            return
+        async with open_database(self._database) as db:
+            await db.executemany(
+                "INSERT OR IGNORE INTO scan_assets VALUES (?, ?, ?, ?)",
+                [(scan_run_id, asset_id, relationship_id, source_plugin) for asset_id, relationship_id, source_plugin in records],
+            )
+            await db.commit()

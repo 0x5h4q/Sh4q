@@ -2,13 +2,20 @@
 
 This guide assumes Sh4q is installed and the target is yours or covered by explicit permission.
 
-## 1. Start with a Native Scan
+## What Sh4q Does
+
+Sh4q builds an inventory of an authorised domain. It can find names, check DNS,
+check HTTP responses, identify technologies, and preserve details for review.
+
+## 1. Start with a Basic Scan
 
 ```bash
 sh4q scan your-domain.example
 ```
 
-Without a configuration file, Sh4q derives a narrow scope from the target and permits that hostname and its subdomains on HTTP/HTTPS ports.
+Without a configuration file, Sh4q permits the target hostname and its
+subdomains on HTTP/HTTPS ports. Only use domains you own or are explicitly
+authorised to test.
 
 Record the scan ID printed in the summary.
 
@@ -18,7 +25,8 @@ Record the scan ID printed in the summary.
 sh4q show --latest --target your-domain.example
 ```
 
-This separates verified DNS/HTTP surface, stored records, failures, request metrics, and persisted stage performance.
+This shows what resolved, what answered over HTTP, what passive sources found,
+what failed, and how long each stage took.
 
 List URLs that returned an HTTP response:
 
@@ -36,7 +44,7 @@ Technology matching is performed locally against responses already admitted by S
 
 A `403` or `404` still means an HTTP server responded. It does not mean access was granted or the application is healthy.
 
-## 3. Use Subfinder Only When Needed
+## 3. Optional Discovery Modes
 
 If Subfinder is installed:
 
@@ -44,11 +52,32 @@ If Subfinder is installed:
 sh4q scan your-domain.example --sub
 ```
 
-This can take several minutes. The stages are:
+This can take several minutes. Sh4q checks each returned name before using it.
+The normal flow is:
 
 ```text
 dns -> http -> ct -> subfinder -> discovered-dns -> discovered-http
 ```
+
+For archived URLs:
+
+```bash
+sh4q scan your-domain.example --url-history
+```
+
+These are historical clues, not proof that pages are live today.
+
+### Reading the words in the output
+
+- **Found:** a source reported a name or URL.
+- **Resolved:** DNS returned an address.
+- **Responded:** an HTTP request received a response. A `403` still counts as
+  a response; it does not mean access was granted.
+- **Technology:** a clue in an already-collected response, not a guarantee of
+  the software or version in use.
+- **Historical URL:** an archived URL that may no longer exist.
+- **Rejected:** Sh4q kept the observation for audit purposes but did not add it
+  to the trusted results because it was outside the configured scope or unsafe.
 
 Passive names are not automatically described as live. Sh4q first validates scope, attempts DNS resolution, then probes only successfully resolved names.
 

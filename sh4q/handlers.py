@@ -187,6 +187,120 @@ def make_discovery_handler(
                 else:
                     print(message)
 
+        elif kind == "url_history_batch":
+            accepted_nodes = []
+            accepted_relationships = []
+            ownership = []
+            seen_relationships = set()
+            for raw_url in data.get("urls", []):
+                try:
+                    historical_url = _canonical_url(raw_url)
+                    host = HttpURL(historical_url).host
+                except Exception:
+                    continue
+                decision = scope.authorize(host)
+                if not decision.allowed:
+                    if stats is not None:
+                        stats["historical_urls_rejected"] = stats.get("historical_urls_rejected", 0) + 1
+                    continue
+                domain_node = Node(type="domain", value=host)
+                url_node = Node(type="url", value=historical_url, attributes={"historical": True, "source": data.get("source", source_plugin)})
+                relationship = Relationship(domain_node.id, url_node.id, "HISTORICAL_URL", {"source": data.get("source", source_plugin)})
+                if relationship.id in seen_relationships:
+                    continue
+                seen_relationships.add(relationship.id)
+                accepted_nodes.extend((domain_node, url_node))
+                accepted_relationships.append(relationship)
+                ownership.append((url_node.id, relationship.id, source_plugin))
+            if hasattr(storage, "save_nodes_batch"):
+                await storage.save_nodes_batch(accepted_nodes)
+                await storage.save_relationships_batch(accepted_relationships)
+            else:
+                for node in accepted_nodes:
+                    await storage.save_node(node)
+                for relationship in accepted_relationships:
+                    await storage.save_relationship(relationship)
+            if scan_asset_store is not None and hasattr(scan_asset_store, "record_batch"):
+                await scan_asset_store.record_batch(event_scan_run_id, ownership)
+            elif scan_asset_store is not None:
+                for asset_id, relationship_id, plugin in ownership:
+                    await scan_asset_store.record(event_scan_run_id, asset_id, relationship_id, plugin)
+            if stats is not None:
+                ids = stats.setdefault("_historical_urls_ids", set())
+                relationships = stats.setdefault("_relationship_ids", set())
+                for node, relationship in zip(accepted_nodes[1::2], accepted_relationships):
+                    ids.add(node.id)
+                    stats.setdefault("_asset_ids", set()).add(node.id)
+                    relationships.add(relationship.id)
+                stats["historical_urls"] = len(ids)
+                stats["discoveries"] = len(stats["_asset_ids"])
+                stats["relationships"] = len(relationships)
+            if accepted_relationships:
+                print(status_line(f"SAVED: {len(accepted_relationships)} historical URLs (batched)", "ok"))
+
+        elif kind == "url_history_found":
+            raw_url = data.get("url", "")
+            try:
+                historical_url = _canonical_url(raw_url)
+                host = HttpURL(historical_url).host
+            except Exception:
+                print(status_line(f"FAILED url_history_found: invalid URL {raw_url!r}", "error"))
+                return
+            decision = scope.authorize(host)
+            if not decision.allowed:
+                if stats is not None:
+                    stats["historical_urls_rejected"] = stats.get("historical_urls_rejected", 0) + 1
+                await evidence_store.append(Evidence(
+                    id=f"{event.id}:scope-deny",
+                    target=scan_target,
+                    plugin=source_plugin,
+                    kind="url_history_rejected",
+                    content={"domain": host, "url": historical_url, "reason": decision.reason},
+                    scan_run_id=event_scan_run_id,
+                ))
+                print(
+                    f"  GATE 2 DENY: {host} -> {decision.reason} "
+                    f"({historical_url} not persisted)"
+                )
+                return
+            domain_node = Node(type="domain", value=host)
+            await storage.save_node(domain_node)
+            url_node = Node(
+                type="url",
+                value=historical_url,
+                attributes={"historical": True, "source": data.get("source", source_plugin)},
+            )
+            await storage.save_node(url_node)
+            relationship = Relationship(
+                from_id=domain_node.id,
+                to_id=url_node.id,
+                type="HISTORICAL_URL",
+                attributes={"source": data.get("source", source_plugin)},
+            )
+            await storage.save_relationship(relationship)
+            if await record_asset("historical_urls", url_node.id, relationship.id, source_plugin, event_scan_run_id):
+                persisted = (stats or {}).get("historical_urls", 0)
+                if persisted and persisted % 250 == 0:
+                    print(status_line(
+                        f"URL history persistence: {persisted} accepted URLs stored",
+                    ))
+                display_bounded(
+                    "historical URL success",
+                    status_line(f"SAVED: {host} --HISTORICAL_URL--> {historical_url}", "ok"),
+                )
+
+        elif kind == "url_history_truncated":
+            if stats is not None:
+                stats["historical_urls_truncated"] = data.get("available", 0) - data.get("retained", 0)
+            display_bounded(
+                "historical URL notices",
+                status_line(
+                    f"URL history limited to {data.get('retained', 0)} of {data.get('available', '?')} URLs; "
+                    "raw provider output remains in evidence", "error"
+                ),
+                limit=1,
+            )
+
         elif kind == "http_fingerprint":
             endpoint = _canonical_url(data["endpoint"])
             host = HttpURL(endpoint).host

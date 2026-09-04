@@ -34,6 +34,7 @@ from sh4q.adapters import (
     ExternalAdapterPlugin,
     HttpxFingerprintPlugin,
     SubfinderAdapter,
+    URLHistoryAdapter,
     validate_projectdiscovery_httpx,
 )
 
@@ -66,6 +67,9 @@ class ScanSummary:
     requests_failed: int
     peak_request_concurrency: int
     stage_durations: dict[str, float]
+    historical_urls: int = 0
+    historical_urls_rejected: int = 0
+    historical_urls_truncated: int = 0
 
 
 def _default_config(target: str) -> Sh4qConfig:
@@ -81,6 +85,7 @@ async def run_scan(
     include_subfinder: bool = False,
     include_amass: bool = False,
     include_httpx: bool = False,
+    include_url_history: bool = False,
 ) -> ScanSummary:
     start = time.monotonic()
     scan_started_at = datetime.now(timezone.utc).isoformat()
@@ -119,6 +124,9 @@ async def run_scan(
         "resolved_discovered_attempted": 0,
         "resolved_discovered_failures": 0,
         "technologies": 0,
+        "historical_urls": 0,
+        "historical_urls_rejected": 0,
+        "historical_urls_truncated": 0,
         "dns_failure_reasons": {},
     }
 
@@ -179,6 +187,26 @@ async def run_scan(
                     # provider/database work even when its version probe succeeds.
                     # Keep the opt-in stage short so it cannot dominate a scan.
                     timeout=20.0,
+                )
+            )
+        if include_url_history:
+            executable = shutil.which("waybackurls")
+            if executable is None:
+                raise AdapterExecutionError(
+                    "waybackurls is not installed or is not available on PATH"
+                )
+            adapter_home = Path(config.output.directory) / "adapters" / "waybackurls-home"
+            adapter_home.mkdir(parents=True, exist_ok=True)
+            plugins.append(
+                ExternalAdapterPlugin(
+                    URLHistoryAdapter(executable=executable),
+                    AdapterContext(scope, Path(config.output.directory)),
+                    ControlledProcessRunner(
+                        {executable},
+                        max_output_bytes=8_000_000,
+                        environment={"HOME": str(adapter_home.resolve())},
+                    ),
+                    timeout=60.0,
                 )
             )
         if include_subfinder or include_amass:
@@ -277,6 +305,9 @@ async def run_scan(
         resolved_discovered_attempted=stats["resolved_discovered_attempted"],
         resolved_discovered_failures=stats["resolved_discovered_failures"],
         technologies=stats["technologies"],
+        historical_urls=stats["historical_urls"],
+        historical_urls_rejected=stats["historical_urls_rejected"],
+        historical_urls_truncated=stats["historical_urls_truncated"],
         dns_failure_reasons=dict(stats["dns_failure_reasons"]),
         relationships=stats["relationships"],
         evidence=len(evidence_records),

@@ -1,5 +1,18 @@
 # Authorised Use
 
+Sh4q is for domains and systems you own or have explicit permission to assess.
+If you are learning, use a lab, a local test domain, or a bug-bounty program
+whose scope clearly includes the target.
+
+Start with the default scan. Optional flags can contact additional public
+providers or run external tools, so read their program rules and local terms
+before enabling them. `--url-history` is passive archive lookup; it does not
+make historical pages live. `--sub`, `--amass`, and `--httpx` are optional
+external-tool stages and may take considerably longer than a basic scan.
+
+Sh4q is not a permission system. The operator is responsible for confirming
+authorization, respecting rate limits, and reviewing output before sharing it.
+
 Use Sh4q only where you have permission.
 
 Acceptable targets include:

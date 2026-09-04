@@ -66,7 +66,8 @@ The v1 adapter set is intentionally small:
   and experimental; v1 acceptance does not depend on it producing results.
 - ProjectDiscovery HTTPX remains opt-in endpoint enrichment with separately
   reported external-tool accounting.
-- A passive URL-history adapter such as gau or waybackurls is a post-v1
+- A passive URL-history adapter based on waybackurls (with gau as a later
+  broader option) is a post-v1
   candidate, pending licensing, scope filtering, provenance, and offline tests.
 - Nmap, Naabu, Nuclei, ffuf, and other active scanners are post-v1 candidates.
   They require a separate policy decision, stronger resource controls, and
@@ -79,10 +80,12 @@ guaranteed delivery date or automatic inclusion in v2:
 
 - **Phase 3 / post-v1:** JavaScript endpoint and secret-pattern extraction,
   deeper passive intelligence, cloud enumeration, and screenshots.
-- **Post-v1 candidate:** passive URL history through gau, waybackurls, or a
+- **Post-v1 candidate:** passive URL history through waybackurls, with gau as a
   comparable provider. The contract/parser slice is implemented, but live CLI
   wiring requires scope filtering, provenance, bounded output, licensing review,
-  and an end-to-end offline pipeline test.
+  and an end-to-end offline pipeline test. The evidence/ownership pipeline and
+  scheduler integration test are now complete; provider review and CLI release
+  gating remain.
 - **Post-v1 candidate:** virtual-host enumeration and directory/content
   discovery. These are active or potentially high-volume workflows and need a
   separate authorization and resource-control design.
@@ -98,7 +101,7 @@ guaranteed delivery date or automatic inclusion in v2:
 
 Prioritized work after the v1 review release:
 
-1. **Passive URL history:** add a gau/waybackurls-style adapter only after
+1. **Passive URL history:** add a waybackurls-style adapter only after
    scope filtering, provenance, bounded output, licensing, and offline tests
    are defined.
 2. **Scan-to-scan diffs:** identify new, removed, and changed assets and

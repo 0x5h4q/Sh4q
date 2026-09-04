@@ -10,14 +10,42 @@
   <img src="https://img.shields.io/badge/offline%20tests-43%2F43-2ea043.svg" alt="43 of 43 offline tests passing">
 </p>
 
-<p align="center"><strong>Policy-controlled reconnaissance with durable evidence and explainable scope decisions.</strong></p>
+<p align="center"><strong>Find your authorised internet-facing assets, understand what answered, and keep a clear record of the scan.</strong></p>
 
-Sh4q is a scope-aware reconnaissance orchestration tool for authorised domain
-discovery. It combines centralized policy checks, DNS and HTTP verification,
-certificate-transparency discovery, durable evidence, scan-specific results,
-exports, and conservative technology observations.
+Sh4q helps security learners and practitioners map domains they own or are
+authorised to test. Give it a domain and it checks DNS, looks for related
+subdomains, checks which hosts respond over HTTP, records detected technologies,
+and produces reports you can inspect or share.
 
 It is a research prototype. It is not a vulnerability scanner, an exploitation framework, or a replacement for mature reconnaissance suites.
+
+## Start Here
+
+If you are new to reconnaissance, think of Sh4q as a careful inventory tool:
+
+- **Found** means a source mentioned a hostname or URL.
+- **Resolved** means DNS returned an address for a hostname.
+- **Responded** means an HTTP request received a response.
+- **Historical** means a URL appeared in an archive; it is not proof that the
+  URL works today.
+
+Sh4q never treats every name returned by a tool as a confirmed live asset. It
+checks scope before saving trusted results and keeps the original observation
+so you can see where each result came from.
+
+## When To Use It
+
+- You are learning recon and want one understandable report instead of several
+  disconnected tool outputs.
+- You are checking a company domain you have written permission to assess and
+  want to avoid accidentally following an out-of-scope redirect.
+- You are comparing two authorised scans and want to see what changed.
+- You are handing results to a teammate who needs the evidence and limitations,
+  not just a list of hostnames.
+
+For maximum collection breadth or active testing, use specialist tools such as
+reconFTW alongside Sh4q. Sh4q is the control and reporting layer, not a
+replacement for every security tool.
 
 ## Why Sh4q Exists
 
@@ -25,14 +53,42 @@ Tools such as reconFTW are optimized for breadth: they coordinate a large
 number of enumeration, crawling, fuzzing, OSINT, and vulnerability-testing
 utilities. Sh4q deliberately operates at a different layer. It provides a
 scope and evidence control plane around discovery workflows so that each
-accepted asset has an authorization decision, provenance, durable state, and
-reviewable output.
+accepted asset has a scope decision, source information, durable state, and
+reviewable output. In plain terms: you can tell what Sh4q found, which tool or
+stage found it, whether it was checked, and why it appears in the report.
 
 Use reconFTW or other specialist tools when maximum collection breadth is the
 goal. Use Sh4q when you need to understand what was contacted, why it was
-accepted, what failed, and which observations are actually supported by
-evidence. Sh4q can orchestrate selected external tools, but it does not claim
-reconFTW's scanning breadth or replace active security testing.
+accepted, what failed, and which observations are supported by recorded data.
+
+## Example Scenarios
+
+**Learning on a lab domain**
+
+```bash
+sh4q scan lab.example
+```
+
+Start with the default scan. Review the summary, then open the HTML report to
+filter by host, response status, technology, or source.
+
+**Authorised bug-bounty reconnaissance**
+
+```bash
+sh4q scan company.example --sub --httpx
+```
+
+Subfinder looks for additional names, Sh4q checks which names resolve and
+respond, and HTTPX adds technology observations for approved endpoints.
+
+**Looking for older paths**
+
+```bash
+sh4q scan company.example --url-history
+```
+
+This uses Wayback history only. Historical URLs are labelled separately and
+are never presented as currently live without a later HTTP observation.
 
 ## Quick Start
 
@@ -64,12 +120,24 @@ If Subfinder is installed:
 sh4q scan your-domain.example --sub
 ```
 
+For passive Wayback URL history, install `waybackurls` separately and opt in:
+
+```bash
+sh4q scan your-domain.example --url-history
+```
+
 Review the latest scan:
 
 ```bash
 sh4q show --latest --target your-domain.example
 sh4q results --latest --target your-domain.example --type url
 sh4q results --latest --target your-domain.example --type technology
+```
+
+Compare two scan snapshots without changing either scan:
+
+```bash
+sh4q diff --before OLDER_SCAN_ID --after NEWER_SCAN_ID
 ```
 
 Export HTTP-responsive domains:
@@ -84,6 +152,14 @@ Generate a self-contained, offline-filterable HTML asset report:
 sh4q export --latest --target your-domain.example --format html --output report.html
 ```
 
+Before sharing a report, use opt-in redaction to mask secret-like query values
+and remove URL fragments. Redaction changes only the exported file; the local
+database and evidence remain unchanged:
+
+```bash
+sh4q export --latest --format html --output report-redacted.html --redact
+```
+
 ## Documentation
 
 - [Installation](docs/installation.md)
@@ -91,6 +167,7 @@ sh4q export --latest --target your-domain.example --format html --output report.
 - [Authorised use](docs/authorized_use.md)
 - [Threat model](docs/threat_model.md)
 - [Known limitations](docs/limitations.md)
+- [Passive URL-history policy](docs/url_history_policy.md)
 - [v1 roadmap](docs/v1_roadmap.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Testing](docs/testing.md)

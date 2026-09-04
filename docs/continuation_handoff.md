@@ -160,17 +160,38 @@ numbered SQLite migrations, and only then broader enrichment or active adapters.
 This backlog is deliberately feedback-led and does not promise reconFTW-level
 feature breadth.
 
-The first post-v1 implementation slice adds `URLHistoryAdapter` and an offline
-parser test. It is not enabled by the scan CLI yet: historical URL discoveries
-need a dedicated handler and scan metric so they cannot be mistaken for HTTP
-liveness. The next task is that evidence/ownership pipeline, followed by
-provider and licensing review before live integration.
+The first post-v1 implementation slice adds `URLHistoryAdapter`, an offline
+parser test, and a dedicated evidence/ownership pipeline. Historical URLs are
+stored with `HISTORICAL_URL`, counted separately from live `SERVES` endpoints,
+shown as `historical-url` in HTML/JSON/CSV exports, and covered by regression
+tests. It is not enabled by the scan CLI yet; provider/licensing review and an
+end-to-end policy test remain prerequisites for live integration.
+
+The follow-up scheduler integration test now exercises a fake URL-history
+provider through `ExternalAdapterPlugin`, Scheduler, EventBus, Gate 2, and the
+handler. It confirms in-scope ownership and `HISTORICAL_URL` persistence while
+out-of-scope output is excluded before trusted-graph storage.
+
+Waybackurls is now the preferred initial provider. The scan CLI exposes it only
+through the explicit `--url-history` opt-in flag, with a bounded process timeout
+and no automatic discovered-HTTP enrichment.
+
+Waybackurls' stdin-driven interface is handled by the controlled runner: the
+target is supplied as `target\n`, while durable evidence records the command as
+`waybackurls <stdin>`.
+
+URL-history persistence now uses a batch discovery event and grouped SQLite
+writes for nodes, relationships, and scan ownership. Each URL remains
+individually Gate 2 validated before the batch is committed; the 2,000-asset
+cap and raw-output evidence remain unchanged. The next check is a real
+authorized scan comparing the URL-history stage duration with the earlier
+233.93-second per-event baseline.
 
 ## Next Work
 
-The v1 release is complete. The next engineering milestone is the first
-post-v1 backlog item: design a passive URL-history adapter contract and offline
-fixtures before selecting or integrating a provider. Do not add active scanners
+The v1 release is complete. The next engineering milestone is to complete
+provider/licensing review and end-to-end tests for the passive URL-history
+adapter before enabling it in the scan CLI. Do not add active scanners
 or broaden claims about liveness, completeness, or vulnerability verification
 without a documented policy decision and offline regression coverage.
 
@@ -186,3 +207,6 @@ regression coverage.
 3. `sh4q/cli/main.py` and `sh4q/cli/branding.py` for terminal output paths.
 4. `tests/test_cli_formatting.py`, `tests/test_results_query.py`, and the
    offline test runner before changing presentation behavior.
+Waybackurls is now the preferred initial provider for the passive URL-history
+integration because its single archive source and minimal command interface
+make provenance and policy review clearer. Gau remains a later broader option.
