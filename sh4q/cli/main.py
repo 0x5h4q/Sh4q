@@ -14,7 +14,7 @@ from sh4q.application import run_scan
 from sh4q.adapters import AdapterExecutionError
 from sh4q.events.event_log import DurableEventLog
 from sh4q.storage.scan_runs import get_scan, latest_scan, list_scans, scan_asset_count
-from sh4q.application.results import friendly_technology_source, list_assets, list_failures, list_technology_observations, summarize_technology_observations
+from sh4q.application.results import friendly_technology_source, list_assets, list_failures, list_javascript_observations, list_technology_observations, summarize_technology_observations
 from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
 from sh4q.application.scan_report import build_scan_report
 from sh4q.application.diff import build_scan_diff, diff_document
@@ -171,6 +171,16 @@ def render_failure_results(rows) -> None:
         print("  " + "  ".join(_fit(value, width).ljust(width) for value, (_, width) in zip(row, columns)))
 
 
+def render_javascript_results(rows) -> None:
+    columns = (("TYPE", 28), ("VALUE / PATTERN", 52), ("SOURCE ENDPOINT", 52))
+    print()
+    print("  " + "  ".join(label.ljust(width) for label, width in columns))
+    print("  " + "  ".join("-" * width for _, width in columns))
+    for row in rows:
+        kind = row.kind.removeprefix("javascript_")
+        print("  " + "  ".join(_fit(value, width).ljust(width) for value, (_, width) in zip((kind, row.value or row.kind, row.source_endpoint or "-"), columns)))
+
+
 def render_metrics(title: str, rows) -> None:
     print(f"\n  {title}")
     print("  " + "-" * len(title))
@@ -316,7 +326,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     results = subparsers.add_parser("results", help="View stored assets without writing SQL")
     results.add_argument("--database", default="./sh4q-output/sh4q.db")
-    results.add_argument("--type", choices=["domain", "ip", "url", "technology"])
+    results.add_argument("--type", choices=["domain", "ip", "url", "technology", "javascript"])
     results.add_argument("--limit", type=int, default=100)
     results.add_argument("--failures", action="store_true", help="Show recorded errors and provider failures")
     results.add_argument("--target", help="Filter assets or failures by root target")
@@ -571,6 +581,10 @@ def main() -> None:
                     summaries = summarize_technology_observations(rows)[: max(1, min(args.limit, 1000))]
                     render_technology_summary(summaries)
                     print(f"\n  Showing {len(summaries)} technology group(s). Use --details for endpoints.")
+            elif args.type == "javascript":
+                rows = list_javascript_observations(str(database), scan_id=scan_id, limit=args.limit)
+                render_javascript_results(rows)
+                print(f"\n  Showing {len(rows)} JavaScript observation(s). Use --limit to increase the view.")
             else:
                 rows = list_assets(
                     str(database), asset_type=args.type, target=args.target,

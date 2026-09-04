@@ -35,6 +35,14 @@ class TechnologySummary:
     endpoints: int
 
 
+@dataclass(frozen=True)
+class JavaScriptObservation:
+    kind: str
+    value: str
+    source_endpoint: str
+    captured_at: str
+
+
 SOURCE_ALIASES = {
     "native": "offline-http-signatures",
     "httpx": "httpx-fingerprint",
@@ -46,6 +54,23 @@ def friendly_technology_source(source: str) -> str:
         "offline-http-signatures": "native",
         "httpx-fingerprint": "httpx",
     }.get(source, source)
+
+
+def list_javascript_observations(database: str, *, scan_id: str | None = None, limit: int = 100) -> list[JavaScriptObservation]:
+    query = "SELECT kind, content, captured_at FROM evidence WHERE kind LIKE 'javascript_%'"
+    params: list[object] = []
+    if scan_id:
+        query += " AND scan_run_id = ?"
+        params.append(scan_id)
+    query += " ORDER BY captured_at, kind LIMIT ?"
+    params.append(max(1, min(limit, 1000)))
+    with open_sync_database(database) as db:
+        rows = db.execute(query, params).fetchall()
+    observations = []
+    for kind, raw_content, captured_at in rows:
+        content = json.loads(raw_content)
+        observations.append(JavaScriptObservation(kind, content.get("value", ""), content.get("source_endpoint", ""), captured_at))
+    return observations
 
 
 def list_technology_observations(
