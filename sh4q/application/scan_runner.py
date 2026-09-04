@@ -151,19 +151,6 @@ async def run_scan(
     scheduler = None
     try:
         plugins = [DNSPlugin(), HTTPPlugin(scope, limiter=limiter)]
-        if include_javascript:
-            async def http_observations(scan_target: str) -> list[dict]:
-                evidence = await evidence_store.list_for_scan(scan_run.id, kind="http_probe")
-                return [
-                    {
-                        "endpoint": item.content.get("final_url"),
-                        "content": item.content.get("html_sample", ""),
-                    }
-                    for item in evidence
-                    if item.target == scan_target and item.content.get("html_sample")
-                ]
-
-            plugins.append(JavaScriptExtractionPlugin(http_observations))
         plugins.append(CTPlugin(limiter=limiter))
         if include_subfinder:
             executable = shutil.which("subfinder")
@@ -228,6 +215,19 @@ async def run_scan(
         if include_subfinder or include_amass:
             plugins.append(DiscoveredDNSPlugin(scope=scope))
             plugins.append(DiscoveredHTTPPlugin(scope=scope, limiter=limiter))
+        if include_javascript:
+            async def http_observations(scan_target: str) -> list[dict]:
+                evidence = await evidence_store.list_for_scan(scan_run.id, kind="http_probe")
+                return [
+                    {
+                        "endpoint": item.content.get("final_url"),
+                        "content": item.content.get("html_sample", ""),
+                    }
+                    for item in evidence
+                    if item.target == scan_target and item.content.get("html_sample")
+                ]
+
+            plugins.append(JavaScriptExtractionPlugin(http_observations, after_discovered_http=include_subfinder or include_amass))
         if include_httpx:
             candidates = []
             for directory in os.environ.get("PATH", "").split(os.pathsep):

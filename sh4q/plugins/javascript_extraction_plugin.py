@@ -14,18 +14,20 @@ from .interface import Plugin, PluginMetadata
 class JavaScriptExtractionPlugin(Plugin):
     """Extract passive references from scan-owned HTTP response samples."""
 
-    metadata = PluginMetadata(
-        name="javascript-extraction",
-        dependencies=["http"],
-        risk_level="passive",
-        timeout=15.0,
-    )
+    metadata = PluginMetadata(name="javascript-extraction", dependencies=["http"], risk_level="passive", timeout=15.0)
 
     def __init__(
         self,
         observations_provider: Callable[[str], Awaitable[list[dict]]],
         limits: JavaScriptExtractionLimits | None = None,
+        after_discovered_http: bool = False,
     ):
+        self.metadata = PluginMetadata(
+            name="javascript-extraction",
+            dependencies=["http", "discovered-http"] if after_discovered_http else ["http"],
+            risk_level="passive",
+            timeout=15.0,
+        )
         self._observations_provider = observations_provider
         self._limits = limits or JavaScriptExtractionLimits()
 
