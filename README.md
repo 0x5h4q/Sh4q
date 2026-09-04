@@ -47,6 +47,28 @@ For maximum collection breadth or active testing, use specialist tools such as
 reconFTW alongside Sh4q. Sh4q is the control and reporting layer, not a
 replacement for every security tool.
 
+## Why Scope Matters
+
+Reconnaissance can leave your authorised target without you noticing. A DNS
+name may resolve to a private address, a page may redirect to a payment or
+cloud provider, or an external tool may return a hostname that was never in the
+engagement rules.
+
+That matters for three practical reasons:
+
+1. **Permission:** written authorisation normally covers specific domains,
+   addresses, ports, and dates. It does not automatically cover every service
+   a target links to.
+2. **Third parties:** contacting a payment processor, cloud service, or identity
+   provider can create alerts or complaints for an organisation that never
+   agreed to the test.
+3. **Accountability:** a client or teammate may ask exactly what was contacted.
+   A recorded scope decision, failure, and scan ID is stronger than trying to
+   reconstruct the answer from shell history.
+
+Sh4q cannot grant legal permission. It provides technical guardrails and a
+record of its decisions; the operator must still confirm the engagement rules.
+
 ## Why Sh4q Exists
 
 Tools such as reconFTW are optimized for breadth: they coordinate a large
@@ -89,6 +111,42 @@ sh4q scan company.example --url-history
 
 This uses Wayback history only. Historical URLs are labelled separately and
 are never presented as currently live without a later HTTP observation.
+
+**Example: an authorised financial-services engagement**
+
+Imagine a fictional bank gives you written permission to assess
+`*.acme-bank.example` and a specific public network range, while excluding
+`internal.acme-bank.example` and a payment processor. A typical workflow can
+produce names outside that boundary or follow a redirect to a third party.
+
+With Sh4q, place the approved targets and exclusions in a configuration file:
+
+```yaml
+scope:
+  targets:
+    - "acme-bank.example"
+  excluded:
+    - "internal.acme-bank.example"
+    - "payments.acme-bank.example"
+  ports: [80, 443]
+rate_limit:
+  requests_per_second: 2
+  max_concurrent: 3
+  budget: 1000
+```
+
+Then run only the explicitly authorised workflow:
+
+```bash
+sh4q scan acme-bank.example --sub --httpx --config config/acme-bank.yaml
+```
+
+The report makes the boundaries visible: a discovered hostname is checked
+before it is trusted, a private address is rejected by default, and a redirect
+to an excluded or unrelated service is recorded as denied rather than followed.
+If a reviewer asks “what did the scan contact?”, the scan ID, evidence index,
+failures, and request metrics provide an answer instead of a guess. This is an
+illustrative example only; use real targets only with written permission.
 
 ## Quick Start
 
@@ -175,9 +233,10 @@ sh4q export --latest --format html --output report-redacted.html --redact
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 
-The roadmap, threat model, and limitations are included for reviewers. The
-continuation handoff and outreach pitch are maintained as project-internal
-working documents and are not part of the public quick-start path.
+The roadmap, threat model, limitations, and feedback guide are included for
+reviewers. The continuation handoff is an internal engineering note. The
+outreach pitch is a separate communication aid and is not required to install
+or use Sh4q.
 
 The default database is `./sh4q-output/sh4q.db`. It may contain sensitive target data and must not be committed or shared without review.
 

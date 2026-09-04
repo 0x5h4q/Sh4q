@@ -22,6 +22,16 @@ visible instead of hiding them.
 - A team can share an HTML report showing the scope, findings, failures, and
   limitations of an authorised scan.
 
+## The Story In One Scenario
+
+Imagine a tester is hired by a bank and is given a wildcard domain plus a list
+of exclusions. A normal chain of tools may discover a private address or follow
+a redirect to a payment provider, leaving the tester to reconstruct what
+happened from separate logs. Sh4q checks the destination before trusting it,
+records the rejection, and keeps the accepted findings tied to the scan that
+produced them. The point is not a bigger list; it is a result a beginner can
+explain and a professional can audit.
+
 ## Short Pitch
 
 Bug hunters already build powerful workflows around tools like Subfinder,

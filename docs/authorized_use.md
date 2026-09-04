@@ -30,6 +30,13 @@ Sh4q's scope engine answers a technical question: is this target allowed by the 
 
 It cannot determine whether you have legal or contractual permission. A Gate 1 `ALLOW` message is not an authorisation document.
 
+Scope is important because a scan can reach beyond the intended organisation:
+a redirect may lead to a payment or cloud provider, and a discovered hostname
+may resolve to a private or shared service. Even without exploitation, those
+contacts can trigger alerts, complaints, or difficult questions about whether
+every request was authorised. Sh4q records these decisions, but the operator
+still owns the legal and professional responsibility for the test.
+
 The user is responsible for confirming:
 
 - who owns the target;

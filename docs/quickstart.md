@@ -83,6 +83,15 @@ Passive names are not automatically described as live. Sh4q first validates scop
 
 ## 4. Inspect Exact Scan Results
 
+### A realistic authorised scenario
+
+For a fictional engagement, suppose a bank authorises `*.acme-bank.example`
+but excludes an internal hostname and a third-party payment service. Put those
+boundaries in YAML and run the scan with `--config`. If a discovery points to a
+private address or an excluded redirect, Sh4q records the observation but does
+not add it to the trusted results. This is the practical difference between a
+name being found and an asset being accepted.
+
 List recent scans:
 
 ```bash
