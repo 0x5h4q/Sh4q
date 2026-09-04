@@ -86,7 +86,7 @@ The implementation is ready when offline fixtures prove that it:
 1. Add pure extraction functions with deterministic fixtures.
 2. Add a plugin that consumes existing HTTP observations only.
 3. Add scope-aware persistence and evidence handling.
-4. Add an opt-in CLI flag and stage summary.
+4. Add the opt-in `--js` CLI flag and stage summary.
 5. Add HTML, JSON, and CSV presentation with explicit confidence language.
 6. Run the full offline suite and one authorised acceptance scan with the stage
    disabled and enabled.

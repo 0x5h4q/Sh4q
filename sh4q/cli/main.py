@@ -294,7 +294,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run the opt-in passive Wayback URL-history adapter.",
     )
     scan.add_argument(
-        "--javascript",
+        "--js",
         action="store_true",
         help="Run bounded passive extraction on authorised HTTP response samples.",
     )
@@ -453,7 +453,7 @@ def main() -> None:
                     include_amass=args.amass,
                     include_httpx=args.httpx,
                     include_url_history=args.url_history,
-                    include_javascript=args.javascript,
+                    include_javascript=args.js,
                 )
             )
         except KeyboardInterrupt:
