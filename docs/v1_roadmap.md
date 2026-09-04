@@ -80,8 +80,9 @@ guaranteed delivery date or automatic inclusion in v2:
 - **Phase 3 / post-v1:** JavaScript endpoint and secret-pattern extraction,
   deeper passive intelligence, cloud enumeration, and screenshots.
 - **Post-v1 candidate:** passive URL history through gau, waybackurls, or a
-  comparable provider. It requires scope filtering, provenance, bounded output,
-  licensing review, and offline tests before adoption.
+  comparable provider. The contract/parser slice is implemented, but live CLI
+  wiring requires scope filtering, provenance, bounded output, licensing review,
+  and an end-to-end offline pipeline test.
 - **Post-v1 candidate:** virtual-host enumeration and directory/content
   discovery. These are active or potentially high-volume workflows and need a
   separate authorization and resource-control design.

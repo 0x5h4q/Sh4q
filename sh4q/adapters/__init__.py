@@ -3,6 +3,7 @@
 from .interface import AdapterContext, ExternalToolAdapter
 from .plugin import ExternalAdapterPlugin
 from .subfinder import SubfinderAdapter
+from .url_history import URLHistoryAdapter
 from .amass import AmassPassiveAdapter
 from .httpx_fingerprint import HttpxFingerprintAdapter
 from .httpx_plugin import HttpxFingerprintPlugin
@@ -19,6 +20,7 @@ __all__ = [
     "HttpxFingerprintPlugin",
     "validate_projectdiscovery_httpx",
     "SubfinderAdapter",
+    "URLHistoryAdapter",
     "AmassPassiveAdapter",
     "ProcessResult",
 ]

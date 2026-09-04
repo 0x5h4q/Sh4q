@@ -51,6 +51,7 @@ OFFLINE_TESTS = (
     "test_stage_timing.py",
     "test_stage_metrics_evidence.py",
     "test_subfinder_adapter.py",
+    "test_url_history_adapter.py",
     "test_subfinder_scheduler_integration.py",
     "test_trusted_service_http.py",
     "test_unique_scan_reporting.py",

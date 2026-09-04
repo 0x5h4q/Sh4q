@@ -160,6 +160,12 @@ numbered SQLite migrations, and only then broader enrichment or active adapters.
 This backlog is deliberately feedback-led and does not promise reconFTW-level
 feature breadth.
 
+The first post-v1 implementation slice adds `URLHistoryAdapter` and an offline
+parser test. It is not enabled by the scan CLI yet: historical URL discoveries
+need a dedicated handler and scan metric so they cannot be mistaken for HTTP
+liveness. The next task is that evidence/ownership pipeline, followed by
+provider and licensing review before live integration.
+
 ## Next Work
 
 The v1 release is complete. The next engineering milestone is the first
