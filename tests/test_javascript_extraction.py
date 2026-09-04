@@ -1,4 +1,4 @@
-from sh4q.application.javascript_extraction import (
+from sh4q.javascript_extraction import (
     JavaScriptExtractionLimits,
     extract_javascript_observations,
 )
