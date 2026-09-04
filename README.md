@@ -262,6 +262,7 @@ sh4q export --latest --format html --output report-redacted.html --redact
 - [Quick start](docs/quickstart.md)
 - [Authorised use](docs/authorized_use.md)
 - [Architecture](docs/architecture_overview.md)
+- [v1 baseline](docs/v1_baseline.md)
 - [Threat model](docs/threat_model.md)
 - [Known limitations](docs/limitations.md)
 - [Passive URL-history policy](docs/url_history_policy.md)
