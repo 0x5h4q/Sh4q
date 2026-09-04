@@ -12,8 +12,13 @@ html = """
     const key = 'AKIA1234567890ABCDEF';
     const external = 'https://cdn.example.net/lib.js';
   </script>
+  <link rel="stylesheet" href="https://cdn.example.net/site.css">
 </html>
 """
+
+punctuation_html = "<script>fetch('https://api.example.com/v1/users;')</script>"
+punctuation = extract_javascript_observations(punctuation_html, "https://example.com/")
+assert punctuation[0]["value"] == "https://api.example.com/v1/users"
 
 observations = extract_javascript_observations(
     html,
@@ -29,6 +34,9 @@ assert {item["value"] for item in observations if item["kind"] == "script_url"} 
     "https://example.com/static/app.js",
 }
 assert "https://example.com/api/users" in {
+    item["value"] for item in observations if item["kind"] == "endpoint_reference"
+}
+assert "https://cdn.example.net/site.css" not in {
     item["value"] for item in observations if item["kind"] == "endpoint_reference"
 }
 assert all("AKIA1234567890ABCDEF" not in str(item) for item in observations)

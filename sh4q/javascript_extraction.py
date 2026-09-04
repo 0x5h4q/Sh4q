@@ -16,6 +16,7 @@ class JavaScriptExtractionLimits:
 
 
 _SCRIPT_RE = re.compile(r"<script\b[^>]*?\bsrc\s*=\s*(['\"])(.*?)\1", re.IGNORECASE | re.DOTALL)
+_INLINE_SCRIPT_RE = re.compile(r"<script\b(?![^>]*\bsrc\s*=)[^>]*>(.*?)</script\s*>", re.IGNORECASE | re.DOTALL)
 _URL_RE = re.compile(r"(?:https?://[^\s\"'`<>]+|/api(?:/|\b)[^\s\"'`<>]*)", re.IGNORECASE)
 _SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("aws_access_key_id", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
@@ -29,7 +30,7 @@ def _bounded_text(value: str, limit: int) -> str:
 
 
 def _absolute_reference(reference: str, base_url: str) -> str | None:
-    value = reference.strip()
+    value = reference.strip().rstrip(".,;:!?)]}")
     if not value or value.startswith(("data:", "javascript:", "#")):
         return None
     absolute = urljoin(base_url, value)
@@ -55,7 +56,8 @@ def extract_javascript_observations(html: str, base_url: str, limits: JavaScript
         script_url = _absolute_reference(raw_src, base_url)
         if script_url:
             add("script_url", script_url)
-    for match in _URL_RE.finditer(bounded_html):
+    inline_script = "\n".join(_INLINE_SCRIPT_RE.findall(bounded_html))
+    for match in _URL_RE.finditer(inline_script):
         reference = _absolute_reference(match.group(0), base_url)
         if reference:
             add("endpoint_reference", reference)
