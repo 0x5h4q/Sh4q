@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/offline%20tests-43%2F43-2ea043.svg" alt="43 of 43 offline tests passing">
 </p>
 
-<p align="center"><strong>Find your authorised internet-facing assets, understand what answered, and keep a clear record of the scan.</strong></p>
+<p align="center"><strong>Know what you touched. Know why. Know it was authorised.</strong></p>
 
 Sh4q helps security learners and practitioners map domains they own or are
 authorised to test. Give it a domain and it checks DNS, looks for related
@@ -46,6 +46,25 @@ so you can see where each result came from.
 For maximum collection breadth or active testing, use specialist tools such as
 reconFTW alongside Sh4q. Sh4q is the control and reporting layer, not a
 replacement for every security tool.
+
+## The Difference In One View
+
+**A typical shell workflow**
+
+```text
+run several tools -> join output files -> filter names by hand ->
+check redirects and scope manually -> explain failures from shell history
+```
+
+**With Sh4q**
+
+```text
+sh4q scan target.example -> scope checks -> DNS/HTTP evidence ->
+scan-owned results -> filtered HTML/JSON/CSV report
+```
+
+Sh4q does not make specialist tools unnecessary. It makes the combined result
+easier to understand, safer to review, and easier to hand to someone else.
 
 ## Why Scope Matters
 
@@ -111,6 +130,14 @@ sh4q scan company.example --url-history
 
 This uses Wayback history only. Historical URLs are labelled separately and
 are never presented as currently live without a later HTTP observation.
+
+## See The Result
+
+The HTML report is the easiest way to see Sh4q’s value. It is a self-contained
+file that works offline and lets you filter scan-owned assets by host, type,
+HTTP status, technology, source, or free-text search. It also shows failures,
+stage timings, request metrics, and evidence counts, so the report explains the
+scan rather than presenting an unexplained list of results.
 
 **Example: an authorised financial-services engagement**
 
