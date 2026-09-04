@@ -46,6 +46,7 @@ with tempfile.TemporaryDirectory() as directory:
     assert "JavaScript observations" in report
     assert "https://example.com/api/me" in report
     assert "not automatically requested" in report
+    assert '>1</strong>JavaScript observations' in report
     assert "HTTP status" in report
     assert "fetch(" not in report
     assert report.count("<select") == 5

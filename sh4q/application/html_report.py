@@ -123,6 +123,7 @@ def _report_metadata(database: str, run: ScanRun) -> dict:
                 elif kind in {"http_error", "dns_error", "discovered_dns_error", "ct_error"}:
                     failures.append(record | {"detail": content.get("error") or content.get("reason") or "unknown error"})
                 evidence.append(record)
+    javascript.sort(key=lambda item: (item["source_endpoint"], item["kind"], item["value"]))
     return {"evidence": evidence, "failures": failures, "javascript": javascript, "stages": stages, "request_metrics": request_metrics,
             "historical_urls_rejected": historical_urls_rejected,
             "historical_urls_truncated": historical_urls_truncated}
@@ -189,6 +190,7 @@ pre {{ overflow-x: auto; padding: 14px; border: 1px solid #d5dee6; border-radius
 <div class="stat"><strong>{len(metadata["stages"])}</strong>stages</div>
 <div class="stat"><strong>{metadata["historical_urls_truncated"]}</strong>history truncated</div>
 <div class="stat"><strong>{metadata["historical_urls_rejected"]}</strong>history rejected</div>
+<div class="stat"><strong>{len(metadata["javascript"])}</strong>JavaScript observations</div>
 </div><section class="filters" aria-label="Report filters">
 <label>Search<input id="search" type="search" placeholder="hostname, URL, technology"></label>
 <label>Asset type<select id="type"><option value="">All</option></select></label>
