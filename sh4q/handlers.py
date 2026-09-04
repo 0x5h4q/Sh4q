@@ -27,6 +27,7 @@ def make_discovery_handler(
     scan_run_id: str | None = None,
 ):
     display_counts: dict[str, int] = {}
+    javascript_displayed: set[str] = set()
 
     def display_bounded(category: str, message: str, limit: int = 10) -> None:
         count = display_counts.get(category, 0) + 1
@@ -338,10 +339,12 @@ def make_discovery_handler(
             await storage.save_node(url_node)
             await storage.save_relationship(relationship)
             await record_asset("javascript_references", url_node.id, relationship.id, source_plugin, event_scan_run_id)
-            display_bounded(
-                "JavaScript references",
-                status_line(f"SAVED: {host} --JAVASCRIPT_REFERENCE--> {reference_url}", "ok"),
-            )
+            if reference_url not in javascript_displayed:
+                javascript_displayed.add(reference_url)
+                display_bounded(
+                    "JavaScript references",
+                    status_line(f"SAVED: {host} --JAVASCRIPT_REFERENCE--> {reference_url}", "ok"),
+                )
 
         elif kind == "http_fingerprint":
             endpoint = _canonical_url(data["endpoint"])
