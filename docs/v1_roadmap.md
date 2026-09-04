@@ -93,6 +93,32 @@ guaranteed delivery date or automatic inclusion in v2:
 - **Phase 5 / later direction:** historical tracking, scan diffs, graph
   visualization, AI summarization, and prioritization.
 
+## Post-v1 Engineering Backlog
+
+Prioritized work after the v1 review release:
+
+1. **Passive URL history:** add a gau/waybackurls-style adapter only after
+   scope filtering, provenance, bounded output, licensing, and offline tests
+   are defined.
+2. **Scan-to-scan diffs:** identify new, removed, and changed assets and
+   relationships without rewriting immutable evidence.
+3. **Large-scan operations:** improve progress reporting, adaptive scheduling,
+   timeout summaries, and partial-completion UX for unreliable providers.
+4. **Documentation QA:** add automated checks for README links, version
+   strings, release status, and stale roadmap claims.
+5. **Export handling:** add deliberate redaction controls for query parameters,
+   sensitive evidence, and internal-looking hostnames before sharing reports.
+6. **Schema evolution:** introduce numbered SQLite migrations before adding
+   features that change persisted records or ownership semantics.
+7. **Controlled enrichment:** evaluate JavaScript extraction, vhost discovery,
+   directory discovery, and active adapters separately with explicit policy,
+   resource, and authorization designs.
+
+Each item should retain the v1 invariants: Gate 1 and Gate 2 enforcement,
+evidence-first handling, scan ownership, provenance, bounded execution, and
+offline regression coverage. Breadth should be added only when it improves the
+operator workflow without weakening those controls.
+
 ## v1 Definition Of Done
 
 v1 is ready when a new user can install Sh4q, run an authorised scan, understand

@@ -153,14 +153,20 @@ addresses, 2 HTTP endpoints, 534 deduplicated CT names, 1 technology
 observation, 552 evidence records, and completed all native stages. Its HTML
 report was reviewed by the user and matches the intended presentation.
 
+The post-v1 engineering backlog is now recorded in `docs/v1_roadmap.md`. The
+priority order is passive URL history, scan-to-scan diffs, large-scan progress
+and partial-completion UX, automated documentation QA, export redaction,
+numbered SQLite migrations, and only then broader enrichment or active adapters.
+This backlog is deliberately feedback-led and does not promise reconFTW-level
+feature breadth.
+
 ## Next Work
 
-The next milestone is to run the complete offline suite under Python 3.13,
-repeat SQLite concurrency/recovery tests, and record timing statistics. Then run
-browser-level desktop/mobile verification with Chromium/Playwright, apply any
-visual polish, perform packaging/install QA, and complete the v1 threat-model
-and authorized-domain acceptance review. Do not claim pixel-level browser
-verification in an environment without a browser runtime.
+The v1 release is complete. The next engineering milestone is the first
+post-v1 backlog item: design a passive URL-history adapter contract and offline
+fixtures before selecting or integrating a provider. Do not add active scanners
+or broaden claims about liveness, completeness, or vulnerability verification
+without a documented policy decision and offline regression coverage.
 
 Do not begin another live target scan as a substitute for these milestones.
 Do not add active scanners or broaden claims about liveness, completeness, or
