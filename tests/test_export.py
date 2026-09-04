@@ -15,13 +15,14 @@ with tempfile.TemporaryDirectory() as directory:
         db.execute("CREATE TABLE nodes (id TEXT, type TEXT, value TEXT, attributes TEXT)")
         db.execute("CREATE TABLE relationships (id TEXT, from_id TEXT, to_id TEXT, type TEXT, attributes TEXT)")
         db.execute("CREATE TABLE scan_assets (scan_run_id TEXT, asset_id TEXT, relationship_id TEXT, source_plugin TEXT)")
-        db.execute("CREATE TABLE evidence (scan_run_id TEXT)")
+        db.execute("CREATE TABLE evidence (id TEXT, target TEXT, plugin TEXT, kind TEXT, content TEXT, captured_at TEXT, scan_run_id TEXT)")
         db.execute("INSERT INTO nodes VALUES (?, ?, ?, ?)", ("domain:api.example.com", "domain", "api.example.com", '{"source":"test"}'))
         db.execute("INSERT INTO scan_assets VALUES (?, ?, ?, ?)", ("scan-1", "domain:api.example.com", "rel-1", "test"))
         db.execute("INSERT INTO nodes VALUES (?, ?, ?, ?)", ("url:https://api.example.com/", "url", "https://api.example.com/", '{"status":200}'))
         db.execute("INSERT INTO nodes VALUES (?, ?, ?, ?)", ("technology:nginx", "technology", "nginx", "{}"))
         db.execute("INSERT INTO relationships VALUES (?, ?, ?, ?, ?)", ("rel-tech", "url:https://api.example.com/", "technology:nginx", "DETECTED_TECHNOLOGY", '{"category":"web-server","version":"1.25","confidence":"explicit","status":200,"raw_observation":"header:server=nginx/1.25"}'))
         db.execute("INSERT INTO scan_assets VALUES (?, ?, ?, ?)", ("scan-1", "technology:nginx", "rel-tech", "native-http"))
+        db.execute("INSERT INTO evidence VALUES (?, ?, ?, ?, ?, ?, ?)", ("e1", "example.com", "javascript-extraction", "javascript_endpoint_reference", '{"value":"https://api.example.com/v1/users","source_endpoint":"https://example.com/"}', "now", "scan-1"))
     run = ScanRun("scan-1", "example.com", "start", "end", "COMPLETED")
 
     json_path = root / "report.json"
@@ -31,6 +32,7 @@ with tempfile.TemporaryDirectory() as directory:
     domain = next(item for item in document["assets"] if item["type"] == "domain")
     assert domain["value"] == "api.example.com"
     assert domain["sources"] == ["test"]
+    assert document["javascript_observations"][0]["value"] == "https://api.example.com/v1/users"
 
     csv_path = root / "report.csv"
     assert export_scan(database, run, format="csv", output=csv_path) == 2
@@ -79,7 +81,7 @@ with tempfile.TemporaryDirectory() as directory:
         raise AssertionError("existing export was overwritten without --force")
 
     with sqlite3.connect(database) as db:
-        db.execute("INSERT INTO evidence VALUES (?)", ("old-scan",))
+        db.execute("INSERT INTO evidence VALUES (?, ?, ?, ?, ?, ?, ?)", ("old-scan", "example.com", "legacy", "legacy", "{}", "now", "old-scan"))
     old_run = ScanRun("old-scan", "example.com", "start", "end", "COMPLETED")
     try:
         export_scan(database, old_run, format="json", output=root / "old.json")
