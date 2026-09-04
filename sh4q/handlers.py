@@ -321,7 +321,10 @@ def make_discovery_handler(
                 return
             decision = scope.authorize(host)
             if not decision.allowed:
-                print(f"  GATE 2 DENY: {host} -> {decision.reason} ({reference_url} not persisted)")
+                display_bounded(
+                    "JavaScript scope denials",
+                    f"  GATE 2 DENY: {host} -> {decision.reason} ({reference_url} not persisted)",
+                )
                 return
             domain_node = Node(type="domain", value=host)
             url_node = Node(type="url", value=reference_url, attributes={"javascript_reference": True})
@@ -335,6 +338,10 @@ def make_discovery_handler(
             await storage.save_node(url_node)
             await storage.save_relationship(relationship)
             await record_asset("javascript_references", url_node.id, relationship.id, source_plugin, event_scan_run_id)
+            display_bounded(
+                "JavaScript references",
+                status_line(f"SAVED: {host} --JAVASCRIPT_REFERENCE--> {reference_url}", "ok"),
+            )
 
         elif kind == "http_fingerprint":
             endpoint = _canonical_url(data["endpoint"])
