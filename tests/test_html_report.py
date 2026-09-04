@@ -27,7 +27,8 @@ with tempfile.TemporaryDirectory() as directory:
         db.executemany("INSERT INTO evidence VALUES (?, ?, ?, ?, ?, ?, ?)", [
             ("e1", "example.com", "http", "http_error", '{"error":"timeout"}', "now", "scan-1"),
             ("e2", "example.com", "native", "request_metrics", '{"observed":{"admitted":2}}', "now", "scan-1"),
-            ("e3", "example.com", "scheduler", "stage_metrics", '{"stages":[{"name":"dns","status":"completed","attempts":1,"discoveries":1,"duration_seconds":0.1}]}', "now", "scan-1"),
+        ("e3", "example.com", "scheduler", "stage_metrics", '{"stages":[{"name":"dns","status":"completed","attempts":1,"discoveries":1,"duration_seconds":0.1}]}', "now", "scan-1"),
+        ("e4", "example.com", "javascript-extraction", "javascript_endpoint_reference", '{"value":"https://example.com/api/me","source_endpoint":"https://example.com/"}', "now", "scan-1"),
         ])
 
     run = ScanRun("scan-1", "example.com", "start", "end", "COMPLETED")
@@ -42,6 +43,9 @@ with tempfile.TemporaryDirectory() as directory:
     assert "Stage timings" in report
     assert "Request metrics" in report
     assert "Evidence index" in report
+    assert "JavaScript observations" in report
+    assert "https://example.com/api/me" in report
+    assert "not automatically requested" in report
     assert "HTTP status" in report
     assert "fetch(" not in report
     assert report.count("<select") == 5
