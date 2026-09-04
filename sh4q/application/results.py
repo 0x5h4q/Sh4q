@@ -67,9 +67,16 @@ def list_javascript_observations(database: str, *, scan_id: str | None = None, l
     with open_sync_database(database) as db:
         rows = db.execute(query, params).fetchall()
     observations = []
+    seen: set[tuple[str, str, str]] = set()
     for kind, raw_content, captured_at in rows:
         content = json.loads(raw_content)
-        observations.append(JavaScriptObservation(kind, content.get("value", ""), content.get("source_endpoint", ""), captured_at))
+        value = content.get("value", "")
+        source_endpoint = content.get("source_endpoint", "")
+        key = (kind, value, source_endpoint.rstrip("/") or source_endpoint)
+        if key in seen:
+            continue
+        seen.add(key)
+        observations.append(JavaScriptObservation(kind, value, source_endpoint, captured_at))
     return observations
 
 
