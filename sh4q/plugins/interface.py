@@ -9,7 +9,7 @@ from .discovery import Discovery
 @dataclass
 class PluginMetadata:
     name: str
-    version: str = "0.1.0"
+    version: str = "1.0.0"
     dependencies: list[str] = field(default_factory=list)   # names of plugins that must run first
     timeout: float = 30.0
     required_scope: list[str] = field(default_factory=list)  # reserved for future use

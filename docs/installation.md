@@ -36,7 +36,7 @@ If you want the `sh4q` command available globally while keeping its
 dependencies isolated, `pipx` can manage the virtual environment for you:
 
 ```bash
-pipx install git+https://github.com/0x5h4q/Sh4q.git@v0.1.0
+pipx install git+https://github.com/0x5h4q/Sh4q.git@v1.0.0
 sh4q --help
 ```
 

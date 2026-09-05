@@ -20,7 +20,7 @@ class ExternalToolAdapter:
     """Contract for external reconnaissance tools."""
 
     name: str
-    version: str = "0.1.0"
+    version: str = "1.0.0"
     executable: str
     version_arguments: Sequence[str] = ("--version",)
 
