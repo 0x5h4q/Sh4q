@@ -73,6 +73,13 @@ For passive JavaScript and HTML references from collected HTTP responses:
 sh4q scan your-domain.example --js
 ```
 
+To additionally fetch and passively inspect a bounded set of same-scope script
+bundles, opt in explicitly:
+
+```bash
+sh4q scan your-domain.example --js-bundles
+```
+
 Review the extracted references directly:
 
 ```bash

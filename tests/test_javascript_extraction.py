@@ -1,6 +1,7 @@
 from sh4q.javascript_extraction import (
     JavaScriptExtractionLimits,
     extract_javascript_observations,
+    extract_javascript_bundle_observations,
 )
 
 
@@ -48,3 +49,12 @@ limited = extract_javascript_observations(
 )
 assert len(limited) == 1
 print("javascript extraction test passed")
+
+bundle = extract_javascript_bundle_observations(
+    "fetch('/api/profile'); const key = 'AKIA1234567890ABCDEF';",
+    "https://example.com/static/app.js",
+)
+assert {item["kind"] for item in bundle} == {
+    "endpoint_reference",
+    "secret_like_pattern",
+}

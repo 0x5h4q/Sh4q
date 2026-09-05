@@ -14,6 +14,8 @@ history_args = parser.parse_args(["scan", "example.com", "--url-history"])
 assert history_args.url_history is True
 javascript_args = parser.parse_args(["scan", "example.com", "--js"])
 assert javascript_args.js is True
+bundle_args = parser.parse_args(["scan", "example.com", "--js-bundles"])
+assert bundle_args.js_bundles is True
 javascript_results = parser.parse_args(["results", "--type", "javascript", "--latest"])
 assert javascript_results.type == "javascript"
 javascript_filter = parser.parse_args(["results", "--type", "javascript", "--js-kind", "script_url", "--source-endpoint", "example.com"])

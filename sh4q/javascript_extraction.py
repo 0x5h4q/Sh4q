@@ -67,3 +67,30 @@ def extract_javascript_observations(html: str, base_url: str, limits: JavaScript
             if len(observations) >= limits.max_results:
                 break
     return observations
+
+
+def extract_javascript_bundle_observations(
+    script: str,
+    source_url: str,
+    limits: JavaScriptExtractionLimits | None = None,
+) -> list[dict[str, str | int]]:
+    """Extract passive endpoint and secret indicators from one JS bundle."""
+    limits = limits or JavaScriptExtractionLimits()
+    bounded_script = _bounded_text(script, limits.max_script_bytes)
+    observations: list[dict[str, str | int]] = []
+    seen: set[tuple[str, str]] = set()
+
+    def add(kind: str, value: str, **extra: str | int) -> None:
+        if len(observations) >= limits.max_results or (kind, value) in seen:
+            return
+        seen.add((kind, value))
+        observations.append({"kind": kind, "value": value, **extra})
+
+    for match in _URL_RE.finditer(bounded_script):
+        reference = _absolute_reference(match.group(0), source_url)
+        if reference:
+            add("endpoint_reference", reference)
+    for pattern_name, pattern in _SECRET_PATTERNS:
+        if pattern.search(bounded_script):
+            add("secret_like_pattern", pattern_name, pattern=pattern_name, context=f"matched {pattern_name}")
+    return observations

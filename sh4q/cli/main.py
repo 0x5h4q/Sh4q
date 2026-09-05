@@ -308,6 +308,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run bounded passive extraction on authorised HTTP response samples.",
     )
+    scan.add_argument(
+        "--js-bundles",
+        action="store_true",
+        help="Fetch and passively parse a bounded set of same-scope JavaScript bundles.",
+    )
 
     events = subparsers.add_parser("events", help="Inspect durable event state")
     events.add_argument(
@@ -470,6 +475,7 @@ def main() -> None:
                     include_httpx=args.httpx,
                     include_url_history=args.url_history,
                     include_javascript=args.js,
+                    include_javascript_bundles=args.js_bundles,
                 )
             )
         except KeyboardInterrupt:
