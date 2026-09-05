@@ -154,7 +154,8 @@ async def run_scan(
     outcome = "completed"
     scheduler = None
     try:
-        plugins = [DNSPlugin(), HTTPPlugin(scope, limiter=limiter)]
+        include_html_sample = include_javascript or include_javascript_bundles
+        plugins = [DNSPlugin(), HTTPPlugin(scope, limiter=limiter, include_html_sample=include_html_sample)]
         plugins.append(CTPlugin(limiter=limiter))
         if include_subfinder:
             executable = shutil.which("subfinder")
@@ -218,7 +219,11 @@ async def run_scan(
             )
         if include_subfinder or include_amass:
             plugins.append(DiscoveredDNSPlugin(scope=scope))
-            plugins.append(DiscoveredHTTPPlugin(scope=scope, limiter=limiter))
+            plugins.append(DiscoveredHTTPPlugin(
+                scope=scope,
+                limiter=limiter,
+                include_html_sample=include_html_sample,
+            ))
         if include_javascript or include_javascript_bundles:
             async def http_observations(scan_target: str) -> list[dict]:
                 evidence = await evidence_store.list_for_scan(scan_run.id, kind="http_probe")
