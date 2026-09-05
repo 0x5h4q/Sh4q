@@ -36,6 +36,23 @@ jobs:
         run: |
           awk '/^## [0-9]/{c++} c==1{print} c==2{exit}' CHANGELOG.md > release-body.md
 
+      - name: Append version comparison link
+        run: |
+          PREV=$(git tag -l --sort=-v:refname 'v*' \
+            | grep -vE '(-alpha|-beta|-rc|-pre)' \
+            | grep -v "^${GITHUB_REF_NAME}$" \
+            | head -1 || true)
+          if [ -n "$PREV" ]; then
+            COUNT=$(git rev-list --count "$PREV"..HEAD)
+            {
+              echo
+              echo "---"
+              echo
+              echo "**Commits since ${PREV}:** ${COUNT}"
+              echo "**Full Changelog:** https://github.com/0x5h4q/Sh4q/compare/${PREV}...${GITHUB_REF_NAME}"
+            } >> release-body.md
+          fi
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
