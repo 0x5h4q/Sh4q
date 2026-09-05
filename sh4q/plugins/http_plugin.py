@@ -28,14 +28,25 @@ class HTTPPlugin(Plugin):
         resolver: Callable | None = None,
         enforce_overall_probe_timeout: bool = True,
         include_html_sample: bool = False,
+        timeout: float | None = None,
     ):
         self.scope = scope
+        probe_timeout = timeout if timeout is not None else self.metadata.timeout
+        if probe_timeout <= 0:
+            raise ValueError("timeout must be positive")
+        self.metadata = PluginMetadata(
+            name="http",
+            dependencies=["dns"],
+            risk_level="active-low",
+            timeout=probe_timeout + 1.0,
+        )
+        self._probe_timeout = probe_timeout
         self._enforce_overall_probe_timeout = enforce_overall_probe_timeout
         self._include_html_sample = include_html_sample
         self._client_factory = client_factory or (
             lambda: ScopedHTTPClient(
                 self.scope,
-                timeout=self.metadata.timeout,
+                timeout=self._probe_timeout,
                 limiter=limiter,
                 resolver=resolver,
             )
@@ -43,11 +54,7 @@ class HTTPPlugin(Plugin):
 
     async def execute(self, target: str) -> list[Discovery]:
         async with self._client_factory() as client:
-            # Finish slightly before the scheduler's plugin deadline so
-            # timeout diagnostics can be published as discoveries.
-            # Leave time for both probes and transport cleanup before the
-            # scheduler's hard plugin timeout expires.
-            probe_timeout = max(0.1, self.metadata.timeout * 0.7)
+            probe_timeout = min(self._probe_timeout, self.metadata.timeout)
 
             async def probe(scheme: str) -> Discovery:
                 url = f"{scheme}://{target}"
@@ -81,7 +88,7 @@ class HTTPPlugin(Plugin):
                 except asyncio.TimeoutError:
                     return [Discovery(
                         kind="http_error",
-                        data={"url": url, "error": "request timed out", "phase": "overall", "timeout": self.metadata.timeout, "duration_seconds": round(time.monotonic() - started, 3)},
+                        data={"url": url, "error": "request timed out", "phase": "overall", "timeout": probe_timeout, "duration_seconds": round(time.monotonic() - started, 3), "retryable": True},
                     )]
                 except (httpx.HTTPError, ScopedHTTPError, ssl.SSLError) as e:
                     detail = str(e).strip() or f"{e.__class__.__name__} without detail"
@@ -110,6 +117,7 @@ class HTTPPlugin(Plugin):
                             "error": "request timed out",
                             "phase": "overall",
                             "timeout": probe_timeout,
+                            "retryable": True,
                         },
                     )]
 

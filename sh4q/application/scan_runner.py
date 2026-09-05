@@ -167,7 +167,15 @@ async def run_scan(
     scheduler = None
     try:
         include_html_sample = include_javascript or include_javascript_bundles
-        plugins = [DNSPlugin(), HTTPPlugin(scope, limiter=limiter, include_html_sample=include_html_sample)]
+        plugins = [
+            DNSPlugin(),
+            HTTPPlugin(
+                scope,
+                limiter=limiter,
+                include_html_sample=include_html_sample,
+                timeout=config.timeout.http_seconds,
+            ),
+        ]
         plugins.append(CTPlugin(limiter=limiter))
         if include_subfinder:
             executable = shutil.which("subfinder")
@@ -235,6 +243,7 @@ async def run_scan(
                 scope=scope,
                 limiter=limiter,
                 include_html_sample=include_html_sample,
+                http_timeout=config.timeout.http_seconds,
             ))
         if include_javascript or include_javascript_bundles:
             async def http_observations(scan_target: str) -> list[dict]:
