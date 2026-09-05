@@ -458,6 +458,16 @@ def make_discovery_handler(
             else:
                 print(status_line(f"CT RATE LIMITED: {source}", "error"))
 
+        elif kind == "javascript_bundle_error":
+            display_bounded(
+                "JavaScript bundle failures",
+                status_line(
+                    f"FAILED javascript bundle {data.get('url', 'unknown')}: "
+                    f"{data.get('error', 'unknown error')}",
+                    "error",
+                ),
+            )
+
         elif kind in ("http_error", "dns_error", "ct_error"):
             phase = data.get("phase")
             suffix = f" [{phase}]" if phase else ""

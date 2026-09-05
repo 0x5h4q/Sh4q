@@ -37,6 +37,19 @@ async def main() -> None:
     assert fetched == ["https://example.com/static/app.js"]
     assert [item.kind for item in bundle_discoveries] == ["javascript_endpoint_reference"]
     assert bundle_discoveries[0].data["source_endpoint"] == "https://example.com/static/app.js"
+
+    async def flaky_fetcher(url: str) -> str:
+        if url.endswith("app.js"):
+            raise RuntimeError("bundle unavailable")
+        return "fetch('/api/second');"
+
+    async def two_scripts(target: str) -> list[dict]:
+        return [{"endpoint": "https://example.com/app", "content":
+                 "<script src='/static/app.js'></script><script src='/static/second.js'></script>"}]
+
+    resilient = await JavaScriptBundlePlugin(two_scripts, flaky_fetcher, max_bundles=2).execute("example.com")
+    assert any(item.kind == "javascript_bundle_error" for item in resilient)
+    assert any(item.kind == "javascript_endpoint_reference" for item in resilient)
     print("javascript extraction plugin test passed")
 
 

@@ -18,7 +18,7 @@ class JavaScriptBundlePlugin(Plugin):
     metadata = PluginMetadata(
         name="javascript-bundles",
         dependencies=["javascript-extraction"],
-        risk_level="passive",
+        risk_level="active-low",
         timeout=45.0,
     )
 
@@ -56,7 +56,20 @@ class JavaScriptBundlePlugin(Plugin):
 
         discoveries: list[Discovery] = []
         for script_url in script_urls:
-            content = await self._bundle_fetcher(script_url)
+            try:
+                content = await self._bundle_fetcher(script_url)
+            except Exception as error:
+                discoveries.append(
+                    Discovery(
+                        kind="javascript_bundle_error",
+                        data={
+                            "url": script_url,
+                            "error": str(error).strip() or error.__class__.__name__,
+                            "source": self.metadata.name,
+                        },
+                    )
+                )
+                continue
             if not isinstance(content, str):
                 continue
             for extracted in extract_javascript_bundle_observations(

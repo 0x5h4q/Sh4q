@@ -129,6 +129,50 @@ class ScopedHTTPClient:
             current = urljoin(current, location)
         raise ScopedHTTPError(f"redirect limit exceeded for {url}")
 
+    async def get_text_bounded(
+        self, url: str, max_bytes: int, **kwargs
+    ) -> tuple[httpx.Response, str, bool]:
+        """Fetch a response while never retaining more than ``max_bytes``.
+
+        The response body is consumed inside the request/limiter context. The
+        boolean result is true when the body had bytes beyond the configured
+        limit. Redirects are authorized independently, just like ``get``.
+        """
+        if max_bytes < 0:
+            raise ValueError("max_bytes must be non-negative")
+        current = str(url)
+        request_extensions = dict(kwargs.pop("extensions", {}))
+        for _ in range(self._max_redirects + 1):
+            addresses = await self._authorize_url(current)
+            response = None
+            text = ""
+            truncated = False
+            last_error = None
+            for pinned_ip in addresses:
+                extensions = dict(request_extensions)
+                extensions["sh4q_pinned_ip"] = pinned_ip
+                try:
+                    response, text, truncated = await self._limited_stream_text(
+                        current, max_bytes, extensions=extensions, **kwargs
+                    )
+                    break
+                except httpx.ConnectTimeout as exc:
+                    last_error = ScopedHTTPError(str(exc) or "connection timed out", phase="connect", address=pinned_ip)
+                except httpx.ConnectError as exc:
+                    last_error = ScopedHTTPError(str(exc) or "connection failed", phase="connect", address=pinned_ip)
+                except httpx.ReadTimeout as exc:
+                    last_error = ScopedHTTPError(str(exc) or "response timed out", phase="read", address=pinned_ip)
+            if response is None:
+                raise last_error or ScopedHTTPError("HTTP request failed")
+            response.extensions["sh4q_pinned_ip"] = pinned_ip
+            if response.status_code not in {301, 302, 303, 307, 308}:
+                return response, text, truncated
+            location = response.headers.get("location")
+            if not location:
+                return response, text, truncated
+            current = urljoin(current, location)
+        raise ScopedHTTPError(f"redirect limit exceeded for {url}")
+
     async def _limited_get(self, url: str, **kwargs) -> httpx.Response:
         if self._limiter is None:
             return await self._client.get(url, **kwargs)
@@ -139,6 +183,45 @@ class ScopedHTTPClient:
             response = await self._client.get(url, **kwargs)
             permit.succeeded()
             return response
+
+    async def _limited_stream_text(
+        self, url: str, max_bytes: int, **kwargs
+    ) -> tuple[httpx.Response, str, bool]:
+        permit = None
+        if self._limiter is not None:
+            permit = await self._limiter.acquire()
+            if permit is None:
+                raise ScopedHTTPError("request budget exhausted", phase="limit")
+        if permit is None:
+            return await self._stream_text(url, max_bytes, **kwargs)
+        async with permit:
+            result = await self._stream_text(url, max_bytes, **kwargs)
+            permit.succeeded()
+            return result
+
+    async def _stream_text(
+        self, url: str, max_bytes: int, **kwargs
+    ) -> tuple[httpx.Response, str, bool]:
+        async with self._client.stream("GET", url, **kwargs) as response:
+            declared_length = response.headers.get("content-length")
+            if declared_length and declared_length.isdigit() and int(declared_length) > max_bytes:
+                return response, "", True
+            chunks: list[bytes] = []
+            total = 0
+            truncated = False
+            async for chunk in response.aiter_bytes():
+                if total < max_bytes:
+                    remaining = max_bytes - total
+                    chunks.append(chunk[:remaining])
+                    total += min(len(chunk), remaining)
+                    if len(chunk) > remaining:
+                        truncated = True
+                else:
+                    truncated = True
+                if truncated:
+                    break
+            encoding = response.encoding or "utf-8"
+            return response, b"".join(chunks).decode(encoding, errors="replace"), truncated
 
     async def _authorize_url(self, url: str) -> list[str]:
         parsed = httpx.URL(url)
