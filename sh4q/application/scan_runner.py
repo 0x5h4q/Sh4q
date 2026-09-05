@@ -248,8 +248,23 @@ async def run_scan(
                         timeout=config.timeout.http_seconds,
                         limiter=limiter,
                     ) as client:
-                        response = await client.get(url)
-                        return response.text[: JavaScriptExtractionLimits().max_script_bytes]
+                        response, body, truncated = await client.get_text_bounded(
+                            url, JavaScriptExtractionLimits().max_script_bytes
+                        )
+                        if response.status_code >= 400:
+                            return None
+                        content_type = response.headers.get("content-type", "").lower()
+                        if content_type and not any(
+                            marker in content_type
+                            for marker in ("javascript", "ecmascript", "text/plain")
+                        ):
+                            return None
+                        declared_length = response.headers.get("content-length")
+                        if declared_length and declared_length.isdigit() and int(declared_length) > JavaScriptExtractionLimits().max_script_bytes:
+                            return None
+                        if truncated:
+                            return None
+                        return body
 
                 plugins.append(
                     JavaScriptBundlePlugin(
