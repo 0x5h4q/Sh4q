@@ -2,6 +2,9 @@
 
 This guide assumes Sh4q is installed and the target is yours or covered by explicit permission.
 
+Scan targets are currently hostnames, not full URLs. Use `example.com` rather
+than `https://example.com/`.
+
 ## What Sh4q Does
 
 Sh4q builds an inventory of an authorised domain. It can find names, check DNS,
@@ -79,6 +82,16 @@ bundles, opt in explicitly:
 ```bash
 sh4q scan your-domain.example --js-bundles
 ```
+
+For common multi-stage runs, use a profile instead of repeating flags:
+
+```bash
+sh4q scan your-domain.example --profile web
+```
+
+The `web` profile enables `--js` and `--js-bundles`. The `full` profile enables
+all currently available discovery, history, fingerprint, and JavaScript stages;
+it requires the optional external tools used by those stages.
 
 Review the extracted references directly:
 

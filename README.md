@@ -159,6 +159,17 @@ These modes do not execute JavaScript, validate credentials, recursively crawl
 bundles, or automatically request extracted endpoints. Bundle fetching is
 opt-in, scope-checked, and rate-limited.
 
+For common combinations, use a scan profile:
+
+```bash
+sh4q scan company.example --profile web
+```
+
+The `web` profile enables `--js` and `--js-bundles`. The `full` profile enables
+all currently available optional stages (`--sub`, `--amass`, `--httpx`,
+`--url-history`, `--js`, and `--js-bundles`) and therefore requires every
+corresponding external tool to be installed.
+
 ## See The Result
 
 The HTML report is the easiest way to see Sh4q’s value. It is a self-contained

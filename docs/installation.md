@@ -9,6 +9,7 @@
 - Subfinder only if `--sub` will be used.
 - ProjectDiscovery httpx only if `--httpx` will be used.
 - OWASP Amass only if `--amass` will be used.
+- Waybackurls only if `--url-history` will be used.
 
 Sh4q is tested in CI on Python 3.11, 3.12, and 3.13. Python 3.14 remains
 experimental until CI coverage is available.
@@ -52,6 +53,9 @@ python tools/run_offline_tests.py
 ```
 
 The default suite does not require Subfinder or access to public scan targets.
+
+The scan target is currently a hostname, such as `example.com` or
+`www.example.com`; pass the scheme-free hostname rather than a full URL.
 
 ## Optional Subfinder Support
 

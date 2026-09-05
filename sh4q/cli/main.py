@@ -284,6 +284,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to a YAML config file. If omitted, scope defaults to just the target itself (and its subdomains) on ports 80/443.",
     )
     scan.add_argument(
+        "--profile",
+        choices=["web", "full"],
+        help="Enable a tested bundle of optional stages: web=JavaScript extraction and bundles; full=all current adapters and web stages.",
+    )
+    scan.add_argument(
         "--sub",
         action="store_true",
         help="Run the optional passive Subfinder adapter.",
@@ -465,17 +470,19 @@ def main() -> None:
 
     if args.command == "scan":
         render_identity()
+        web_profile = args.profile in {"web", "full"}
+        full_profile = args.profile == "full"
         try:
             summary = asyncio.run(
                 run_scan(
                     args.target,
                     args.config,
-                    include_subfinder=args.sub,
-                    include_amass=args.amass,
-                    include_httpx=args.httpx,
-                    include_url_history=args.url_history,
-                    include_javascript=args.js,
-                    include_javascript_bundles=args.js_bundles,
+                    include_subfinder=args.sub or full_profile,
+                    include_amass=args.amass or full_profile,
+                    include_httpx=args.httpx or full_profile,
+                    include_url_history=args.url_history or full_profile,
+                    include_javascript=args.js or web_profile,
+                    include_javascript_bundles=args.js_bundles or web_profile,
                 )
             )
         except KeyboardInterrupt:
