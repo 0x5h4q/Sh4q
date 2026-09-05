@@ -334,6 +334,8 @@ def build_parser() -> argparse.ArgumentParser:
     results.add_argument("--category", help="Filter technology observations by category")
     results.add_argument("--status", type=int, help="Filter technology observations by HTTP status")
     results.add_argument("--details", action="store_true", help="Show endpoint-level technology observations")
+    results.add_argument("--js-kind", choices=["script_url", "endpoint_reference", "secret_like_pattern"], help="Filter JavaScript observations by kind")
+    results.add_argument("--source-endpoint", help="Filter JavaScript observations by source endpoint")
     scan_selection = results.add_mutually_exclusive_group()
     scan_selection.add_argument("--scan", help="Show assets observed in one scan run")
     scan_selection.add_argument("--latest", action="store_true", help="Show the latest recorded scan")
@@ -443,6 +445,10 @@ def main() -> None:
         value is not None for value in (args.category, args.status)
     ) and args.type != "technology":
         parser.error("--category and --status require --type technology")
+    if args.command == "results" and any(
+        value is not None for value in (args.js_kind, args.source_endpoint)
+    ) and args.type != "javascript":
+        parser.error("--js-kind and --source-endpoint require --type javascript")
 
     if args.command != "scan" and hasattr(args, "database"):
         database = Path(args.database)
@@ -582,7 +588,10 @@ def main() -> None:
                     render_technology_summary(summaries)
                     print(f"\n  Showing {len(summaries)} technology group(s). Use --details for endpoints.")
             elif args.type == "javascript":
-                rows = list_javascript_observations(str(database), scan_id=scan_id, limit=args.limit)
+                rows = list_javascript_observations(
+                    str(database), scan_id=scan_id, kind=args.js_kind,
+                    source_filter=args.source_endpoint, limit=args.limit,
+                )
                 render_javascript_results(rows)
                 print(f"\n  Showing {len(rows)} JavaScript observation(s). Use --limit to increase the view.")
             else:

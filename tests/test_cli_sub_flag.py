@@ -16,6 +16,9 @@ javascript_args = parser.parse_args(["scan", "example.com", "--js"])
 assert javascript_args.js is True
 javascript_results = parser.parse_args(["results", "--type", "javascript", "--latest"])
 assert javascript_results.type == "javascript"
+javascript_filter = parser.parse_args(["results", "--type", "javascript", "--js-kind", "script_url", "--source-endpoint", "example.com"])
+assert javascript_filter.js_kind == "script_url"
+assert javascript_filter.source_endpoint == "example.com"
 assert amass_args.sub is False
 
 default_args = parser.parse_args(["scan", "example.com"])

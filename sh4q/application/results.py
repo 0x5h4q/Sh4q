@@ -56,12 +56,22 @@ def friendly_technology_source(source: str) -> str:
     }.get(source, source)
 
 
-def list_javascript_observations(database: str, *, scan_id: str | None = None, limit: int = 100) -> list[JavaScriptObservation]:
+def list_javascript_observations(
+    database: str,
+    *,
+    scan_id: str | None = None,
+    kind: str | None = None,
+    source_filter: str | None = None,
+    limit: int = 100,
+) -> list[JavaScriptObservation]:
     query = "SELECT kind, content, captured_at FROM evidence WHERE kind LIKE 'javascript_%'"
     params: list[object] = []
     if scan_id:
         query += " AND scan_run_id = ?"
         params.append(scan_id)
+    if kind:
+        query += " AND kind = ?"
+        params.append(f"javascript_{kind}")
     query += " ORDER BY captured_at, kind LIMIT ?"
     params.append(max(1, min(limit, 1000)))
     with open_sync_database(database) as db:
@@ -72,6 +82,8 @@ def list_javascript_observations(database: str, *, scan_id: str | None = None, l
         content = json.loads(raw_content)
         value = content.get("value", "")
         source_endpoint = content.get("source_endpoint", "")
+        if source_filter and source_filter.lower() not in source_endpoint.lower():
+            continue
         key = (kind, value, source_endpoint.rstrip("/") or source_endpoint)
         if key in seen:
             continue
