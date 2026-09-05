@@ -7,7 +7,7 @@
   <a href="https://github.com/0x5h4q/Sh4q/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-167d76.svg" alt="MIT License"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.11%2B-3776ab.svg" alt="Python 3.11+"></a>
   <a href="https://github.com/0x5h4q/Sh4q"><img src="https://img.shields.io/badge/platform-Linux-lightgrey.svg" alt="Linux"></a>
-  <img src="https://img.shields.io/badge/offline%20tests-43%2F43-2ea043.svg" alt="43 of 43 offline tests passing">
+  <img src="https://img.shields.io/badge/offline%20tests-53%2F53-2ea043.svg" alt="53 of 53 offline tests passing">
 </p>
 
 <p align="center"><strong>Know what you touched. Know why. Know it was authorised.</strong></p>
@@ -142,6 +142,23 @@ sh4q scan company.example --url-history
 This uses Wayback history only. Historical URLs are labelled separately and
 are never presented as currently live without a later HTTP observation.
 
+**Passive JavaScript extraction**
+
+```bash
+sh4q scan company.example --js
+```
+
+To additionally fetch and inspect a bounded set of same-scope JavaScript
+bundles:
+
+```bash
+sh4q scan company.example --js-bundles
+```
+
+These modes do not execute JavaScript, validate credentials, recursively crawl
+bundles, or automatically request extracted endpoints. Bundle fetching is
+opt-in, scope-checked, and rate-limited.
+
 ## See The Result
 
 The HTML report is the easiest way to see Sh4q’s value. It is a self-contained
@@ -263,7 +280,7 @@ sh4q export --latest --format html --output report-redacted.html --redact
 - [Authorised use](docs/authorized_use.md)
 - [Architecture](docs/architecture_overview.md)
 - [v1 baseline](docs/v1_baseline.md)
-- [v2 JavaScript extraction specification](docs/v2_javascript_extraction_spec.md)
+- [JavaScript extraction design specification](docs/v2_javascript_extraction_spec.md)
 - [Threat model](docs/threat_model.md)
 - [Known limitations](docs/limitations.md)
 - [Passive URL-history policy](docs/url_history_policy.md)
@@ -291,6 +308,8 @@ The default database is `./sh4q-output/sh4q.db`. It may contain sensitive target
 - Durable events, retries, interruption handling, and evidence storage.
 - Per-scan ownership, results, scan overview, JSON/CSV export, and liveness filters.
 - Conservative native technology observations from already-authorised HTTP responses.
+- Opt-in passive JavaScript extraction with bounded, scope-checked bundle inspection.
+- JavaScript observations available through CLI filters, JSON export, and HTML reports.
 - A deterministic offline suite used by CI.
 - A self-contained HTML asset report with client-side filters for type, host,
   status, technology/category, source, and text search.
@@ -298,6 +317,12 @@ The default database is `./sh4q-output/sh4q.db`. It may contain sensitive target
 ## Project Status
 
 Sh4q `v1.0.0` is available as a limited review release for trusted testers.
+<<<<<<< Updated upstream
+=======
+The current main branch also contains the backward-compatible JavaScript
+extraction feature planned for `v1.1.0`; that release tag is created only
+after feature review and release checks are complete.
+>>>>>>> Stashed changes
 Expect variable live-provider results and the documented limitations
 around completeness, active scanning, and external-tool availability. Passive
 Amass support is experimental and optional.
