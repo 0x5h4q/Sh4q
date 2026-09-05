@@ -6,7 +6,7 @@ than attempt to describe every later repository change.
 
 ## Version strategy
 
-- Treat `v0.1.0`/v1 as the validated baseline implementation.
+- Treat `v1.0.0` as the validated baseline implementation.
 - Continue v2 development as a separate engineering phase.
 - Select and record a thesis snapshot before final evaluation, ideally 8-12
   weeks before submission.

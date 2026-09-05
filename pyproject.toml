@@ -1,6 +1,6 @@
 [project]
 name = "sh4q"
-version = "0.1.0"
+version = "1.0.0"
 description = "Sh4q — scope-aware, discovery-only reconnaissance orchestration framework"
 requires-python = ">=3.11"
 license = "MIT"
