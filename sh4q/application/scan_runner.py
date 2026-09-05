@@ -76,6 +76,18 @@ class ScanSummary:
     historical_urls_truncated: int = 0
 
 
+def javascript_http_observations(evidence: list) -> list[dict]:
+    """Return HTML samples from every HTTP host in the current scan."""
+    return [
+        {
+            "endpoint": item.content.get("final_url"),
+            "content": item.content.get("html_sample", ""),
+        }
+        for item in evidence
+        if item.content.get("html_sample")
+    ]
+
+
 def _default_config(target: str) -> Sh4qConfig:
     return Sh4qConfig(**{
         "scope": {"targets": [target], "ports": [80, 443]},
@@ -227,14 +239,7 @@ async def run_scan(
         if include_javascript or include_javascript_bundles:
             async def http_observations(scan_target: str) -> list[dict]:
                 evidence = await evidence_store.list_for_scan(scan_run.id, kind="http_probe")
-                return [
-                    {
-                        "endpoint": item.content.get("final_url"),
-                        "content": item.content.get("html_sample", ""),
-                    }
-                    for item in evidence
-                    if item.target == scan_target and item.content.get("html_sample")
-                ]
+                return javascript_http_observations(evidence)
 
             plugins.append(JavaScriptExtractionPlugin(http_observations, after_discovered_http=include_subfinder or include_amass))
             if include_javascript_bundles:
