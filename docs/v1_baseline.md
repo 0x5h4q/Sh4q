@@ -146,11 +146,10 @@ meaning of existing statuses, relationships, exports, or safety decisions.
 
 ## Release Identity
 
-The package currently declares version `0.1.0`. The repository has used alpha
-tags during development; the final `v0.1.0` tag should be created only after
-the baseline is reviewed, tests are rerun, documentation links are checked,
-and the exact commit is recorded. Do not move an existing alpha tag or reuse a
-release tag for a materially different implementation.
+The package declares version `1.0.0`. The repository used alpha tags during
+development; the `v1.0.0` tag is the formal v1 review-release tag. Do not move
+an existing alpha tag or reuse a release tag for a materially different
+implementation.
 
 For academic work, record the final v1 commit, tag/archive, Python version,
 dependency lock state, configuration, test output, database schema version,

@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 - 2026-09-03
+## 1.0.0 - 2026-09-03
 
 First v1 review release. Sh4q provides policy-controlled, evidence-backed
 reconnaissance orchestration for authorised domain discovery.
