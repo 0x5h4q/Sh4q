@@ -3,6 +3,7 @@
 import shutil
 import os
 import time
+import httpx
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,12 +12,15 @@ from sh4q.config import Sh4qConfig, load_config
 from sh4q.events import EventBus
 from sh4q.events.event_log import DurableEventLog
 from sh4q.handlers import make_discovery_handler
-from sh4q.network import RequestLimiter
+from sh4q.network import RequestLimiter, ScopedHTTPClient
 from sh4q.plugins.ct_plugin import CTPlugin
 from sh4q.plugins.discovered_dns_plugin import DiscoveredDNSPlugin
 from sh4q.plugins.discovered_http_plugin import DiscoveredHTTPPlugin
 from sh4q.plugins.dns_plugin import DNSPlugin
 from sh4q.plugins.http_plugin import HTTPPlugin
+from sh4q.plugins.javascript_extraction_plugin import JavaScriptExtractionPlugin
+from sh4q.plugins.javascript_bundle_plugin import JavaScriptBundlePlugin
+from sh4q.javascript_extraction import JavaScriptExtractionLimits
 from sh4q.scheduler import Scheduler
 from sh4q.scope import ScopeEngine
 from sh4q.storage import SQLiteStorage
@@ -86,6 +90,8 @@ async def run_scan(
     include_amass: bool = False,
     include_httpx: bool = False,
     include_url_history: bool = False,
+    include_javascript: bool = False,
+    include_javascript_bundles: bool = False,
 ) -> ScanSummary:
     start = time.monotonic()
     scan_started_at = datetime.now(timezone.utc).isoformat()
@@ -148,7 +154,9 @@ async def run_scan(
     outcome = "completed"
     scheduler = None
     try:
-        plugins = [DNSPlugin(), HTTPPlugin(scope, limiter=limiter), CTPlugin(limiter=limiter)]
+        include_html_sample = include_javascript or include_javascript_bundles
+        plugins = [DNSPlugin(), HTTPPlugin(scope, limiter=limiter, include_html_sample=include_html_sample)]
+        plugins.append(CTPlugin(limiter=limiter))
         if include_subfinder:
             executable = shutil.which("subfinder")
             if executable is None:
@@ -211,7 +219,45 @@ async def run_scan(
             )
         if include_subfinder or include_amass:
             plugins.append(DiscoveredDNSPlugin(scope=scope))
-            plugins.append(DiscoveredHTTPPlugin(scope=scope, limiter=limiter))
+            plugins.append(DiscoveredHTTPPlugin(
+                scope=scope,
+                limiter=limiter,
+                include_html_sample=include_html_sample,
+            ))
+        if include_javascript or include_javascript_bundles:
+            async def http_observations(scan_target: str) -> list[dict]:
+                evidence = await evidence_store.list_for_scan(scan_run.id, kind="http_probe")
+                return [
+                    {
+                        "endpoint": item.content.get("final_url"),
+                        "content": item.content.get("html_sample", ""),
+                    }
+                    for item in evidence
+                    if item.target == scan_target and item.content.get("html_sample")
+                ]
+
+            plugins.append(JavaScriptExtractionPlugin(http_observations, after_discovered_http=include_subfinder or include_amass))
+            if include_javascript_bundles:
+                async def fetch_bundle(url: str) -> str | None:
+                    parsed = httpx.URL(url)
+                    default_port = 443 if parsed.scheme == "https" else 80
+                    if not parsed.host or not scope.authorize(parsed.host, parsed.port or default_port).allowed:
+                        return None
+                    async with ScopedHTTPClient(
+                        scope,
+                        timeout=config.timeout.http_seconds,
+                        limiter=limiter,
+                    ) as client:
+                        response = await client.get(url)
+                        return response.text[: JavaScriptExtractionLimits().max_script_bytes]
+
+                plugins.append(
+                    JavaScriptBundlePlugin(
+                        http_observations,
+                        fetch_bundle,
+                        limits=JavaScriptExtractionLimits(),
+                    )
+                )
         if include_httpx:
             candidates = []
             for directory in os.environ.get("PATH", "").split(os.pathsep):

@@ -67,6 +67,37 @@ sh4q scan your-domain.example --url-history
 
 These are historical clues, not proof that pages are live today.
 
+For passive JavaScript and HTML references from collected HTTP responses:
+
+```bash
+sh4q scan your-domain.example --js
+```
+
+To additionally fetch and passively inspect a bounded set of same-scope script
+bundles, opt in explicitly:
+
+```bash
+sh4q scan your-domain.example --js-bundles
+```
+
+Review the extracted references directly:
+
+```bash
+sh4q results --latest --type javascript
+```
+
+On larger scans, narrow the view to script files, endpoint references, or
+secret-like pattern indicators:
+
+```bash
+sh4q results --latest --type javascript --js-kind script_url
+sh4q results --latest --type javascript --js-kind endpoint_reference
+sh4q results --latest --type javascript --js-kind secret_like_pattern
+```
+
+These are passive, unverified observations. Sh4q does not execute JavaScript,
+validate credentials, or automatically request extracted URLs.
+
 ### Reading the words in the output
 
 - **Found:** a source reported a name or URL.

@@ -27,6 +27,7 @@ def make_discovery_handler(
     scan_run_id: str | None = None,
 ):
     display_counts: dict[str, int] = {}
+    javascript_displayed: set[str] = set()
 
     def display_bounded(category: str, message: str, limit: int = 10) -> None:
         count = display_counts.get(category, 0) + 1
@@ -300,6 +301,50 @@ def make_discovery_handler(
                 ),
                 limit=1,
             )
+
+        elif kind == "javascript_secret_like_pattern":
+            display_bounded(
+                "JavaScript secret-like observations",
+                status_line(
+                    f"OBSERVED JavaScript pattern: {data.get('pattern', data.get('value', 'unknown'))} "
+                    "(not validated or persisted as a secret)",
+                ),
+            )
+
+        elif kind in {"javascript_script_url", "javascript_endpoint_reference"}:
+            raw_url = data.get("value")
+            if not raw_url:
+                return
+            try:
+                reference_url = _canonical_url(raw_url)
+                host = HttpURL(reference_url).host
+            except Exception:
+                return
+            decision = scope.authorize(host)
+            if not decision.allowed:
+                display_bounded(
+                    "JavaScript scope denials",
+                    f"  GATE 2 DENY: {host} -> {decision.reason} ({reference_url} not persisted)",
+                )
+                return
+            domain_node = Node(type="domain", value=host)
+            url_node = Node(type="url", value=reference_url, attributes={"javascript_reference": True})
+            relationship = Relationship(
+                from_id=domain_node.id,
+                to_id=url_node.id,
+                type="JAVASCRIPT_REFERENCE",
+                attributes={"source_endpoint": data.get("source_endpoint", "")},
+            )
+            await storage.save_node(domain_node)
+            await storage.save_node(url_node)
+            await storage.save_relationship(relationship)
+            await record_asset("javascript_references", url_node.id, relationship.id, source_plugin, event_scan_run_id)
+            if reference_url not in javascript_displayed:
+                javascript_displayed.add(reference_url)
+                display_bounded(
+                    "JavaScript references",
+                    status_line(f"SAVED: {host} --JAVASCRIPT_REFERENCE--> {reference_url}", "ok"),
+                )
 
         elif kind == "http_fingerprint":
             endpoint = _canonical_url(data["endpoint"])

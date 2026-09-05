@@ -28,12 +28,14 @@ class DiscoveredHTTPPlugin(Plugin):
         max_names: int = 200,
         max_concurrent: int = 10,
         client_factory=None,
+        include_html_sample: bool = False,
     ):
         self._scope = scope
         self._limiter = limiter
         self._max_names = max(1, max_names)
         self._semaphore = asyncio.Semaphore(max(1, max_concurrent))
         self._client_factory = client_factory
+        self._include_html_sample = include_html_sample
         self._names: list[str] = []
         self._addresses: dict[str, set[str]] = {}
         self._redirect_resolver = AsyncDNSResolver()
@@ -89,6 +91,7 @@ class DiscoveredHTTPPlugin(Plugin):
                     limiter=self._limiter,
                     resolver=resolve,
                     enforce_overall_probe_timeout=False,
+                    include_html_sample=self._include_html_sample,
                 )
                 return await plugin.execute(name)
             except asyncio.CancelledError:

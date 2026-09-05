@@ -93,6 +93,7 @@ def _report_metadata(database: str, run: ScanRun) -> dict:
     request_metrics = {}
     historical_urls_truncated = 0
     historical_urls_rejected = 0
+    javascript = []
     with open_sync_database(database) as db:
         table = db.execute(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name='evidence'"
@@ -113,10 +114,17 @@ def _report_metadata(database: str, run: ScanRun) -> dict:
                     historical_urls_truncated += max(0, content.get("available", 0) - content.get("retained", 0))
                 elif kind == "url_history_rejected":
                     historical_urls_rejected += 1
+                elif kind in {"javascript_script_url", "javascript_endpoint_reference", "javascript_secret_like_pattern"}:
+                    javascript.append(record | {
+                        "value": content.get("value", ""),
+                        "source_endpoint": content.get("source_endpoint", ""),
+                        "pattern": content.get("pattern", ""),
+                    })
                 elif kind in {"http_error", "dns_error", "discovered_dns_error", "ct_error"}:
                     failures.append(record | {"detail": content.get("error") or content.get("reason") or "unknown error"})
                 evidence.append(record)
-    return {"evidence": evidence, "failures": failures, "stages": stages, "request_metrics": request_metrics,
+    javascript.sort(key=lambda item: (item["source_endpoint"], item["kind"], item["value"]))
+    return {"evidence": evidence, "failures": failures, "javascript": javascript, "stages": stages, "request_metrics": request_metrics,
             "historical_urls_rejected": historical_urls_rejected,
             "historical_urls_truncated": historical_urls_truncated}
 
@@ -182,6 +190,7 @@ pre {{ overflow-x: auto; padding: 14px; border: 1px solid #d5dee6; border-radius
 <div class="stat"><strong>{len(metadata["stages"])}</strong>stages</div>
 <div class="stat"><strong>{metadata["historical_urls_truncated"]}</strong>history truncated</div>
 <div class="stat"><strong>{metadata["historical_urls_rejected"]}</strong>history rejected</div>
+<div class="stat"><strong>{len(metadata["javascript"])}</strong>JavaScript observations</div>
 </div><section class="filters" aria-label="Report filters">
 <label>Search<input id="search" type="search" placeholder="hostname, URL, technology"></label>
 <label>Asset type<select id="type"><option value="">All</option></select></label>
@@ -194,6 +203,7 @@ pre {{ overflow-x: auto; padding: 14px; border: 1px solid #d5dee6; border-radius
 <div class="table-wrap"><table><thead><tr><th>Type</th><th>Value</th><th>Host / target</th><th>Status</th><th>Technology</th><th>Category</th><th>Source</th></tr></thead>
 <tbody id="rows"></tbody></table></div>
 <section><h2>Failures</h2><div class="table-wrap"><table><thead><tr><th>Plugin</th><th>Kind</th><th>Detail</th><th>Captured</th></tr></thead><tbody>{''.join(f'<tr><td>{html.escape(item["plugin"])}</td><td>{html.escape(item["kind"])}</td><td>{html.escape(item["detail"])}</td><td>{html.escape(item["captured_at"])}</td></tr>' for item in metadata["failures"]) or '<tr><td colspan="4">No recorded failures.</td></tr>'}</tbody></table></div></section>
+<section><h2>JavaScript observations</h2><div class="table-wrap"><table><thead><tr><th>Type</th><th>Reference or pattern</th><th>Source endpoint</th><th>Captured</th></tr></thead><tbody>{''.join(f'<tr><td>{html.escape(item["kind"].removeprefix("javascript_"))}</td><td><code>{html.escape(str(item["value"]))}</code></td><td><code>{html.escape(str(item["source_endpoint"] or "-"))}</code></td><td>{html.escape(item["captured_at"])}</td></tr>' for item in metadata["javascript"]) or '<tr><td colspan="4">No JavaScript observations.</td></tr>'}</tbody></table></div><p>These are passive, unverified observations. They are not automatically requested or treated as confirmed secrets.</p></section>
 <section><h2>Stage timings</h2><div class="table-wrap"><table><thead><tr><th>Stage</th><th>Status</th><th>Attempts</th><th>Findings</th><th>Duration</th></tr></thead><tbody>{''.join(f'<tr><td>{html.escape(str(item.get("name", "")))}</td><td>{html.escape(str(item.get("status", "")))}</td><td>{item.get("attempts", 0)}</td><td>{item.get("discoveries", 0)}</td><td>{item.get("duration_seconds", 0)}s</td></tr>' for item in metadata["stages"]) or '<tr><td colspan="5">No persisted stage metrics.</td></tr>'}</tbody></table></div></section>
 <section><h2>Request metrics</h2><pre>{html.escape(json.dumps(metadata["request_metrics"], indent=2, sort_keys=True))}</pre></section>
 <section><h2>Evidence index</h2><div class="count">{len(metadata["evidence"])} records retained for this scan.</div></section></main>

@@ -27,9 +27,11 @@ class HTTPPlugin(Plugin):
         limiter: RequestLimiter | None = None,
         resolver: Callable | None = None,
         enforce_overall_probe_timeout: bool = True,
+        include_html_sample: bool = False,
     ):
         self.scope = scope
         self._enforce_overall_probe_timeout = enforce_overall_probe_timeout
+        self._include_html_sample = include_html_sample
         self._client_factory = client_factory or (
             lambda: ScopedHTTPClient(
                 self.scope,
@@ -54,22 +56,25 @@ class HTTPPlugin(Plugin):
                 try:
                     response = await client.get(url)
                     metadata = extract_http_metadata(response)
+                    probe_data = {
+                        "requested_url": url,
+                        "final_url": str(response.url),
+                        "status": response.status_code,
+                        "server": response.headers.get("server", ""),
+                        "powered_by": response.headers.get("x-powered-by", ""),
+                        "title": metadata["title"],
+                        "content_type": metadata["content_type"],
+                        "cookie_names": metadata["cookie_names"],
+                        "sample_bytes": metadata["sample_bytes"],
+                        "sample_truncated": metadata["sample_truncated"],
+                        "duration_seconds": round(time.monotonic() - started, 3),
+                        "address": getattr(response, "extensions", {}).get("sh4q_pinned_ip"),
+                    }
+                    if self._include_html_sample:
+                        probe_data["html_sample"] = metadata.get("html_sample", "")
                     probe = Discovery(
                         kind="http_probe",
-                        data={
-                            "requested_url": url,
-                            "final_url": str(response.url),
-                            "status": response.status_code,
-                            "server": response.headers.get("server", ""),
-                            "powered_by": response.headers.get("x-powered-by", ""),
-                            "title": metadata["title"],
-                            "content_type": metadata["content_type"],
-                            "cookie_names": metadata["cookie_names"],
-                            "sample_bytes": metadata["sample_bytes"],
-                            "sample_truncated": metadata["sample_truncated"],
-                            "duration_seconds": round(time.monotonic() - started, 3),
-                            "address": getattr(response, "extensions", {}).get("sh4q_pinned_ip"),
-                        },
+                        data=probe_data,
                     )
                     return [probe, *fingerprint_response(str(response.url), response.status_code, response, metadata)]
 

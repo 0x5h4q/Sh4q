@@ -33,7 +33,9 @@ async def main() -> None:
     scope = ScopeEngine(Sh4qConfig(**{"scope": {"targets": ["example.com"]}}))
     plugin = HTTPPlugin(scope, client_factory=FakeClient)
     discoveries = await plugin.execute("example.com")
-    assert any(item.kind == "http_probe" and item.data["status"] == 200 for item in discoveries)
+    probes = [item for item in discoveries if item.kind == "http_probe"]
+    assert any(item.data["status"] == 200 for item in probes)
+    assert all("html_sample" not in item.data for item in probes)
     fingerprints = [item for item in discoveries if item.kind == "http_fingerprint"]
     assert {item.data["technologies"][0] for item in fingerprints} == {"nginx", "Express"}
     assert {item.data["detection_method"] for item in fingerprints} == {"offline-signature"}

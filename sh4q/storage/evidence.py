@@ -31,6 +31,7 @@ class EvidenceStore(Protocol):
     async def list_for_target(
         self, target: str, *, captured_after: str | None = None
     ) -> list[Evidence]: ...
+    async def list_for_scan(self, scan_run_id: str, *, kind: str | None = None) -> list[Evidence]: ...
 
 
 class SQLiteEvidenceStore:
@@ -90,6 +91,28 @@ class SQLiteEvidenceStore:
                 cursor = await db.execute(
                     "SELECT * FROM evidence WHERE target = ? AND captured_at >= ? ORDER BY captured_at ASC",
                     (target, captured_after),
+                )
+            rows = await cursor.fetchall()
+            return [
+                Evidence(
+                    id=row["id"], target=row["target"], plugin=row["plugin"], kind=row["kind"],
+                    content=json.loads(row["content"]), captured_at=row["captured_at"], scan_run_id=row["scan_run_id"],
+                )
+                for row in rows
+            ]
+
+    async def list_for_scan(self, scan_run_id: str, *, kind: str | None = None) -> list[Evidence]:
+        async with open_database(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            if kind is None:
+                cursor = await db.execute(
+                    "SELECT * FROM evidence WHERE scan_run_id = ? ORDER BY captured_at ASC",
+                    (scan_run_id,),
+                )
+            else:
+                cursor = await db.execute(
+                    "SELECT * FROM evidence WHERE scan_run_id = ? AND kind = ? ORDER BY captured_at ASC",
+                    (scan_run_id, kind),
                 )
             rows = await cursor.fetchall()
             return [

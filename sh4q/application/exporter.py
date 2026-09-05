@@ -15,6 +15,27 @@ class ScanOwnershipUnavailableError(Exception):
     pass
 
 
+def _javascript_observations(db, scan_id: str) -> list[dict]:
+    columns = {row[1] for row in db.execute("PRAGMA table_info(evidence)").fetchall()}
+    if not {"kind", "content", "captured_at"}.issubset(columns):
+        return []
+    rows = db.execute(
+        "SELECT kind, content, captured_at FROM evidence WHERE scan_run_id = ? "
+        "AND kind LIKE 'javascript_%' ORDER BY captured_at",
+        (scan_id,),
+    ).fetchall()
+    return [
+        {
+            "kind": kind,
+            "value": (content := json.loads(raw_content)).get("value", ""),
+            "source_endpoint": content.get("source_endpoint", ""),
+            "pattern": content.get("pattern", ""),
+            "captured_at": captured_at,
+        }
+        for kind, raw_content, captured_at in rows
+    ]
+
+
 def _http_inventory(db, scan_id: str) -> list[dict]:
     endpoint_rows = db.execute(
         """SELECT DISTINCT domain.id, domain.value, endpoint.id, endpoint.value,
@@ -101,6 +122,7 @@ def export_scan(
         raise ValueError("--alive and --type cannot be combined")
     with open_sync_database(database) as db:
         inventory_assets = _http_inventory(db, run.id) if asset_type == "http-inventory" else None
+        javascript_observations = _javascript_observations(db, run.id)
         if alive in ("http", "dns"):
             relationship_type = "SERVES" if alive == "http" else "RESOLVES_TO"
             endpoint_type = "url" if alive == "http" else "ip"
@@ -188,6 +210,7 @@ def export_scan(
             },
             "asset_count": len(assets),
             "assets": [(item | {"value": redact_url(item["value"])}) if redact and item.get("type") in {"url", "historical-url"} else item for item in assets],
+            "javascript_observations": javascript_observations,
         }
         output.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     elif format == "csv":
