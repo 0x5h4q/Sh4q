@@ -14,6 +14,10 @@ history_args = parser.parse_args(["scan", "example.com", "--url-history"])
 assert history_args.url_history is True
 javascript_args = parser.parse_args(["scan", "example.com", "--js"])
 assert javascript_args.js is True
+web_profile = parser.parse_args(["scan", "example.com", "--profile", "web"])
+assert web_profile.profile == "web"
+full_profile = parser.parse_args(["scan", "example.com", "--profile", "full"])
+assert full_profile.profile == "full"
 bundle_args = parser.parse_args(["scan", "example.com", "--js-bundles"])
 assert bundle_args.js_bundles is True
 javascript_results = parser.parse_args(["results", "--type", "javascript", "--latest"])
