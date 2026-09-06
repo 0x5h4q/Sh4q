@@ -182,6 +182,9 @@ button:hover {{ background: #e6edf1; }}
 .pagination {{ display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: 10px 0; }}
 .pagination button:disabled {{ cursor: not-allowed; opacity: .45; }}
 body.dark header, body.dark .stat, body.dark .filters, body.dark .table-wrap {{ background: #18232d; color: #dbe7ef; border-color: #344756; }}
+body.dark .brand img {{ padding: 12px; border-radius: 6px; background: #f5f7f9; }}
+body.dark .stat strong, body.dark section h2, body.dark label, body.dark .count {{ color: #dbe7ef; }}
+body.dark header small {{ color: #9fb2bf; }} body.dark .chip {{ color: #bff4eb; background: #214b4a; }}
 body.dark input, body.dark select, body.dark button {{ color: #dbe7ef; background: #202f3b; border-color: #4a6170; }}
 body.dark th {{ color: #dbe7ef; background: #263845; }} body.dark td {{ border-color: #2e414e; }} body.dark tbody tr:hover {{ background: #203a3d; }}
 .count {{ margin: 12px 0; color: #52606d; font-weight: 600; }}
