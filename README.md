@@ -1,6 +1,6 @@
 <h1 align="center">Sh4q</h1>
 
-<table><tr><td align="center" bgcolor="#f5f7f9"><img src="banner.png" alt="Sh4q" width="720"></td></tr></table>
+<table><tr><td align="center"><img src="banner-readme.png" alt="Sh4q" width="720"></td></tr></table>
 
 <p align="center">
   <a href="https://github.com/0x5h4q/Sh4q/releases/tag/v1.0.0"><img src="https://img.shields.io/badge/release-v1.0.0-2c9c94.svg" alt="Release v1.0.0"></a>
