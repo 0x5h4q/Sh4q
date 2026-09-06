@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.1.0 - 2026-09-06
+
+Backward-compatible workflow and reporting improvements.
+
+- Added bounded passive JavaScript extraction and same-scope bundle inspection.
+- Added JavaScript observations to CLI results, exports, and HTML reports.
+- Added `--profile web` and `--profile full` scan presets.
+- Fixed HTTP probes to honor configured timeouts and retry transient overall
+  timeouts with bounded scheduler retries.
+- Added discovered-host JavaScript extraction and improved bundle failure
+  isolation.
+- Improved HTML report filtering, sorting, pagination, copy actions,
+  collapsible sections, and light/dark theme support.
+- Updated documentation and README branding assets.
+
 ## 1.0.0 - 2026-09-03
 
 First v1 review release. Sh4q provides policy-controlled, evidence-backed
