@@ -286,26 +286,32 @@ sh4q export --latest --format html --output report-redacted.html --redact
 
 ## Documentation
 
+### User guide
+
 - [Installation](docs/installation.md)
 - [Quick start](docs/quickstart.md)
 - [Authorised use](docs/authorized_use.md)
-- [Architecture](docs/architecture_overview.md)
-- [v1 baseline](docs/v1_baseline.md)
-- [JavaScript extraction design specification](docs/v2_javascript_extraction_spec.md)
-- [Threat model](docs/threat_model.md)
-- [Known limitations](docs/limitations.md)
-- [Passive URL-history policy](docs/url_history_policy.md)
-- [v1 roadmap](docs/v1_roadmap.md)
 - [Troubleshooting](docs/troubleshooting.md)
+
+### Developer and reviewer reference
+
+- [Known limitations](docs/limitations.md)
+- [Architecture](docs/architecture_overview.md)
+- [Threat model](docs/threat_model.md)
+- [JavaScript extraction design specification](docs/v2_javascript_extraction_spec.md)
+- [Passive URL-history policy](docs/url_history_policy.md)
 - [Testing](docs/testing.md)
 - [Feedback guide](docs/feedback.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 
-The roadmap, threat model, limitations, and feedback guide are included for
-reviewers. The continuation handoff is an internal engineering note. The
-outreach pitch is a separate communication aid and is not required to install
-or use Sh4q.
+### Project history and internal notes
+
+- [v1 baseline](docs/v1_baseline.md)
+- [v1 roadmap](docs/v1_roadmap.md)
+
+The continuation handoff is an internal engineering note. The outreach pitch
+is a separate communication aid and is not required to install or use Sh4q.
 
 The default database is `./sh4q-output/sh4q.db`. It may contain sensitive target data and must not be committed or shared without review.
 
