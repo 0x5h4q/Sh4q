@@ -39,6 +39,8 @@ with tempfile.TemporaryDirectory() as directory:
     assert "api.example.com" in report
     assert "\\u003cscript>" in report
     assert "filtered.length" in report
+    assert "String(value).split(',')" in report
+    assert "String(a.status).split(',')" in report
     assert "Failures" in report
     assert "Stage timings" in report
     assert "Request metrics" in report

@@ -151,6 +151,7 @@ def render_html_report(database: str, run: ScanRun, *, redact: bool = False) -> 
 <style>
 :root {{ color-scheme: light; font: 15px system-ui, sans-serif; }}
 body {{ margin: 0; color: #17202a; background: #eef2f5; }}
+body.dark {{ color: #dbe7ef; background: #111820; }}
 header {{ padding: 24px 5vw 30px; background: #f5f7f9; color: #17202a; border-bottom: 4px solid #2c9c94; text-align: center; }}
 .brand {{ max-width: 1400px; margin: 0 auto; }}
 .brand img {{ display: block; width: min(820px, 92vw); max-height: 340px; object-fit: contain; margin: 0 auto 18px; }}
@@ -169,6 +170,20 @@ input:focus, select:focus {{ outline: 2px solid #7de0d5; outline-offset: 1px; bo
 .filter-actions {{ display: flex; align-items: end; }}
 button {{ min-height: 38px; border: 1px solid #8797a5; border-radius: 4px; padding: 7px 12px; color: #17202a; background: #f4f7f9; font: inherit; font-weight: 650; cursor: pointer; }}
 button:hover {{ background: #e6edf1; }}
+.theme-toggle {{ position: absolute; top: 16px; right: 5vw; }}
+.filters {{ position: relative; }}
+.chips {{ display: flex; flex-wrap: wrap; gap: 6px; grid-column: 1 / -1; }}
+.chip {{ border-radius: 12px; padding: 3px 9px; color: #155e59; background: #d9f4f0; font-size: 12px; }}
+.sort {{ min-height: auto; padding: 2px 4px; border: 0; background: transparent; color: inherit; font-size: inherit; text-transform: inherit; }}
+.sort:hover {{ background: #d7e3e8; }}
+.status {{ display: inline-block; min-width: 2.5em; padding: 2px 6px; border-radius: 10px; text-align: center; font-size: 12px; font-weight: 700; }}
+.status-2 {{ color: #146c43; background: #d1f0df; }} .status-3 {{ color: #725400; background: #fff0bd; }} .status-4 {{ color: #8a3b12; background: #ffe1c7; }} .status-5 {{ color: #9a2020; background: #ffd6d6; }}
+.copy {{ min-height: auto; padding: 2px 6px; margin-left: 6px; font-size: 12px; }}
+.pagination {{ display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: 10px 0; }}
+.pagination button:disabled {{ cursor: not-allowed; opacity: .45; }}
+body.dark header, body.dark .stat, body.dark .filters, body.dark .table-wrap {{ background: #18232d; color: #dbe7ef; border-color: #344756; }}
+body.dark input, body.dark select, body.dark button {{ color: #dbe7ef; background: #202f3b; border-color: #4a6170; }}
+body.dark th {{ color: #dbe7ef; background: #263845; }} body.dark td {{ border-color: #2e414e; }} body.dark tbody tr:hover {{ background: #203a3d; }}
 .count {{ margin: 12px 0; color: #52606d; font-weight: 600; }}
 section {{ margin-top: 28px; }}
 section h2 {{ margin: 0 0 10px; color: #253647; font-size: 1.1rem; }}
@@ -182,7 +197,7 @@ td code {{ white-space: nowrap; overflow-wrap: normal; }}
 pre {{ overflow-x: auto; padding: 14px; border: 1px solid #d5dee6; border-radius: 6px; background: #17202a; color: #dbe7ef; }}
 @media (max-width: 600px) {{ header, main {{ padding-left: 14px; padding-right: 14px; }} .brand img {{ width: min(540px, 94vw); max-height: 220px; }} header div {{ font-size: 1.05rem; }} th, td {{ padding: 8px; }} .stats {{ grid-template-columns: repeat(2,minmax(0,1fr)); }} }}
 </style></head><body>
-<header><div class="brand">{f'<img src="{banner_uri}" alt="SH4Q" />' if banner_uri else ''}<div class="brand-copy">{'' if banner_uri else '<strong>SH4Q</strong>'}<div>Scan report for <code>{html.escape(run.target)}</code></div><small>{html.escape(run.id)} · {html.escape(run.status)}</small></div></div></header>
+<header><button id="theme" class="theme-toggle" type="button" title="Toggle theme">Theme</button><div class="brand">{f'<img src="{banner_uri}" alt="SH4Q" />' if banner_uri else ''}<div class="brand-copy">{'' if banner_uri else '<strong>SH4Q</strong>'}<div>Scan report for <code>{html.escape(run.target)}</code></div><small>{html.escape(run.id)} · {html.escape(run.status)}</small></div></div></header>
 <main><div class="stats">
 <div class="stat"><strong>{len(assets)}</strong>scan-owned assets</div>
 <div class="stat"><strong>{len(metadata["evidence"])}</strong>evidence records</div>
@@ -199,29 +214,48 @@ pre {{ overflow-x: auto; padding: 14px; border: 1px solid #d5dee6; border-radius
 <label>Technology / category<select id="technology"><option value="">All</option></select></label>
 <label>Source<select id="source"><option value="">All</option></select></label>
 <div class="filter-actions"><button id="reset" type="button">Reset filters</button></div>
-</section><div class="count" id="count"></div>
-<div class="table-wrap"><table><thead><tr><th>Type</th><th>Value</th><th>Host / target</th><th>Status</th><th>Technology</th><th>Category</th><th>Source</th></tr></thead>
+</section><div class="chips" id="chips" aria-live="polite"></div><div class="count" id="count"></div>
+<div class="table-wrap"><table><thead><tr><th><button class="sort" data-sort="type" type="button">Type</button></th><th><button class="sort" data-sort="value" type="button">Value</button></th><th><button class="sort" data-sort="host" type="button">Host / target</button></th><th><button class="sort" data-sort="status" type="button">Status</button></th><th><button class="sort" data-sort="technology" type="button">Technology</button></th><th><button class="sort" data-sort="category" type="button">Category</button></th><th><button class="sort" data-sort="source" type="button">Source</button></th></tr></thead>
 <tbody id="rows"></tbody></table></div>
-<section><h2>Failures</h2><div class="table-wrap"><table><thead><tr><th>Plugin</th><th>Kind</th><th>Detail</th><th>Captured</th></tr></thead><tbody>{''.join(f'<tr><td>{html.escape(item["plugin"])}</td><td>{html.escape(item["kind"])}</td><td>{html.escape(item["detail"])}</td><td>{html.escape(item["captured_at"])}</td></tr>' for item in metadata["failures"]) or '<tr><td colspan="4">No recorded failures.</td></tr>'}</tbody></table></div></section>
-<section><h2>JavaScript observations</h2><div class="table-wrap"><table><thead><tr><th>Type</th><th>Reference or pattern</th><th>Source endpoint</th><th>Captured</th></tr></thead><tbody>{''.join(f'<tr><td>{html.escape(item["kind"].removeprefix("javascript_"))}</td><td><code>{html.escape(str(item["value"]))}</code></td><td><code>{html.escape(str(item["source_endpoint"] or "-"))}</code></td><td>{html.escape(item["captured_at"])}</td></tr>' for item in metadata["javascript"]) or '<tr><td colspan="4">No JavaScript observations.</td></tr>'}</tbody></table></div><p>These are passive, unverified observations. They are not automatically requested or treated as confirmed secrets.</p></section>
-<section><h2>Stage timings</h2><div class="table-wrap"><table><thead><tr><th>Stage</th><th>Status</th><th>Attempts</th><th>Findings</th><th>Duration</th></tr></thead><tbody>{''.join(f'<tr><td>{html.escape(str(item.get("name", "")))}</td><td>{html.escape(str(item.get("status", "")))}</td><td>{item.get("attempts", 0)}</td><td>{item.get("discoveries", 0)}</td><td>{item.get("duration_seconds", 0)}s</td></tr>' for item in metadata["stages"]) or '<tr><td colspan="5">No persisted stage metrics.</td></tr>'}</tbody></table></div></section>
-<section><h2>Request metrics</h2><pre>{html.escape(json.dumps(metadata["request_metrics"], indent=2, sort_keys=True))}</pre></section>
-<section><h2>Evidence index</h2><div class="count">{len(metadata["evidence"])} records retained for this scan.</div></section></main>
+<div class="pagination"><button id="prev" type="button">Previous</button><span id="page"></span><button id="next" type="button">Next</button></div>
+<details open><summary>Failures</summary><section><div class="table-wrap"><table><thead><tr><th>Plugin</th><th>Kind</th><th>Detail</th><th>Captured</th></tr></thead><tbody>{''.join(f'<tr><td>{html.escape(item["plugin"])}</td><td>{html.escape(item["kind"])}</td><td>{html.escape(item["detail"])}</td><td>{html.escape(item["captured_at"])}</td></tr>' for item in metadata["failures"]) or '<tr><td colspan="4">No recorded failures.</td></tr>'}</tbody></table></div></section></details>
+<details open><summary>JavaScript observations</summary><section><div class="table-wrap"><table><thead><tr><th>Type</th><th>Reference or pattern</th><th>Source endpoint</th><th>Captured</th></tr></thead><tbody>{''.join(f'<tr><td>{html.escape(item["kind"].removeprefix("javascript_"))}</td><td><code>{html.escape(str(item["value"]))}</code></td><td><code>{html.escape(str(item["source_endpoint"] or "-"))}</code></td><td>{html.escape(item["captured_at"])}</td></tr>' for item in metadata["javascript"]) or '<tr><td colspan="4">No JavaScript observations.</td></tr>'}</tbody></table></div><p>These are passive, unverified observations. They are not automatically requested or treated as confirmed secrets.</p></section></details>
+<details><summary>Stage timings</summary><section><div class="table-wrap"><table><thead><tr><th>Stage</th><th>Status</th><th>Attempts</th><th>Findings</th><th>Duration</th></tr></thead><tbody>{''.join(f'<tr><td>{html.escape(str(item.get("name", "")))}</td><td>{html.escape(str(item.get("status", "")))}</td><td>{item.get("attempts", 0)}</td><td>{item.get("discoveries", 0)}</td><td>{item.get("duration_seconds", 0)}s</td></tr>' for item in metadata["stages"]) or '<tr><td colspan="5">No persisted stage metrics.</td></tr>'}</tbody></table></div></section></details>
+<details><summary>Request metrics</summary><section><pre>{html.escape(json.dumps(metadata["request_metrics"], indent=2, sort_keys=True))}</pre></section></details>
+<details><summary>Evidence index</summary><section><div class="count">{len(metadata["evidence"])} records retained for this scan.</div></section></details></main>
 <script>
 const report = {_safe_json(payload)};
 const fields = {{type: document.querySelector('#type'), host: document.querySelector('#host'), status: document.querySelector('#status'), technology: document.querySelector('#technology'), source: document.querySelector('#source'), search: document.querySelector('#search')}};
-const values = (key) => [...new Set(report.assets.flatMap(a => key === 'source' ? a.sources : [a[key]]).filter(Boolean))].sort();
+let sortKey = 'value', sortDirection = 1, pageNumber = 1;
+const pageSize = 50;
+const values = (key) => {{
+ const raw = report.assets.flatMap(a => key === 'source' ? a.sources : [a[key]]).filter(Boolean);
+ if (key === 'status') return [...new Set(raw.flatMap(value => String(value).split(',').map(item => item.trim()).filter(Boolean)))].sort((a, b) => Number(a) - Number(b) || a.localeCompare(b));
+ return [...new Set(raw)].sort();
+}};
 for (const [key, select] of Object.entries(fields)) if (select.tagName === 'SELECT') for (const value of values(key)) select.add(new Option(value, value));
 function render() {{
  const query = fields.search.value.toLowerCase();
- const filtered = report.assets.filter(a => (!fields.type.value || a.type === fields.type.value) && (!fields.host.value || a.host === fields.host.value) && (!fields.status.value || String(a.status) === fields.status.value) && (!fields.technology.value || a.technology === fields.technology.value || a.category === fields.technology.value) && (!fields.source.value || a.sources.includes(fields.source.value)) && (!query || JSON.stringify(a).toLowerCase().includes(query)));
- document.querySelector('#count').textContent = `${{filtered.length}} of ${{report.assets.length}} scan-owned assets`;
+ const filtered = report.assets.filter(a => (!fields.type.value || a.type === fields.type.value) && (!fields.host.value || a.host === fields.host.value) && (!fields.status.value || String(a.status).split(',').map(item => item.trim()).includes(fields.status.value)) && (!fields.technology.value || a.technology === fields.technology.value || a.category === fields.technology.value) && (!fields.source.value || a.sources.includes(fields.source.value)) && (!query || JSON.stringify(a).toLowerCase().includes(query)));
+ filtered.sort((left, right) => String(left[sortKey] ?? '').localeCompare(String(right[sortKey] ?? ''), undefined, {{numeric: true}}) * sortDirection);
+ const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize)); pageNumber = Math.min(pageNumber, pageCount);
+ const visible = filtered.slice((pageNumber - 1) * pageSize, pageNumber * pageSize);
  const esc = value => String(value ?? '').replace(/[&<>\"']/g, char => ({{'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}}[char]));
+ document.querySelector('#count').textContent = `${{filtered.length}} of ${{report.assets.length}} scan-owned assets`;
+ document.querySelector('#page').textContent = `Page ${{pageNumber}} of ${{pageCount}}`;
+ document.querySelector('#prev').disabled = pageNumber <= 1; document.querySelector('#next').disabled = pageNumber >= pageCount;
+ document.querySelector('#chips').innerHTML = Object.entries(fields).filter(([key, input]) => input.value && key !== 'search').map(([key, input]) => `<button class="chip" data-clear="${{key}}" type="button">${{esc(key)}}: ${{esc(input.value)}} x</button>`).join('');
  const shown = value => value === '' || value == null ? '-' : value;
- document.querySelector('#rows').innerHTML = filtered.map(a => `<tr><td>${{esc(a.type)}}</td><td><code>${{esc(a.value)}}</code></td><td>${{esc(shown(a.host))}}</td><td>${{esc(shown(a.status))}}</td><td>${{esc(shown(a.technology))}}</td><td>${{esc(shown(a.category))}}</td><td>${{esc(a.sources.length ? a.sources.join(', ') : '-')}}</td></tr>`).join('') || '<tr><td colspan="7">No assets match these filters.</td></tr>';
+ const statusBadge = value => {{ const code = String(value ?? ''); const family = code.slice(0, 1); return code === '-' ? '-' : `<span class="status status-${{family}}">${{esc(code)}}</span>`; }};
+ document.querySelector('#rows').innerHTML = visible.map(a => `<tr><td>${{esc(a.type)}}</td><td><code>${{esc(a.value)}}</code><button class="copy" data-copy="${{esc(a.value)}}" type="button" title="Copy value">Copy</button></td><td>${{esc(shown(a.host))}}</td><td>${{statusBadge(a.status)}}</td><td>${{esc(shown(a.technology))}}</td><td>${{esc(shown(a.category))}}</td><td>${{esc(a.sources.length ? a.sources.join(', ') : '-')}}</td></tr>`).join('') || '<tr><td colspan="7">No assets match these filters.</td></tr>';
 }}
-Object.values(fields).forEach(input => input.addEventListener('input', render)); render();
+Object.values(fields).forEach(input => input.addEventListener('input', () => {{ pageNumber = 1; render(); }}));
+document.querySelectorAll('.sort').forEach(button => button.addEventListener('click', () => {{ const next = button.dataset.sort; sortDirection = sortKey === next ? sortDirection * -1 : 1; sortKey = next; render(); }}));
+document.querySelector('#prev').addEventListener('click', () => {{ pageNumber -= 1; render(); }}); document.querySelector('#next').addEventListener('click', () => {{ pageNumber += 1; render(); }});
+document.querySelector('#chips').addEventListener('click', event => {{ const key = event.target.dataset.clear; if (key) {{ fields[key].value = ''; pageNumber = 1; render(); }} }});
+document.querySelector('#rows').addEventListener('click', event => {{ const value = event.target.dataset.copy; if (value) navigator.clipboard?.writeText(value).then(() => {{ event.target.textContent = 'Copied'; setTimeout(() => event.target.textContent = 'Copy', 1000); }}); }});
+document.querySelector('#theme').addEventListener('click', () => {{ document.body.classList.toggle('dark'); localStorage.setItem('sh4q-theme', document.body.classList.contains('dark') ? 'dark' : 'light'); }}); if (localStorage.getItem('sh4q-theme') === 'dark') document.body.classList.add('dark'); render();
 document.querySelector('#reset').addEventListener('click', () => {{
- Object.values(fields).forEach(input => input.value = ''); render();
+ Object.values(fields).forEach(input => input.value = ''); pageNumber = 1; render();
 }});
 </script></body></html>\n"""
