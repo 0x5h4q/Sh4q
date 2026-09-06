@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1 - 2026-09-06
+
+Patch release correcting package and release metadata after the `v1.1.0`
+feature release. No functional scan behavior changes are introduced.
+
 ## 1.1.0 - 2026-09-06
 
 Backward-compatible workflow and reporting improvements.
