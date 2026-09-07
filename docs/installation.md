@@ -8,7 +8,7 @@
 - Internet access during dependency installation.
 - Subfinder only if `--sub` will be used.
 - ProjectDiscovery httpx only if `--httpx` will be used.
-- OWASP Amass only if `--amass` will be used.
+- OWASP Amass only if `--amass` will be used (it is not included in profiles).
 - Waybackurls only if `--url-history` will be used.
 - Katana only if `--katana` will be used.
 

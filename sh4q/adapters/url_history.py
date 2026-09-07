@@ -14,7 +14,7 @@ class URLHistoryAdapter(ExternalToolAdapter):
     name = "url-history"
     version_arguments: Sequence[str] = ("--version",)
 
-    def __init__(self, executable: str = "waybackurls", *, max_urls: int = 2000):
+    def __init__(self, executable: str = "waybackurls", *, max_urls: int = 5000):
         if max_urls < 1:
             raise ValueError("max_urls must be positive")
         self.executable = executable

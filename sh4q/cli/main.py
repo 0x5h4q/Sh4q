@@ -486,7 +486,7 @@ def main() -> None:
                     args.target,
                     args.config,
                     include_subfinder=args.sub or full_profile,
-                    include_amass=args.amass or full_profile,
+                    include_amass=args.amass,
                     include_httpx=args.httpx or full_profile,
                     include_url_history=args.url_history or full_profile,
                     include_javascript=args.js or web_profile,
