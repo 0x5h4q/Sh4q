@@ -245,7 +245,7 @@ async def run_scan(
                     AdapterContext(scope, Path(config.output.directory)),
                     ControlledProcessRunner(
                         {executable},
-                        max_output_bytes=8_000_000,
+                        max_output_bytes=16_000_000,
                         environment={"HOME": str(adapter_home.resolve())},
                     ),
                     timeout=60.0,
@@ -263,7 +263,7 @@ async def run_scan(
                     AdapterContext(scope, Path(config.output.directory)),
                     ControlledProcessRunner(
                         {executable},
-                        max_output_bytes=8_000_000,
+                        max_output_bytes=16_000_000,
                         environment={"HOME": str(adapter_home.resolve())},
                     ),
                     timeout=60.0,

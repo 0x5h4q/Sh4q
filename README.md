@@ -177,9 +177,10 @@ sh4q scan company.example --profile web
 ```
 
 The `web` profile enables `--js` and `--js-bundles`. The `full` profile enables
-all currently available optional stages (`--sub`, `--amass`, `--httpx`,
-`--url-history`, `--js`, and `--js-bundles`) and therefore requires every
-corresponding external tool to be installed.
+the current discovery, history, fingerprint, and web stages (`--sub`,
+`--httpx`, `--url-history`, `--js`, and `--js-bundles`). Experimental Amass
+passive discovery remains explicit via `--amass` and is not implied by a
+profile.
 
 Check optional dependencies before a profile or adapter scan:
 

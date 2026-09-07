@@ -18,6 +18,7 @@ web_profile = parser.parse_args(["scan", "example.com", "--profile", "web"])
 assert web_profile.profile == "web"
 full_profile = parser.parse_args(["scan", "example.com", "--profile", "full"])
 assert full_profile.profile == "full"
+assert full_profile.amass is False
 katana_args = parser.parse_args(["scan", "example.com", "--katana"])
 assert katana_args.katana is True
 bundle_args = parser.parse_args(["scan", "example.com", "--js-bundles"])
