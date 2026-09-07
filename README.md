@@ -159,6 +159,17 @@ These modes do not execute JavaScript, validate credentials, recursively crawl
 bundles, or automatically request extracted endpoints. Bundle fetching is
 opt-in, scope-checked, and rate-limited.
 
+For runtime-loaded JavaScript and XHR references, install ProjectDiscovery
+Katana and opt in explicitly:
+
+```bash
+sh4q scan company.example --katana
+```
+
+Katana runs with bounded crawl depth, duration, response size, retries, and
+redirects. Only same-scope HTTP(S) URLs are retained, and Katana is not enabled
+by the `web` or `full` profiles.
+
 For common combinations, use a scan profile:
 
 ```bash
@@ -327,6 +338,7 @@ The default database is `./sh4q-output/sh4q.db`. It may contain sensitive target
 - Conservative native technology observations from already-authorised HTTP responses.
 - Opt-in passive JavaScript extraction with bounded, scope-checked bundle inspection.
 - JavaScript observations available through CLI filters, JSON export, and HTML reports.
+- Opt-in Katana runtime URL discovery with bounded, same-scope crawling.
 - A deterministic offline suite used by CI.
 - A self-contained HTML asset report with client-side filters for type, host,
   status, technology/category, source, and text search.

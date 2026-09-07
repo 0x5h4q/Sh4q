@@ -93,6 +93,16 @@ The `web` profile enables `--js` and `--js-bundles`. The `full` profile enables
 all currently available discovery, history, fingerprint, and JavaScript stages;
 it requires the optional external tools used by those stages.
 
+For runtime-loaded JavaScript and XHR URL discovery, install Katana and opt in
+explicitly:
+
+```bash
+sh4q scan your-domain.example --katana
+```
+
+Katana runs with bounded depth, duration, response size, retries, and redirects.
+Only same-scope HTTP(S) URLs are retained; it is not enabled by either profile.
+
 Review the extracted references directly:
 
 ```bash

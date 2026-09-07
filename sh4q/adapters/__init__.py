@@ -9,6 +9,7 @@ from .httpx_fingerprint import HttpxFingerprintAdapter
 from .httpx_plugin import HttpxFingerprintPlugin
 from .httpx_identity import validate_projectdiscovery_httpx
 from .runner import AdapterExecutionError, ControlledProcessRunner, ProcessResult
+from .katana import KatanaAdapter
 
 __all__ = [
     "AdapterContext",
@@ -23,4 +24,5 @@ __all__ = [
     "URLHistoryAdapter",
     "AmassPassiveAdapter",
     "ProcessResult",
+    "KatanaAdapter",
 ]

@@ -10,6 +10,7 @@
 - ProjectDiscovery httpx only if `--httpx` will be used.
 - OWASP Amass only if `--amass` will be used.
 - Waybackurls only if `--url-history` will be used.
+- Katana only if `--katana` will be used.
 
 Sh4q is tested in CI on Python 3.11, 3.12, and 3.13. Python 3.14 remains
 experimental until CI coverage is available.

@@ -39,6 +39,7 @@ from sh4q.adapters import (
     HttpxFingerprintPlugin,
     SubfinderAdapter,
     URLHistoryAdapter,
+    KatanaAdapter,
     validate_projectdiscovery_httpx,
 )
 
@@ -104,6 +105,7 @@ async def run_scan(
     include_url_history: bool = False,
     include_javascript: bool = False,
     include_javascript_bundles: bool = False,
+    include_katana: bool = False,
 ) -> ScanSummary:
     start = time.monotonic()
     scan_started_at = datetime.now(timezone.utc).isoformat()
@@ -235,6 +237,24 @@ async def run_scan(
                         environment={"HOME": str(adapter_home.resolve())},
                     ),
                     timeout=60.0,
+                )
+            )
+        if include_katana:
+            executable = shutil.which("katana")
+            if executable is None:
+                raise AdapterExecutionError("Katana is not installed or is not available on PATH")
+            adapter_home = Path(config.output.directory) / "adapters" / "katana-home"
+            adapter_home.mkdir(parents=True, exist_ok=True)
+            plugins.append(
+                ExternalAdapterPlugin(
+                    KatanaAdapter(executable=executable),
+                    AdapterContext(scope, Path(config.output.directory)),
+                    ControlledProcessRunner(
+                        {executable},
+                        max_output_bytes=2_000_000,
+                        environment={"HOME": str(adapter_home.resolve())},
+                    ),
+                    timeout=40.0,
                 )
             )
         if include_subfinder or include_amass:

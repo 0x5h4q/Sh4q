@@ -318,6 +318,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Fetch and passively parse a bounded set of same-scope JavaScript bundles.",
     )
+    scan.add_argument(
+        "--katana",
+        action="store_true",
+        help="Run the opt-in bounded Katana crawler for same-scope runtime URLs and XHR references.",
+    )
 
     events = subparsers.add_parser("events", help="Inspect durable event state")
     events.add_argument(
@@ -483,6 +488,7 @@ def main() -> None:
                     include_url_history=args.url_history or full_profile,
                     include_javascript=args.js or web_profile,
                     include_javascript_bundles=args.js_bundles or web_profile,
+                    include_katana=args.katana,
                 )
             )
         except KeyboardInterrupt:
