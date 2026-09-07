@@ -398,6 +398,37 @@ def make_discovery_handler(
                     event_scan_run_id,
                 )
 
+        elif kind == "vhost_baseline":
+            display_bounded("vhost notices", f"  VHOST baseline recorded for {data.get('endpoint', '-')}", limit=1)
+
+        elif kind == "vhost_rejected":
+            display_bounded("vhost rejections", f"  GATE 2 DENY: {data.get('candidate', '-')} -> {data.get('reason', 'out of scope')}")
+
+        elif kind == "vhost_observation":
+            candidate = data.get("candidate", "")
+            endpoint = data.get("endpoint", "")
+            if candidate and endpoint and scope.authorize(candidate).allowed:
+                domain_node = Node(type="domain", value=candidate)
+                url_node = Node(type="url", value=endpoint, attributes={
+                    "vhost_candidate": candidate,
+                    "status": data.get("status"),
+                    "classification": data.get("classification", "candidate_observation"),
+                })
+                await storage.save_node(domain_node)
+                await storage.save_node(url_node)
+                relationship = Relationship(
+                    from_id=domain_node.id,
+                    to_id=url_node.id,
+                    type="VHOST_SERVES",
+                    attributes={"classification": data.get("classification", "candidate_observation")},
+                )
+                await storage.save_relationship(relationship)
+                await record_asset("vhost_observations", url_node.id, relationship.id, source_plugin, event_scan_run_id)
+            display_bounded("vhost observations", f"  OBSERVED vhost {data.get('candidate', '-')} [{data.get('status', '-')}] ({data.get('classification', 'candidate_observation')})")
+
+        elif kind == "vhost_error":
+            display_bounded("vhost failures", f"  FAILED vhost {data.get('candidate', '-')}: {data.get('error', 'unknown error')}",)
+
         elif kind == "subdomain_found":
             hostname = data["hostname"]
             root_domain = data["domain"]

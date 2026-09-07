@@ -20,6 +20,7 @@ from sh4q.plugins.dns_plugin import DNSPlugin
 from sh4q.plugins.http_plugin import HTTPPlugin
 from sh4q.plugins.javascript_extraction_plugin import JavaScriptExtractionPlugin
 from sh4q.plugins.javascript_bundle_plugin import JavaScriptBundlePlugin
+from sh4q.plugins import VhostDiscoveryPlugin
 from sh4q.javascript_extraction import JavaScriptExtractionLimits
 from sh4q.scheduler import Scheduler
 from sh4q.scope import ScopeEngine
@@ -107,6 +108,8 @@ async def run_scan(
     include_javascript: bool = False,
     include_javascript_bundles: bool = False,
     include_katana: bool = False,
+    include_vhosts: bool = False,
+    vhosts_file: str | None = None,
 ) -> ScanSummary:
     start = time.monotonic()
     scan_started_at = datetime.now(timezone.utc).isoformat()
@@ -188,6 +191,10 @@ async def run_scan(
                 timeout=config.timeout.http_seconds,
             ),
         ]
+        if include_vhosts:
+            if not vhosts_file:
+                raise ValueError("--vhosts requires --vhosts-file")
+            plugins.append(VhostDiscoveryPlugin(scope, vhosts_file))
         plugins.append(CTPlugin(limiter=limiter))
         if include_subfinder:
             executable = shutil.which("subfinder")
