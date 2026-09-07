@@ -72,6 +72,8 @@ class ExternalAdapterPlugin(Plugin):
                 "stderr": result.stderr,
             },
         )
-        if result.returncode != 0 or result.timed_out or result.output_limited:
-            return [execution]
-        return [execution, *self.adapter.parse_stdout(target, result.stdout)]
+        # Preserve parseable lines captured before a timeout or output ceiling.
+        # The execution record still marks the run as degraded, but partial
+        # discoveries are more useful than discarding the entire adapter run.
+        parsed = self.adapter.parse_stdout(target, result.stdout) if result.stdout else []
+        return [execution, *parsed]

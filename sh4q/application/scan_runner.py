@@ -203,7 +203,9 @@ async def run_scan(
                     adapter,
                     AdapterContext(scope, Path(config.output.directory)),
                     ControlledProcessRunner(
-                        {executable}, environment={"HOME": str(adapter_home.resolve())}
+                        {executable},
+                        max_output_bytes=4_000_000,
+                        environment={"HOME": str(adapter_home.resolve())},
                     ),
                 )
             )
@@ -226,7 +228,7 @@ async def run_scan(
                     # Passive Amass is experimental and can stall inside
                     # provider/database work even when its version probe succeeds.
                     # Keep the opt-in stage short so it cannot dominate a scan.
-                    timeout=20.0,
+                    timeout=45.0,
                 )
             )
         if include_url_history:
@@ -261,10 +263,10 @@ async def run_scan(
                     AdapterContext(scope, Path(config.output.directory)),
                     ControlledProcessRunner(
                         {executable},
-                        max_output_bytes=2_000_000,
+                        max_output_bytes=8_000_000,
                         environment={"HOME": str(adapter_home.resolve())},
                     ),
-                    timeout=40.0,
+                    timeout=60.0,
                 )
             )
         if include_subfinder or include_amass:

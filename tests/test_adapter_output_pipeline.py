@@ -47,6 +47,13 @@ class HangingVersionAdapter(FakeHostnameAdapter):
         return (self.executable, "-c", "raise SystemExit('enumeration should be skipped')")
 
 
+class LimitedOutputAdapter(FakeHostnameAdapter):
+    name = "limited-output"
+
+    def build_argv(self, target, context):
+        return (self.executable, "-c", "print('api.example.com'); print('x' * 100)")
+
+
 class MemoryEvidenceStore:
     def __init__(self):
         self.records = []
@@ -117,6 +124,15 @@ async def main() -> None:
     assert len(skipped) == 1
     assert skipped[0].data["timed_out"] is True
     assert "enumeration skipped" in skipped[0].data["stderr"]
+
+    partial = ExternalAdapterPlugin(
+        LimitedOutputAdapter(),
+        context,
+        ControlledProcessRunner({sys.executable}, max_output_bytes=24),
+    )
+    partial_findings = await partial.execute("example.com")
+    assert partial_findings[0].data["output_limited"] is True
+    assert any(item.kind == "subdomain_found" for item in partial_findings[1:])
     print("adapter output pipeline test passed")
 
 
