@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 from pathlib import Path
+from collections.abc import Iterable
 from urllib.parse import urlsplit
 
 import httpx
@@ -28,7 +29,8 @@ class VhostDiscoveryPlugin(Plugin):
     def __init__(
         self,
         scope: ScopeEngine,
-        candidates_file: str | Path,
+        candidates_file: str | Path | None = None,
+        candidates: Iterable[str] | None = None,
         *,
         max_candidates: int = 500,
         client_factory=None,
@@ -43,7 +45,8 @@ class VhostDiscoveryPlugin(Plugin):
         if request_interval < 0:
             raise ValueError("request_interval must not be negative")
         self._scope = scope
-        self._file = Path(candidates_file)
+        self._file = Path(candidates_file) if candidates_file is not None else Path("")
+        self._provided_candidates = list(candidates) if candidates is not None else None
         self._max_candidates = max_candidates
         self._client_factory = client_factory or (
             lambda: ScopedHTTPClient(scope, timeout=15.0)
@@ -53,12 +56,16 @@ class VhostDiscoveryPlugin(Plugin):
         self._request_interval = request_interval
 
     def _candidates(self, target: str) -> list[tuple[str, int]]:
-        if not self._file.is_file():
+        if self._provided_candidates is not None:
+            lines = list(enumerate(self._provided_candidates, 1))
+        elif not self._file.is_file():
             raise ValueError(f"vhost candidate file not found: {self._file}")
+        else:
+            lines = list(enumerate(self._file.read_text(encoding="utf-8").splitlines(), 1))
         root = self._scope.normalize_target(target)
         seen: set[str] = set()
         result: list[tuple[str, int]] = []
-        for line_number, raw in enumerate(self._file.read_text(encoding="utf-8").splitlines(), 1):
+        for line_number, raw in lines:
             value = raw.split("#", 1)[0].strip().rstrip(".")
             if not value:
                 continue

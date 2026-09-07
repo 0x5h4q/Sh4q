@@ -102,6 +102,15 @@ any request:
 sh4q scan your-domain.example --vhosts --vhosts-file candidates.txt
 ```
 
+To explicitly reuse domain assets from an earlier scan, provide its scan ID:
+
+```bash
+sh4q scan your-domain.example --vhosts --vhosts-from-scan SCAN_ID
+```
+
+This still applies the candidate cap and scope checks; prior scan results do
+not trigger probes unless this flag is supplied.
+
 Check optional tool availability before using those stages:
 
 ```bash

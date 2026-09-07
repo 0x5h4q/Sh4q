@@ -334,6 +334,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--vhosts-file",
         help="Candidate hostname file for --vhosts (maximum 500 unique candidates).",
     )
+    scan.add_argument(
+        "--vhosts-from-scan",
+        metavar="SCAN_ID",
+        help="Use domain assets from a prior scan as bounded vhost candidates.",
+    )
 
     events = subparsers.add_parser("events", help="Inspect durable event state")
     events.add_argument(
@@ -490,7 +495,12 @@ def main() -> None:
         if args.vhosts_file and not args.vhosts:
             parser.error("--vhosts-file requires --vhosts")
         if args.vhosts and not args.vhosts_file:
-            parser.error("--vhosts requires --vhosts-file")
+            if not args.vhosts_from_scan:
+                parser.error("--vhosts requires --vhosts-file or --vhosts-from-scan")
+        if args.vhosts_file and args.vhosts_from_scan:
+            parser.error("--vhosts-file and --vhosts-from-scan cannot be combined")
+        if args.vhosts_from_scan and not args.vhosts:
+            parser.error("--vhosts-from-scan requires --vhosts")
         render_identity()
         web_profile = args.profile in {"web", "full"}
         full_profile = args.profile == "full"
@@ -508,6 +518,7 @@ def main() -> None:
                     include_katana=args.katana,
                     include_vhosts=args.vhosts,
                     vhosts_file=args.vhosts_file,
+                    vhosts_scan_id=args.vhosts_from_scan,
                 )
             )
         except KeyboardInterrupt:
