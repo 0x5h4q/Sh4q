@@ -29,6 +29,9 @@ with tempfile.TemporaryDirectory() as directory:
             ("e2", "example.com", "native", "request_metrics", '{"observed":{"admitted":2}}', "now", "scan-1"),
         ("e3", "example.com", "scheduler", "stage_metrics", '{"stages":[{"name":"dns","status":"completed","attempts":1,"discoveries":1,"duration_seconds":0.1}]}', "now", "scan-1"),
         ("e4", "example.com", "javascript-extraction", "javascript_endpoint_reference", '{"value":"https://example.com/api/me","source_endpoint":"https://example.com/"}', "now", "scan-1"),
+        ("e5", "example.com", "vhost-discovery", "vhost_baseline", '{"endpoint":"https://example.com/","fingerprint":"base"}', "now", "scan-1"),
+        ("e6", "example.com", "vhost-discovery", "vhost_observation", '{"candidate":"admin.example.com","endpoint":"https://example.com/","status":200,"classification":"candidate_observation"}', "now", "scan-1"),
+        ("e7", "example.com", "vhost-discovery", "vhost_rejected", '{"candidate":"evil.test","reason":"out of scope"}', "now", "scan-1"),
         ])
 
     run = ScanRun("scan-1", "example.com", "start", "end", "COMPLETED")
@@ -46,6 +49,10 @@ with tempfile.TemporaryDirectory() as directory:
     assert "Request metrics" in report
     assert "Evidence index" in report
     assert "JavaScript observations" in report
+    assert "Virtual-host observations" in report
+    assert "admin.example.com" in report
+    assert "Rejected candidates" in report
+    assert "evil.test" in report
     assert "https://example.com/api/me" in report
     assert "not automatically requested" in report
     assert '>1</strong>JavaScript observations' in report

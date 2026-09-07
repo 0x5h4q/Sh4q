@@ -325,6 +325,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run the opt-in bounded Katana crawler for same-scope runtime URLs and XHR references.",
     )
     scan.add_argument(
+        "-vh",
         "--vhosts",
         action="store_true",
         help="Explicitly enable bounded virtual-host discovery.",

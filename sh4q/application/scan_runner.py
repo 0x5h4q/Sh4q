@@ -115,6 +115,15 @@ async def run_scan(
     scan_started_at = datetime.now(timezone.utc).isoformat()
 
     config = load_config(config_path) if config_path else _default_config(target)
+    if include_vhosts:
+        if not vhosts_file:
+            raise AdapterExecutionError("--vhosts requires --vhosts-file")
+        candidate_path = Path(vhosts_file).expanduser()
+        if not candidate_path.is_file():
+            raise AdapterExecutionError(
+                f"vhost candidate file not found: {candidate_path}"
+            )
+        vhosts_file = str(candidate_path)
     missing = missing_dependencies(
         subfinder=include_subfinder,
         amass=include_amass,
@@ -192,8 +201,6 @@ async def run_scan(
             ),
         ]
         if include_vhosts:
-            if not vhosts_file:
-                raise ValueError("--vhosts requires --vhosts-file")
             plugins.append(VhostDiscoveryPlugin(scope, vhosts_file))
         plugins.append(CTPlugin(limiter=limiter))
         if include_subfinder:
