@@ -327,6 +327,7 @@ sh4q export --latest --format html --output report-redacted.html --redact
 
 - [v1 baseline](docs/v1_baseline.md)
 - [v1 roadmap](docs/v1_roadmap.md)
+- [Virtual-host discovery design](docs/vhost_discovery_design.md)
 
 The continuation handoff is an internal engineering note. The outreach pitch
 is a separate communication aid and is not required to install or use Sh4q.
