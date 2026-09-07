@@ -42,6 +42,7 @@ from sh4q.adapters import (
     KatanaAdapter,
     validate_projectdiscovery_httpx,
 )
+from sh4q.dependencies import format_missing, missing_dependencies
 
 
 @dataclass
@@ -111,6 +112,15 @@ async def run_scan(
     scan_started_at = datetime.now(timezone.utc).isoformat()
 
     config = load_config(config_path) if config_path else _default_config(target)
+    missing = missing_dependencies(
+        subfinder=include_subfinder,
+        amass=include_amass,
+        httpx=include_httpx,
+        url_history=include_url_history,
+        katana=include_katana,
+    )
+    if missing:
+        raise AdapterExecutionError(format_missing(missing))
     os.makedirs(config.output.directory, exist_ok=True)
     db_path = os.path.join(config.output.directory, "sh4q.db")
     ensure_schema_version(db_path)

@@ -93,6 +93,16 @@ The `web` profile enables `--js` and `--js-bundles`. The `full` profile enables
 all currently available discovery, history, fingerprint, and JavaScript stages;
 it requires the optional external tools used by those stages.
 
+Check optional tool availability before using those stages:
+
+```bash
+sh4q doctor
+```
+
+The command lists each dependency, its PATH location when installed, and an
+install command when it is missing. A scan using an unavailable requested tool
+stops before making network requests and explains how to install it.
+
 For runtime-loaded JavaScript and XHR URL discovery, install Katana and opt in
 explicitly:
 
