@@ -10,6 +10,8 @@ Extract useful client-side references from already-authorised HTTP responses:
 
 - script URLs;
 - same-scope API and endpoint references found in JavaScript or HTML;
+- runtime references classified as scripts, styles, pages, XHR endpoints, or
+  generic endpoint references when Katana provides sufficient context;
 - explicitly labelled secret-like patterns for review, never as confirmed
   credentials.
 

@@ -126,6 +126,7 @@ secret-like pattern indicators:
 ```bash
 sh4q results --latest --type javascript --js-kind script_url
 sh4q results --latest --type javascript --js-kind endpoint_reference
+sh4q results --latest --type javascript --js-kind xhr_endpoint
 sh4q results --latest --type javascript --js-kind secret_like_pattern
 ```
 

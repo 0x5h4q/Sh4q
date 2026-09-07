@@ -350,7 +350,7 @@ def build_parser() -> argparse.ArgumentParser:
     results.add_argument("--category", help="Filter technology observations by category")
     results.add_argument("--status", type=int, help="Filter technology observations by HTTP status")
     results.add_argument("--details", action="store_true", help="Show endpoint-level technology observations")
-    results.add_argument("--js-kind", choices=["script_url", "endpoint_reference", "secret_like_pattern"], help="Filter JavaScript observations by kind")
+    results.add_argument("--js-kind", choices=["script_url", "style_url", "page_url", "xhr_endpoint", "endpoint_reference", "secret_like_pattern"], help="Filter JavaScript observations by kind")
     results.add_argument("--source-endpoint", help="Filter JavaScript observations by source endpoint")
     scan_selection = results.add_mutually_exclusive_group()
     scan_selection.add_argument("--scan", help="Show assets observed in one scan run")

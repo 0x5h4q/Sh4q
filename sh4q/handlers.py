@@ -311,7 +311,7 @@ def make_discovery_handler(
                 ),
             )
 
-        elif kind in {"javascript_script_url", "javascript_endpoint_reference"}:
+        elif kind.startswith("javascript_") and kind not in {"javascript_secret_like_pattern", "javascript_bundle_error"}:
             raw_url = data.get("value")
             if not raw_url:
                 return
