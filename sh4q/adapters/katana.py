@@ -69,11 +69,11 @@ class KatanaAdapter(ExternalToolAdapter):
             try:
                 document = json.loads(value)
             except json.JSONDecodeError:
-                candidates.append(value)
+                candidates.append((value, None))
             else:
                 candidates.extend(self._json_urls(document))
-            for candidate in candidates:
-                self._record_url(candidate, root, seed, values)
+            for candidate, hint in candidates:
+                self._record_url(candidate, root, seed, values, hint)
         return [
             Discovery(
                 kind=f"javascript_{kind}",
@@ -83,12 +83,12 @@ class KatanaAdapter(ExternalToolAdapter):
         ]
 
     @staticmethod
-    def _json_urls(value: object) -> list[str]:
-        found: list[str] = []
+    def _json_urls(value: object) -> list[tuple[str, str | None]]:
+        found: list[tuple[str, str | None]] = []
         if isinstance(value, dict):
             for key, item in value.items():
                 if key.lower() in {"url", "endpoint", "request_url", "xhr_url", "script_url"} and isinstance(item, str):
-                    found.append(item)
+                    found.append((item, key.lower()))
                 else:
                     found.extend(KatanaAdapter._json_urls(item))
         elif isinstance(value, list):
@@ -97,7 +97,7 @@ class KatanaAdapter(ExternalToolAdapter):
         return found
 
     @staticmethod
-    def _record_url(value: str, root: str, seed: str, output: dict[str, str]) -> None:
+    def _record_url(value: str, root: str, seed: str, output: dict[str, str], hint: str | None = None) -> None:
         value = value.strip()
         if not value or value.rstrip("/").lower() == seed.rstrip("/").lower():
             return
@@ -112,7 +112,16 @@ class KatanaAdapter(ExternalToolAdapter):
             return
         normalized = parsed._replace(fragment="").geturl()
         path = parsed.path.lower()
-        kind = "script_url" if re.search(r"\.(?:js|mjs|cjs)(?:$|[?#])", path) else "endpoint_reference"
+        if hint == "xhr_url":
+            kind = "xhr_endpoint"
+        elif re.search(r"\.(?:js|mjs|cjs)(?:$|[?#])", path):
+            kind = "script_url"
+        elif re.search(r"\.css(?:$|[?#])", path):
+            kind = "style_url"
+        elif parsed.path in {"", "/"} or not parsed.path.rsplit("/", 1)[-1].count("."):
+            kind = "page_url"
+        else:
+            kind = "endpoint_reference"
         output[normalized] = kind
 
     def evidence_argv(self, argv: Sequence[str]) -> list[str]:

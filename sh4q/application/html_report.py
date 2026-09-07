@@ -114,7 +114,7 @@ def _report_metadata(database: str, run: ScanRun) -> dict:
                     historical_urls_truncated += max(0, content.get("available", 0) - content.get("retained", 0))
                 elif kind == "url_history_rejected":
                     historical_urls_rejected += 1
-                elif kind in {"javascript_script_url", "javascript_endpoint_reference", "javascript_secret_like_pattern"}:
+                elif kind.startswith("javascript_") and kind != "javascript_bundle_error":
                     javascript.append(record | {
                         "value": content.get("value", ""),
                         "source_endpoint": content.get("source_endpoint", ""),
