@@ -3,6 +3,8 @@ from pathlib import Path
 
 import httpx
 
+from sh4q.adapters import AdapterExecutionError
+from sh4q.application import run_scan
 from sh4q.config import Sh4qConfig
 from sh4q.plugins import VhostDiscoveryPlugin
 from sh4q.scope import ScopeEngine
@@ -57,10 +59,27 @@ def test_vhost_missing_file_fails_before_requests(tmp_path: Path):
         raise AssertionError("missing candidate file should fail closed")
 
 
+def test_scan_preflight_rejects_missing_vhost_file(tmp_path: Path):
+    missing = tmp_path / "missing-scan-candidates.txt"
+    try:
+        asyncio.run(
+            run_scan(
+                "example.com",
+                include_vhosts=True,
+                vhosts_file=str(missing),
+            )
+        )
+    except AdapterExecutionError as error:
+        assert str(missing) in str(error)
+    else:
+        raise AssertionError("scan should stop before starting without its candidate file")
+
+
 if __name__ == "__main__":
     import tempfile
 
     root = Path(tempfile.mkdtemp(prefix="sh4q_vhost_"))
     test_vhost_candidates_are_bounded_scoped_and_classified(root)
     test_vhost_missing_file_fails_before_requests(root)
+    test_scan_preflight_rejects_missing_vhost_file(root)
     print("vhost discovery plugin test passed")
