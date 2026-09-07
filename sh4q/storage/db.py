@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager, contextmanager
 import aiosqlite
 
 
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 2
 
 
 class SchemaVersionError(Exception):
@@ -14,6 +14,42 @@ class SchemaVersionError(Exception):
 def _configure_sync(db: sqlite3.Connection) -> None:
     db.execute("PRAGMA busy_timeout=10000")
     db.execute("PRAGMA foreign_keys=ON")
+
+
+def _table_exists(db: sqlite3.Connection, name: str) -> bool:
+    return db.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (name,)
+    ).fetchone() is not None
+
+
+def _migration_1(db: sqlite3.Connection) -> None:
+    """Baseline migration for databases created before numbered migrations."""
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS schema_metadata "
+        "(key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+    )
+
+
+def _migration_2(db: sqlite3.Connection) -> None:
+    """Add indexes used by scan-owned queries when their tables are present."""
+    if _table_exists(db, "evidence"):
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_evidence_scan_kind "
+            "ON evidence (scan_run_id, kind)"
+        )
+    if _table_exists(db, "scan_assets"):
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_scan_assets_asset "
+            "ON scan_assets (asset_id)"
+        )
+    if _table_exists(db, "scan_runs"):
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_scan_runs_started "
+            "ON scan_runs (started_at DESC)"
+        )
+
+
+MIGRATIONS = {1: _migration_1, 2: _migration_2}
 
 
 @contextmanager
@@ -29,29 +65,32 @@ def open_sync_database(path: str):
 def ensure_schema_version(path: str) -> int:
     with open_sync_database(path) as db:
         db.execute("PRAGMA journal_mode=WAL")
-        db.execute(
-            "CREATE TABLE IF NOT EXISTS schema_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
-        )
+        db.execute("BEGIN IMMEDIATE")
+        _migration_1(db)
         row = db.execute(
             "SELECT value FROM schema_metadata WHERE key = 'schema_version'"
         ).fetchone()
-        if row is None:
-            db.execute(
-                "INSERT INTO schema_metadata (key, value) VALUES ('schema_version', ?)",
-                (str(CURRENT_SCHEMA_VERSION),),
-            )
-            db.commit()
-            return CURRENT_SCHEMA_VERSION
-        version = int(row[0])
+        native_version = int(db.execute("PRAGMA user_version").fetchone()[0])
+        version = (
+            int(row[0])
+            if row is not None
+            else min(native_version, CURRENT_SCHEMA_VERSION)
+        )
         if version > CURRENT_SCHEMA_VERSION:
+            db.rollback()
             raise SchemaVersionError(
                 f"database schema version {version} is newer than supported version {CURRENT_SCHEMA_VERSION}"
             )
-        if version < CURRENT_SCHEMA_VERSION:
-            raise SchemaVersionError(
-                f"database schema version {version} requires migration to version {CURRENT_SCHEMA_VERSION}"
-            )
-        return version
+        for migration_version in range(version + 1, CURRENT_SCHEMA_VERSION + 1):
+            MIGRATIONS[migration_version](db)
+        db.execute(
+            "INSERT INTO schema_metadata (key, value) VALUES ('schema_version', ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (str(CURRENT_SCHEMA_VERSION),),
+        )
+        db.execute(f"PRAGMA user_version = {CURRENT_SCHEMA_VERSION}")
+        db.commit()
+        return CURRENT_SCHEMA_VERSION
 
 
 @asynccontextmanager
