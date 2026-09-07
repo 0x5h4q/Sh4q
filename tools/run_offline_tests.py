@@ -42,6 +42,7 @@ OFFLINE_TESTS = (
     "test_katana_adapter.py",
     "test_katana_scheduler_integration.py",
     "test_documentation_qa.py",
+    "test_dependencies.py",
     "test_httpx_fingerprint_adapter.py",
     "test_handler_presentation.py",
     "test_idempotency.py",

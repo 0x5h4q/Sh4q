@@ -20,6 +20,7 @@ from sh4q.application.scan_report import build_scan_report
 from sh4q.application.diff import build_scan_diff, diff_document
 from sh4q.storage.db import SchemaVersionError, ensure_schema_version
 from sh4q.cli.branding import render_scan_banner
+from sh4q.dependencies import OPTIONAL_DEPENDENCIES, dependency_status
 
 
 def _fit(value: object, width: int) -> str:
@@ -389,6 +390,8 @@ def build_parser() -> argparse.ArgumentParser:
     diff.add_argument("--after", required=True, help="Later scan run ID")
     diff.add_argument("--format", choices=["text", "json", "csv"], default="text")
 
+    subparsers.add_parser("doctor", help="Check optional external-tool dependencies")
+
     return parser
 
 
@@ -502,6 +505,25 @@ def main() -> None:
             sys.exit(2)
         render_summary(summary)
         sys.exit(0 if summary.scope_allowed else 1)
+
+    if args.command == "doctor":
+        print("\n  SH4Q DOCTOR\n  ===========")
+        status = dependency_status()
+        missing = 0
+        for item in OPTIONAL_DEPENDENCIES:
+            executable = status[item.name]
+            if executable:
+                print(f"  PASS  {item.name:<12} {executable}")
+            else:
+                missing += 1
+                print(f"  MISS  {item.name:<12} not found on PATH")
+                print(f"        Install: {item.install_hint}")
+        print()
+        if missing:
+            print(f"  {missing} optional tool(s) missing. Core scans still work; requested missing tools block their stages.")
+            sys.exit(1)
+        print("  All optional tools are available.")
+        sys.exit(0)
 
     if args.command == "diff":
         before_run = get_scan(args.database, args.before)

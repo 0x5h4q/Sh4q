@@ -181,6 +181,12 @@ all currently available optional stages (`--sub`, `--amass`, `--httpx`,
 `--url-history`, `--js`, and `--js-bundles`) and therefore requires every
 corresponding external tool to be installed.
 
+Check optional dependencies before a profile or adapter scan:
+
+```bash
+sh4q doctor
+```
+
 ## See The Result
 
 The HTML report is the easiest way to see Sh4q’s value. It is a self-contained
