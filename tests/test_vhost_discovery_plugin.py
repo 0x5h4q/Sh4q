@@ -59,6 +59,19 @@ def test_vhost_missing_file_fails_before_requests(tmp_path: Path):
         raise AssertionError("missing candidate file should fail closed")
 
 
+def test_vhost_accepts_explicit_scan_candidates():
+    fake = FakeClient()
+    plugin = VhostDiscoveryPlugin(
+        ScopeEngine(Sh4qConfig(scope={"targets": ["example.com"], "ports": [443]})),
+        candidates=["admin.example.com"],
+        client_factory=lambda: fake,
+        request_interval=0,
+    )
+    rows = asyncio.run(plugin.execute("example.com"))
+    assert fake.hosts == ["example.com", "admin.example.com"]
+    assert any(row.kind == "vhost_observation" for row in rows)
+
+
 def test_scan_preflight_rejects_missing_vhost_file(tmp_path: Path):
     missing = tmp_path / "missing-scan-candidates.txt"
     try:
@@ -81,5 +94,6 @@ if __name__ == "__main__":
     root = Path(tempfile.mkdtemp(prefix="sh4q_vhost_"))
     test_vhost_candidates_are_bounded_scoped_and_classified(root)
     test_vhost_missing_file_fails_before_requests(root)
+    test_vhost_accepts_explicit_scan_candidates()
     test_scan_preflight_rejects_missing_vhost_file(root)
     print("vhost discovery plugin test passed")

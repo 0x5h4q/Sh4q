@@ -28,6 +28,7 @@ from sh4q.storage import SQLiteStorage
 from sh4q.storage.evidence import SQLiteEvidenceStore
 from sh4q.storage.scan_runs import create_scan, finish_scan
 from sh4q.storage.scan_assets import SQLiteScanAssetStore
+from sh4q.storage.db import open_sync_database
 from sh4q.storage.db import ensure_schema_version
 from sh4q.application.request_metrics import persist_request_metrics
 from sh4q.application.stage_metrics import persist_stage_metrics
@@ -110,20 +111,20 @@ async def run_scan(
     include_katana: bool = False,
     include_vhosts: bool = False,
     vhosts_file: str | None = None,
+    vhosts_scan_id: str | None = None,
 ) -> ScanSummary:
     start = time.monotonic()
     scan_started_at = datetime.now(timezone.utc).isoformat()
 
     config = load_config(config_path) if config_path else _default_config(target)
     if include_vhosts:
-        if not vhosts_file:
-            raise AdapterExecutionError("--vhosts requires --vhosts-file")
-        candidate_path = Path(vhosts_file).expanduser()
-        if not candidate_path.is_file():
-            raise AdapterExecutionError(
-                f"vhost candidate file not found: {candidate_path}"
-            )
-        vhosts_file = str(candidate_path)
+        if bool(vhosts_file) == bool(vhosts_scan_id):
+            raise AdapterExecutionError("--vhosts requires exactly one of --vhosts-file or --vhosts-from-scan")
+        if vhosts_file:
+            candidate_path = Path(vhosts_file).expanduser()
+            if not candidate_path.is_file():
+                raise AdapterExecutionError(f"vhost candidate file not found: {candidate_path}")
+            vhosts_file = str(candidate_path)
     missing = missing_dependencies(
         subfinder=include_subfinder,
         amass=include_amass,
@@ -190,6 +191,16 @@ async def run_scan(
     outcome = "completed"
     scheduler = None
     try:
+        vhost_candidates = None
+        if include_vhosts and vhosts_scan_id:
+            with open_sync_database(db_path) as db:
+                vhost_candidates = [row[0] for row in db.execute(
+                    """SELECT DISTINCT n.value FROM scan_assets sa JOIN nodes n ON n.id = sa.asset_id
+                    WHERE sa.scan_run_id = ? AND n.type = 'domain' ORDER BY n.value""",
+                    (vhosts_scan_id,),
+                ).fetchall()]
+            if not vhost_candidates:
+                raise AdapterExecutionError(f"no domain candidates found for scan {vhosts_scan_id}")
         include_html_sample = include_javascript or include_javascript_bundles
         plugins = [
             DNSPlugin(),
@@ -201,7 +212,7 @@ async def run_scan(
             ),
         ]
         if include_vhosts:
-            plugins.append(VhostDiscoveryPlugin(scope, vhosts_file))
+            plugins.append(VhostDiscoveryPlugin(scope, vhosts_file, candidates=vhost_candidates))
         plugins.append(CTPlugin(limiter=limiter))
         if include_subfinder:
             executable = shutil.which("subfinder")
