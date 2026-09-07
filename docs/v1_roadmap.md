@@ -118,6 +118,13 @@ Prioritized work after the v1 review release:
    directory discovery, and active adapters separately with explicit policy,
    resource, and authorization designs.
 
+Current status: numbered SQLite migrations are implemented and deployed. The
+opt-in Katana adapter is implemented with offline adapter and scheduler tests,
+bounded execution, and same-scope filtering. An authorized live acceptance
+scan completed successfully, but the tested target produced no additional
+runtime URLs; this remains an inconclusive provider-result limitation rather
+than a completeness claim.
+
 Each item should retain the v1 invariants: Gate 1 and Gate 2 enforcement,
 evidence-first handling, scan ownership, provenance, bounded execution, and
 offline regression coverage. Breadth should be added only when it improves the
