@@ -324,6 +324,15 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run the opt-in bounded Katana crawler for same-scope runtime URLs and XHR references.",
     )
+    scan.add_argument(
+        "--vhosts",
+        action="store_true",
+        help="Explicitly enable bounded virtual-host discovery.",
+    )
+    scan.add_argument(
+        "--vhosts-file",
+        help="Candidate hostname file for --vhosts (maximum 500 unique candidates).",
+    )
 
     events = subparsers.add_parser("events", help="Inspect durable event state")
     events.add_argument(
@@ -477,6 +486,10 @@ def main() -> None:
                 parser.error(str(error))
 
     if args.command == "scan":
+        if args.vhosts_file and not args.vhosts:
+            parser.error("--vhosts-file requires --vhosts")
+        if args.vhosts and not args.vhosts_file:
+            parser.error("--vhosts requires --vhosts-file")
         render_identity()
         web_profile = args.profile in {"web", "full"}
         full_profile = args.profile == "full"
@@ -492,6 +505,8 @@ def main() -> None:
                     include_javascript=args.js or web_profile,
                     include_javascript_bundles=args.js_bundles or web_profile,
                     include_katana=args.katana,
+                    include_vhosts=args.vhosts,
+                    vhosts_file=args.vhosts_file,
                 )
             )
         except KeyboardInterrupt:

@@ -101,6 +101,7 @@ class ScopedHTTPClient:
 
     async def get(self, url: str, **kwargs) -> httpx.Response:
         current = str(url)
+        follow_redirects = kwargs.pop("follow_redirects", True)
         request_extensions = dict(kwargs.pop("extensions", {}))
         for _ in range(self._max_redirects + 1):
             addresses = await self._authorize_url(current)
@@ -124,7 +125,7 @@ class ScopedHTTPClient:
             if response.status_code not in {301, 302, 303, 307, 308}:
                 return response
             location = response.headers.get("location")
-            if not location:
+            if not location or not follow_redirects:
                 return response
             current = urljoin(current, location)
         raise ScopedHTTPError(f"redirect limit exceeded for {url}")
@@ -141,6 +142,7 @@ class ScopedHTTPClient:
         if max_bytes < 0:
             raise ValueError("max_bytes must be non-negative")
         current = str(url)
+        follow_redirects = kwargs.pop("follow_redirects", True)
         request_extensions = dict(kwargs.pop("extensions", {}))
         for _ in range(self._max_redirects + 1):
             addresses = await self._authorize_url(current)
@@ -168,7 +170,7 @@ class ScopedHTTPClient:
             if response.status_code not in {301, 302, 303, 307, 308}:
                 return response, text, truncated
             location = response.headers.get("location")
-            if not location:
+            if not location or not follow_redirects:
                 return response, text, truncated
             current = urljoin(current, location)
         raise ScopedHTTPError(f"redirect limit exceeded for {url}")
