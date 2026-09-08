@@ -72,6 +72,15 @@ def test_vhost_accepts_explicit_scan_candidates():
     assert any(row.kind == "vhost_observation" for row in rows)
 
 
+def test_vhost_timeout_budget_scales_with_candidate_bound():
+    plugin = VhostDiscoveryPlugin(
+        ScopeEngine(Sh4qConfig(scope={"targets": ["example.com"]})),
+        candidates=["a.example.com"] * 500,
+        request_interval=1.0,
+    )
+    assert plugin.metadata.timeout >= 531
+
+
 def test_scan_preflight_rejects_missing_vhost_file(tmp_path: Path):
     missing = tmp_path / "missing-scan-candidates.txt"
     try:

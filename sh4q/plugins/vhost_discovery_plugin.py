@@ -54,6 +54,15 @@ class VhostDiscoveryPlugin(Plugin):
         self._scheme = endpoint_scheme
         self._port = endpoint_port
         self._request_interval = request_interval
+        # The scheduler must allow the configured bounded workload to finish.
+        # A fixed timeout silently discards every observation on larger lists.
+        self.metadata = PluginMetadata(
+            name="vhost-discovery",
+            dependencies=["http"],
+            timeout=max(120.0, (max_candidates + 1) * request_interval + 30.0),
+            risk_level="active-low",
+            retry_on_timeout=False,
+        )
 
     def _candidates(self, target: str) -> list[tuple[str, int]]:
         if self._provided_candidates is not None:
@@ -90,21 +99,29 @@ class VhostDiscoveryPlugin(Plugin):
         candidates = self._candidates(target)
         endpoint = f"{self._scheme}://{self._scope.normalize_target(target)}/"
         discoveries: list[Discovery] = []
-        async with self._client_factory() as client:
-            baseline = await self._probe(client, endpoint, target, target, None)
-            baseline_fp = baseline.data.get("fingerprint") if baseline.kind == "vhost_observation" else None
-            discoveries.append(Discovery(kind="vhost_baseline", data={"endpoint": endpoint, "fingerprint": baseline_fp}))
-            for candidate, line_number in candidates:
-                decision = self._scope.authorize(candidate, self._port)
-                if not decision.allowed:
-                    discoveries.append(Discovery(kind="vhost_rejected", data={"candidate": candidate, "line": line_number, "reason": decision.reason}))
-                    continue
-                if self._request_interval:
-                    await asyncio.sleep(self._request_interval)
-                result = await self._probe(client, endpoint, target, candidate, line_number)
-                if result.kind == "vhost_observation" and result.data.get("fingerprint") == baseline_fp:
-                    result.data["classification"] = "default_vhost_match"
-                discoveries.append(result)
+        try:
+            async with self._client_factory() as client:
+                baseline = await self._probe(client, endpoint, target, target, None)
+                baseline_fp = baseline.data.get("fingerprint") if baseline.kind == "vhost_observation" else None
+                discoveries.append(Discovery(kind="vhost_baseline", data={"endpoint": endpoint, "fingerprint": baseline_fp}))
+                for candidate, line_number in candidates:
+                    decision = self._scope.authorize(candidate, self._port)
+                    if not decision.allowed:
+                        discoveries.append(Discovery(kind="vhost_rejected", data={"candidate": candidate, "line": line_number, "reason": decision.reason}))
+                        continue
+                    if self._request_interval:
+                        await asyncio.sleep(self._request_interval)
+                    result = await self._probe(client, endpoint, target, candidate, line_number)
+                    if result.kind == "vhost_observation" and result.data.get("fingerprint") == baseline_fp:
+                        result.data["classification"] = "default_vhost_match"
+                    discoveries.append(result)
+        except asyncio.CancelledError:
+            # Return observations captured before cancellation so the event
+            # bus can persist a useful partial stage instead of losing all data.
+            discoveries.append(Discovery(kind="vhost_partial", data={
+                "endpoint": endpoint, "captured": len(discoveries),
+            }))
+            return discoveries
         return discoveries
 
     async def _probe(self, client, endpoint: str, target: str, candidate: str, line_number: int | None) -> Discovery:

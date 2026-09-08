@@ -429,6 +429,9 @@ def make_discovery_handler(
         elif kind == "vhost_error":
             display_bounded("vhost failures", f"  FAILED vhost {data.get('candidate', '-')}: {data.get('error', 'unknown error')}",)
 
+        elif kind == "vhost_partial":
+            display_bounded("vhost notices", f"  VHOST stage retained {data.get('captured', 0)} partial observations", limit=1)
+
         elif kind == "subdomain_found":
             hostname = data["hostname"]
             root_domain = data["domain"]
