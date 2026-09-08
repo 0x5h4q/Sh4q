@@ -81,6 +81,23 @@ def test_vhost_timeout_budget_scales_with_candidate_bound():
     assert plugin.metadata.timeout >= 531
 
 
+def test_vhost_collects_current_scan_candidates_when_no_source_given():
+    fake = FakeClient()
+    plugin = VhostDiscoveryPlugin(
+        ScopeEngine(Sh4qConfig(scope={"targets": ["example.com"]})),
+        client_factory=lambda: fake,
+        request_interval=0,
+    )
+    plugin.accept_discoveries([
+        __import__("sh4q.plugins", fromlist=["Discovery"]).Discovery(
+            "subdomain_found", {"hostname": "admin.example.com"}
+        )
+    ], "ct")
+    rows = asyncio.run(plugin.execute("example.com"))
+    assert fake.hosts == ["example.com", "admin.example.com"]
+    assert any(row.data.get("candidate") == "admin.example.com" for row in rows)
+
+
 def test_scan_preflight_rejects_missing_vhost_file(tmp_path: Path):
     missing = tmp_path / "missing-scan-candidates.txt"
     try:
@@ -104,5 +121,6 @@ if __name__ == "__main__":
     test_vhost_candidates_are_bounded_scoped_and_classified(root)
     test_vhost_missing_file_fails_before_requests(root)
     test_vhost_accepts_explicit_scan_candidates()
+    test_vhost_collects_current_scan_candidates_when_no_source_given()
     test_scan_preflight_rejects_missing_vhost_file(root)
     print("vhost discovery plugin test passed")

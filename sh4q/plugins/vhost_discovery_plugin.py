@@ -47,6 +47,7 @@ class VhostDiscoveryPlugin(Plugin):
         self._scope = scope
         self._file = Path(candidates_file) if candidates_file is not None else Path("")
         self._provided_candidates = list(candidates) if candidates is not None else None
+        self._discovered_candidates: list[str] = []
         self._max_candidates = max_candidates
         self._client_factory = client_factory or (
             lambda: ScopedHTTPClient(scope, timeout=15.0)
@@ -67,10 +68,14 @@ class VhostDiscoveryPlugin(Plugin):
     def _candidates(self, target: str) -> list[tuple[str, int]]:
         if self._provided_candidates is not None:
             lines = list(enumerate(self._provided_candidates, 1))
-        elif not self._file.is_file():
+        elif self._file != Path("") and self._file.is_file():
+            lines = list(enumerate(self._file.read_text(encoding="utf-8").splitlines(), 1))
+        elif self._discovered_candidates:
+            lines = list(enumerate(self._discovered_candidates, 1))
+        elif self._file != Path(""):
             raise ValueError(f"vhost candidate file not found: {self._file}")
         else:
-            lines = list(enumerate(self._file.read_text(encoding="utf-8").splitlines(), 1))
+            lines = []
         root = self._scope.normalize_target(target)
         seen: set[str] = set()
         result: list[tuple[str, int]] = []
@@ -94,6 +99,16 @@ class VhostDiscoveryPlugin(Plugin):
             else:
                 result.append((value, line_number))
         return result
+
+    def accept_discoveries(self, discoveries: list[Discovery], source_plugin: str | None = None) -> None:
+        if self._provided_candidates is not None or self._file != Path(""):
+            return
+        if source_plugin not in {"ct", "subfinder", "amass-passive"}:
+            return
+        self._discovered_candidates.extend(
+            item.data.get("hostname", "") for item in discoveries
+            if item.kind == "subdomain_found" and item.data.get("hostname")
+        )
 
     async def execute(self, target: str) -> list[Discovery]:
         candidates = self._candidates(target)
