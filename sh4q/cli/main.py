@@ -494,9 +494,6 @@ def main() -> None:
     if args.command == "scan":
         if args.vhosts_file and not args.vhosts:
             parser.error("--vhosts-file requires --vhosts")
-        if args.vhosts and not args.vhosts_file:
-            if not args.vhosts_from_scan:
-                parser.error("--vhosts requires --vhosts-file or --vhosts-from-scan")
         if args.vhosts_file and args.vhosts_from_scan:
             parser.error("--vhosts-file and --vhosts-from-scan cannot be combined")
         if args.vhosts_from_scan and not args.vhosts:

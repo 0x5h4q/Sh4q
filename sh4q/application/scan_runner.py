@@ -118,8 +118,8 @@ async def run_scan(
 
     config = load_config(config_path) if config_path else _default_config(target)
     if include_vhosts:
-        if bool(vhosts_file) == bool(vhosts_scan_id):
-            raise AdapterExecutionError("--vhosts requires exactly one of --vhosts-file or --vhosts-from-scan")
+        if vhosts_file and vhosts_scan_id:
+            raise AdapterExecutionError("--vhosts-file and --vhosts-from-scan cannot be combined")
         if vhosts_file:
             candidate_path = Path(vhosts_file).expanduser()
             if not candidate_path.is_file():
@@ -211,8 +211,6 @@ async def run_scan(
                 timeout=config.timeout.http_seconds,
             ),
         ]
-        if include_vhosts:
-            plugins.append(VhostDiscoveryPlugin(scope, vhosts_file, candidates=vhost_candidates))
         plugins.append(CTPlugin(limiter=limiter))
         if include_subfinder:
             executable = shutil.which("subfinder")
@@ -234,6 +232,8 @@ async def run_scan(
                     ),
                 )
             )
+        if include_vhosts:
+            plugins.append(VhostDiscoveryPlugin(scope, vhosts_file, candidates=vhost_candidates))
         if include_amass:
             executable = shutil.which("amass")
             if executable is None:

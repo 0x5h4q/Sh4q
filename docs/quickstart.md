@@ -102,6 +102,13 @@ any request:
 sh4q scan your-domain.example --vhosts --vhosts-file candidates.txt
 ```
 
+With `--profile full`, `--vhosts` can instead use names discovered earlier in
+that same scan; no candidate file or second scan is required:
+
+```bash
+sh4q scan your-domain.example --profile full --vhosts
+```
+
 To explicitly reuse domain assets from an earlier scan, provide its scan ID:
 
 ```bash
