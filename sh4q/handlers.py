@@ -409,8 +409,11 @@ def make_discovery_handler(
             endpoint = data.get("endpoint", "")
             if candidate and endpoint and scope.authorize(candidate).allowed:
                 domain_node = Node(type="domain", value=candidate)
-                url_node = Node(type="url", value=endpoint, attributes={
+                endpoint_parts = HttpURL(endpoint)
+                candidate_url = f"{endpoint_parts.scheme}://{candidate}/"
+                url_node = Node(type="url", value=candidate_url, attributes={
                     "vhost_candidate": candidate,
+                    "probe_endpoint": endpoint,
                     "status": data.get("status"),
                     "classification": data.get("classification", "candidate_observation"),
                 })
