@@ -31,6 +31,10 @@ JSONL progress includes Gate 1, stage attempts, retries, timeouts, errors,
 stage completion, and the final scan summary. Discovery records and evidence
 remain available through the database and normal result commands.
 
+Directory/content discovery is not enabled by any current profile. It is being
+implemented as a separately bounded, operator-supplied wordlist stage and will
+require an explicit opt-in when released.
+
 Profiles enable tested passive bundles:
 
 ```bash
