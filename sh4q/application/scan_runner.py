@@ -98,6 +98,17 @@ def _default_config(target: str) -> Sh4qConfig:
     })
 
 
+def _secure_output_paths(directory: str, database: str) -> None:
+    os.makedirs(directory, mode=0o700, exist_ok=True)
+    try:
+        os.chmod(directory, 0o700)
+        os.chmod(database, 0o600)
+    except OSError as error:
+        raise AdapterExecutionError(
+            f"unable to secure output/database permissions: {error}"
+        ) from error
+
+
 async def run_scan(
     target: str,
     config_path: str | None = None,
@@ -117,6 +128,11 @@ async def run_scan(
     scan_started_at = datetime.now(timezone.utc).isoformat()
 
     config = load_config(config_path) if config_path else _default_config(target)
+    if config.scope.allow_private_addresses:
+        print(
+            "  WARNING: private/reserved address access is enabled; "
+            "use only in an authorised lab scope."
+        )
     if include_vhosts:
         if vhosts_file and vhosts_scan_id:
             raise AdapterExecutionError("--vhosts-file and --vhosts-from-scan cannot be combined")
@@ -134,9 +150,10 @@ async def run_scan(
     )
     if missing:
         raise AdapterExecutionError(format_missing(missing))
-    os.makedirs(config.output.directory, exist_ok=True)
+    os.makedirs(config.output.directory, mode=0o700, exist_ok=True)
     db_path = os.path.join(config.output.directory, "sh4q.db")
     ensure_schema_version(db_path)
+    _secure_output_paths(config.output.directory, db_path)
 
     scope = ScopeEngine(config)
     limiter = RequestLimiter(
