@@ -36,4 +36,14 @@ default_args = parser.parse_args(["scan", "example.com"])
 assert default_args.sub is False
 assert default_args.amass is False
 assert default_args.js is False
+quiet_args = parser.parse_args(["scan", "example.com", "-q"])
+assert quiet_args.quiet is True and quiet_args.verbose is False
+verbose_args = parser.parse_args(["scan", "example.com", "-v"])
+assert verbose_args.verbose is True and verbose_args.quiet is False
+try:
+    parser.parse_args(["scan", "example.com", "-q", "-v"])
+except SystemExit:
+    pass
+else:
+    raise AssertionError("quiet and verbose should be mutually exclusive")
 print("CLI --sub flag test passed")
