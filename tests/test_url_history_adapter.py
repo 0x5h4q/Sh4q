@@ -8,11 +8,10 @@ from sh4q.scope import ScopeEngine
 config = Sh4qConfig(**{"scope": {"targets": ["example.com"]}})
 adapter = URLHistoryAdapter(executable="/opt/tools/waybackurls")
 context = AdapterContext(ScopeEngine(config), Path("out"))
-assert adapter.build_argv("example.com", context) == ("/opt/tools/waybackurls",)
+assert adapter.build_argv("example.com", context) == ("/opt/tools/waybackurls", "example.com")
 assert adapter.evidence_argv(adapter.build_argv("example.com", context)) == [
-    "/opt/tools/waybackurls", "<stdin>"
+    "/opt/tools/waybackurls", "<target>"
 ]
-assert adapter.build_stdin("example.com", context) == b"example.com\n"
 
 discoveries = adapter.parse_stdout(
     "example.com",
