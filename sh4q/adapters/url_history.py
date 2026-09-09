@@ -21,8 +21,9 @@ class URLHistoryAdapter(ExternalToolAdapter):
         self.max_urls = max_urls
 
     def build_argv(self, target: str, context: AdapterContext) -> Sequence[str]:
-        # Waybackurls accepts one target and performs passive archive lookup.
-        return (self.executable,)
+        # Pass the target as an argument, matching the supported Waybackurls
+        # invocation used by operators and avoiding stdin-dependent behavior.
+        return (self.executable, target.rstrip(".\n"))
 
     def parse_stdout(self, target: str, stdout: str) -> list[Discovery]:
         root = target.lower().rstrip(".")
@@ -59,7 +60,4 @@ class URLHistoryAdapter(ExternalToolAdapter):
         return discoveries
 
     def evidence_argv(self, argv: Sequence[str]) -> list[str]:
-        return [argv[0], "<stdin>"]
-
-    def build_stdin(self, target: str, context: AdapterContext) -> bytes:
-        return (target.rstrip(".\n") + "\n").encode("utf-8")
+        return [argv[0], "<target>"]
