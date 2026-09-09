@@ -36,6 +36,9 @@ default_args = parser.parse_args(["scan", "example.com"])
 assert default_args.sub is False
 assert default_args.amass is False
 assert default_args.js is False
+directory_args = parser.parse_args(["scan", "example.com", "--directories", "--directories-file", "paths.txt"])
+assert directory_args.directories is True
+assert directory_args.directories_file == "paths.txt"
 quiet_args = parser.parse_args(["scan", "example.com", "-q"])
 assert quiet_args.quiet is True and quiet_args.verbose is False
 verbose_args = parser.parse_args(["scan", "example.com", "-v"])

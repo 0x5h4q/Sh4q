@@ -435,6 +435,29 @@ def make_discovery_handler(
         elif kind == "vhost_partial":
             display_bounded("vhost notices", f"  VHOST stage retained {data.get('captured', 0)} partial observations", limit=1)
 
+        elif kind == "directory_observation":
+            url = data.get("url", "")
+            decision = scope.authorize(url)
+            if not decision.allowed:
+                return
+            node = Node(type="url", value=url, attributes={"status": data.get("status"), "classification": data.get("classification", "candidate_observation")})
+            await storage.save_node(node)
+            root = Node(type="url", value=f"https://{scope.normalize_target(scan_target)}/")
+            await storage.save_node(root)
+            relationship = Relationship(root.id, node.id, "DIRECTORY_OBSERVATION")
+            await storage.save_relationship(relationship)
+            await record_asset("directory_observations", node.id, relationship.id, source_plugin, event_scan_run_id)
+            display_bounded("directory observations", f"  OBSERVED path {data.get('path', url)} [{data.get('status', '-')}] ({data.get('classification', 'candidate_observation')})")
+
+        elif kind == "directory_error":
+            display_bounded("directory failures", f"  FAILED path {data.get('url', '-')} : {data.get('error', 'unknown error')}")
+
+        elif kind == "directory_rejected":
+            display_bounded("directory rejections", f"  GATE 2 DENY path {data.get('path', '-')} -> {data.get('reason', 'rejected')}")
+
+        elif kind == "directory_baseline":
+            display_bounded("directory notices", f"  DIRECTORY baseline recorded for {data.get('endpoint', '-')}", limit=1)
+
         elif kind == "subdomain_found":
             hostname = data["hostname"]
             root_domain = data["domain"]

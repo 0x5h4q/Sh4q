@@ -20,7 +20,7 @@ from sh4q.plugins.dns_plugin import DNSPlugin
 from sh4q.plugins.http_plugin import HTTPPlugin
 from sh4q.plugins.javascript_extraction_plugin import JavaScriptExtractionPlugin
 from sh4q.plugins.javascript_bundle_plugin import JavaScriptBundlePlugin
-from sh4q.plugins import VhostDiscoveryPlugin
+from sh4q.plugins import VhostDiscoveryPlugin, DirectoryDiscoveryPlugin
 from sh4q.javascript_extraction import JavaScriptExtractionLimits
 from sh4q.scheduler import Scheduler
 from sh4q.scope import ScopeEngine
@@ -123,6 +123,8 @@ async def run_scan(
     include_vhosts: bool = False,
     vhosts_file: str | None = None,
     vhosts_scan_id: str | None = None,
+    include_directories: bool = False,
+    directories_file: str | None = None,
     progress_callback=None,
 ) -> ScanSummary:
     start = time.monotonic()
@@ -142,6 +144,8 @@ async def run_scan(
             if not candidate_path.is_file():
                 raise AdapterExecutionError(f"vhost candidate file not found: {candidate_path}")
             vhosts_file = str(candidate_path)
+    if include_directories and not directories_file:
+        raise AdapterExecutionError("--directories requires --directories-file")
     missing = missing_dependencies(
         subfinder=include_subfinder,
         amass=include_amass,
@@ -252,6 +256,8 @@ async def run_scan(
             )
         if include_vhosts:
             plugins.append(VhostDiscoveryPlugin(scope, vhosts_file, candidates=vhost_candidates))
+        if include_directories:
+            plugins.append(DirectoryDiscoveryPlugin(scope, directories_file))
         if include_amass:
             executable = shutil.which("amass")
             if executable is None:
