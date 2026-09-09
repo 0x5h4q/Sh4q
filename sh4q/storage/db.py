@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager, contextmanager
 import aiosqlite
 
 
-CURRENT_SCHEMA_VERSION = 3
+CURRENT_SCHEMA_VERSION = 4
 
 
 class SchemaVersionError(Exception):
@@ -91,7 +91,23 @@ def _migration_3(db: sqlite3.Connection) -> None:
         )
 
 
-MIGRATIONS = {1: _migration_1, 2: _migration_2, 3: _migration_3}
+def _migration_4(db: sqlite3.Connection) -> None:
+    """Add indexes for event recovery and ordered node inventory queries."""
+    if _table_exists(db, "event_log") and _columns_exist(
+        db, "event_log", ("status", "next_attempt_at", "created_at")
+    ):
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_event_log_status_next "
+            "ON event_log (status, next_attempt_at, created_at)"
+        )
+    if _table_exists(db, "nodes") and _columns_exist(db, "nodes", ("type", "value")):
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_nodes_type_value "
+            "ON nodes (type, value)"
+        )
+
+
+MIGRATIONS = {1: _migration_1, 2: _migration_2, 3: _migration_3, 4: _migration_4}
 
 
 @contextmanager

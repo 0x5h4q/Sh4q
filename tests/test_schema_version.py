@@ -50,6 +50,8 @@ with tempfile.TemporaryDirectory() as directory:
             "CREATE TABLE scan_assets (scan_run_id TEXT, asset_id TEXT, source_plugin TEXT);"
             "CREATE TABLE scan_runs (started_at TEXT);"
             "CREATE TABLE relationships (from_id TEXT, to_id TEXT);"
+            "CREATE TABLE nodes (type TEXT, value TEXT);"
+            "CREATE TABLE event_log (status TEXT, next_attempt_at TEXT, created_at TEXT);"
         )
         db.commit()
     assert ensure_schema_version(indexed_database) == CURRENT_SCHEMA_VERSION
@@ -68,4 +70,6 @@ with tempfile.TemporaryDirectory() as directory:
     assert "idx_scan_assets_scan_source_asset" in indexes
     assert "idx_relationships_from" in indexes
     assert "idx_relationships_to" in indexes
+    assert "idx_nodes_type_value" in indexes
+    assert "idx_event_log_status_next" in indexes
 print("schema version test passed")

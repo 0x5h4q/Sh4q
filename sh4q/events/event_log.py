@@ -64,6 +64,10 @@ class DurableEventLog:
                 await db.execute("ALTER TABLE event_log ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")
             if not any(row[1] == "next_attempt_at" for row in columns):
                 await db.execute("ALTER TABLE event_log ADD COLUMN next_attempt_at TEXT")
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_event_log_status_next "
+                "ON event_log (status, next_attempt_at, created_at)"
+            )
             await db.commit()
 
     async def record_pending(self, event: Event) -> None:
