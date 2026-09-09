@@ -19,6 +19,14 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install Sh4q
-        run: python -m pip install -e .
+        run: |
+          python -m pip install -r requirements.lock
+          python -m pip install -e . --no-deps
       - name: Run deterministic offline suite
         run: python tools/run_offline_tests.py
+
+      - name: Audit dependencies
+        if: matrix.python-version == '3.12'
+        run: |
+          python -m pip install pip-audit
+          pip-audit

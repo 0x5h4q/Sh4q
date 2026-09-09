@@ -5,11 +5,11 @@ description = "Sh4q — scope-aware, discovery-only reconnaissance orchestration
 requires-python = ">=3.11"
 license = "MIT"
 dependencies = [
-    "pydantic>=2",
-    "pyyaml",
-    "aiosqlite",
-    "httpx",
-    "dnspython>=2.7",
+    "pydantic>=2.10,<3",
+    "pyyaml>=6.0.2,<7",
+    "aiosqlite>=0.21,<1",
+    "httpx>=0.28,<1",
+    "dnspython>=2.7,<3",
 ]
 
 [project.scripts]

@@ -140,6 +140,18 @@ Sh4q records a database schema version and rejects newer unsupported schemas. Ba
 
 For release testing, use a new temporary virtual environment rather than relying on an old development environment:
 
+The repository includes `requirements.lock` with the reviewed direct runtime
+versions. For a reproducible development install, apply it before installing
+Sh4q itself:
+
+```bash
+python -m pip install -r requirements.lock
+python -m pip install -e . --no-deps
+```
+
+Dependabot proposes dependency updates through pull requests, and CI runs
+`pip-audit` against the installed environment.
+
 ```bash
 python3 -m venv /tmp/sh4q-alpha-venv
 source /tmp/sh4q-alpha-venv/bin/activate

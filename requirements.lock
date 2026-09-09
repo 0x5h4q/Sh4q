@@ -1,0 +1,8 @@
+# Direct runtime constraints for reproducible release environments.
+# Update this file deliberately with dependency-review tooling; transitive
+# dependencies are resolved by pip from these bounded requirements.
+pydantic==2.13.4
+PyYAML==6.0.3
+aiosqlite==0.22.1
+httpx==0.28.1
+dnspython==2.8.0
