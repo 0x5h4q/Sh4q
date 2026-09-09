@@ -46,9 +46,10 @@ with tempfile.TemporaryDirectory() as directory:
     indexed_database = str(Path(directory) / "indexed.db")
     with open_sync_database(indexed_database) as db:
         db.executescript(
-            "CREATE TABLE evidence (scan_run_id TEXT, kind TEXT);"
-            "CREATE TABLE scan_assets (asset_id TEXT);"
+            "CREATE TABLE evidence (scan_run_id TEXT, kind TEXT, captured_at TEXT, target TEXT);"
+            "CREATE TABLE scan_assets (scan_run_id TEXT, asset_id TEXT, source_plugin TEXT);"
             "CREATE TABLE scan_runs (started_at TEXT);"
+            "CREATE TABLE relationships (from_id TEXT, to_id TEXT);"
         )
         db.commit()
     assert ensure_schema_version(indexed_database) == CURRENT_SCHEMA_VERSION
@@ -62,4 +63,9 @@ with tempfile.TemporaryDirectory() as directory:
     assert "idx_evidence_scan_kind" in indexes
     assert "idx_scan_assets_asset" in indexes
     assert "idx_scan_runs_started" in indexes
+    assert "idx_evidence_scan_kind_captured" in indexes
+    assert "idx_evidence_target_captured" in indexes
+    assert "idx_scan_assets_scan_source_asset" in indexes
+    assert "idx_relationships_from" in indexes
+    assert "idx_relationships_to" in indexes
 print("schema version test passed")

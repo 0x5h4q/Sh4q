@@ -39,6 +39,14 @@ class SQLiteStorage:
                 )
                 """
             )
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_relationships_from "
+                "ON relationships (from_id)"
+            )
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_relationships_to "
+                "ON relationships (to_id)"
+            )
             await db.commit()
 
     async def save_node(self, node: Node) -> Node:
