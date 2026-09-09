@@ -40,6 +40,8 @@ quiet_args = parser.parse_args(["scan", "example.com", "-q"])
 assert quiet_args.quiet is True and quiet_args.verbose is False
 verbose_args = parser.parse_args(["scan", "example.com", "-v"])
 assert verbose_args.verbose is True and verbose_args.quiet is False
+jsonl_args = parser.parse_args(["scan", "example.com", "--progress", "jsonl"])
+assert jsonl_args.progress == "jsonl"
 try:
     parser.parse_args(["scan", "example.com", "-q", "-v"])
 except SystemExit:

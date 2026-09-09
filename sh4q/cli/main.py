@@ -296,6 +296,10 @@ def build_parser() -> argparse.ArgumentParser:
         "-q", "--quiet", action="store_true",
         help="Suppress live scan progress and print only the final summary.",
     )
+    scan.add_argument(
+        "--progress", choices=["human", "jsonl"], default="human",
+        help="Select human-readable or JSON Lines progress output.",
+    )
     output_modes.add_argument(
         "-v", "--verbose", action="store_true",
         help="Show detailed live scan progress (the default).",
@@ -509,30 +513,39 @@ def main() -> None:
             parser.error("--vhosts-file and --vhosts-from-scan cannot be combined")
         if args.vhosts_from_scan and not args.vhosts:
             parser.error("--vhosts-from-scan requires --vhosts")
-        if not args.quiet:
+        if not args.quiet and args.progress == "human":
             render_identity()
         web_profile = args.profile in {"web", "full"}
         full_profile = args.profile == "full"
+        progress_callback = None
+        if args.progress == "jsonl":
+            def progress_callback(record):
+                print(json.dumps(record, sort_keys=True), file=sys.__stdout__, flush=True)
         try:
-            scan_call = run_scan(
-                args.target,
-                args.config,
-                include_subfinder=args.sub or full_profile,
-                include_amass=args.amass,
-                include_httpx=args.httpx or full_profile,
-                include_url_history=args.url_history or full_profile,
-                include_javascript=args.js or web_profile,
-                include_javascript_bundles=args.js_bundles or web_profile,
-                include_katana=args.katana,
-                include_vhosts=args.vhosts,
-                vhosts_file=args.vhosts_file,
-                vhosts_scan_id=args.vhosts_from_scan,
-            )
-            if args.quiet:
+            if args.quiet or args.progress == "jsonl":
                 with contextlib.redirect_stdout(io.StringIO()):
-                    summary = asyncio.run(scan_call)
+                    summary = asyncio.run(run_scan(
+                        args.target, args.config,
+                        include_subfinder=args.sub or full_profile,
+                        include_amass=args.amass, include_httpx=args.httpx or full_profile,
+                        include_url_history=args.url_history or full_profile,
+                        include_javascript=args.js or web_profile,
+                        include_javascript_bundles=args.js_bundles or web_profile,
+                        include_katana=args.katana, include_vhosts=args.vhosts,
+                        vhosts_file=args.vhosts_file, vhosts_scan_id=args.vhosts_from_scan,
+                        progress_callback=progress_callback,
+                    ))
             else:
-                summary = asyncio.run(scan_call)
+                summary = asyncio.run(run_scan(
+                    args.target, args.config,
+                    include_subfinder=args.sub or full_profile,
+                    include_amass=args.amass, include_httpx=args.httpx or full_profile,
+                    include_url_history=args.url_history or full_profile,
+                    include_javascript=args.js or web_profile,
+                    include_javascript_bundles=args.js_bundles or web_profile,
+                    include_katana=args.katana, include_vhosts=args.vhosts,
+                    vhosts_file=args.vhosts_file, vhosts_scan_id=args.vhosts_from_scan,
+                ))
         except KeyboardInterrupt:
             print()
             print("  Scan interrupted by user.")
@@ -542,7 +555,12 @@ def main() -> None:
         except (AdapterExecutionError, SchemaVersionError) as error:
             print(f"  Scan could not start: {error}")
             sys.exit(2)
-        render_summary(summary)
+        if args.progress == "jsonl":
+            print(json.dumps({"event": "scan_complete", "scan_run_id": summary.scan_run_id,
+                              "target": summary.target, "scope_allowed": summary.scope_allowed,
+                              "duration_seconds": summary.duration_seconds}, sort_keys=True))
+        else:
+            render_summary(summary)
         sys.exit(0 if summary.scope_allowed else 1)
 
     if args.command == "doctor":

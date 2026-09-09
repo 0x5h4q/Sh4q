@@ -123,6 +123,7 @@ async def run_scan(
     include_vhosts: bool = False,
     vhosts_file: str | None = None,
     vhosts_scan_id: str | None = None,
+    progress_callback=None,
 ) -> ScanSummary:
     start = time.monotonic()
     scan_started_at = datetime.now(timezone.utc).isoformat()
@@ -405,6 +406,7 @@ async def run_scan(
             scope=scope,
             bus=bus,
             scan_run_id=scan_run.id,
+            progress_callback=progress_callback,
         )
         decision = await scheduler.run(target)
         await bus.drain()
