@@ -1,5 +1,7 @@
 # Quick Start
 
+For the complete option and output reference, see the [operator reference](operator_reference.md).
+
 This guide assumes Sh4q is installed and the target is yours or covered by explicit permission.
 
 Scan targets are currently hostnames, not full URLs. Use `example.com` rather
