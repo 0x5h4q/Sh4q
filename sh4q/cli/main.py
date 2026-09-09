@@ -1,6 +1,8 @@
 
 import argparse
 import asyncio
+import contextlib
+import io
 import json
 import csv
 import json
@@ -289,6 +291,15 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["web", "full"],
         help="Enable a tested bundle of optional stages: web=JavaScript extraction and bundles; full=all current adapters and web stages.",
     )
+    output_modes = scan.add_mutually_exclusive_group()
+    output_modes.add_argument(
+        "-q", "--quiet", action="store_true",
+        help="Suppress live scan progress and print only the final summary.",
+    )
+    output_modes.add_argument(
+        "-v", "--verbose", action="store_true",
+        help="Show detailed live scan progress (the default).",
+    )
     scan.add_argument(
         "--sub",
         action="store_true",
@@ -498,26 +509,30 @@ def main() -> None:
             parser.error("--vhosts-file and --vhosts-from-scan cannot be combined")
         if args.vhosts_from_scan and not args.vhosts:
             parser.error("--vhosts-from-scan requires --vhosts")
-        render_identity()
+        if not args.quiet:
+            render_identity()
         web_profile = args.profile in {"web", "full"}
         full_profile = args.profile == "full"
         try:
-            summary = asyncio.run(
-                run_scan(
-                    args.target,
-                    args.config,
-                    include_subfinder=args.sub or full_profile,
-                    include_amass=args.amass,
-                    include_httpx=args.httpx or full_profile,
-                    include_url_history=args.url_history or full_profile,
-                    include_javascript=args.js or web_profile,
-                    include_javascript_bundles=args.js_bundles or web_profile,
-                    include_katana=args.katana,
-                    include_vhosts=args.vhosts,
-                    vhosts_file=args.vhosts_file,
-                    vhosts_scan_id=args.vhosts_from_scan,
-                )
+            scan_call = run_scan(
+                args.target,
+                args.config,
+                include_subfinder=args.sub or full_profile,
+                include_amass=args.amass,
+                include_httpx=args.httpx or full_profile,
+                include_url_history=args.url_history or full_profile,
+                include_javascript=args.js or web_profile,
+                include_javascript_bundles=args.js_bundles or web_profile,
+                include_katana=args.katana,
+                include_vhosts=args.vhosts,
+                vhosts_file=args.vhosts_file,
+                vhosts_scan_id=args.vhosts_from_scan,
             )
+            if args.quiet:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    summary = asyncio.run(scan_call)
+            else:
+                summary = asyncio.run(scan_call)
         except KeyboardInterrupt:
             print()
             print("  Scan interrupted by user.")

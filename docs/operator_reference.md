@@ -12,6 +12,15 @@ sh4q scan example.com
 
 The default scan runs native DNS, HTTP, and certificate-transparency discovery.
 
+Progress output is detailed by default. Use `-q` for scripts or scheduled jobs
+when only the final scan summary is needed; `-v` explicitly selects the
+detailed stream.
+
+```bash
+sh4q scan example.com -q
+sh4q scan example.com -v
+```
+
 Profiles enable tested passive bundles:
 
 ```bash
@@ -126,4 +135,3 @@ sh4q doctor
 This reports whether optional external tools are available. A missing optional
 tool does not affect the native scan, but requesting that stage will stop the
 scan before execution.
-
