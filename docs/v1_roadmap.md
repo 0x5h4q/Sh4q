@@ -19,10 +19,15 @@ and useful reporting for authorised attack-surface discovery.
 - Threat model, limitations, offline fixtures, CI configuration, and narrow
   terminal coverage.
 
+The contributor backlog was reconciled against this roadmap on 2026-09-09.
+Items already implemented are tracked as completed here; proposed work is
+sequenced below by safety and user impact rather than copied as a second
+roadmap.
+
 ## Remaining v1 Gates
 
-1. **Terminal audit:** align scan overview, summary, results, events, failures,
-   and export messages across wide, narrow, redirected, and non-TTY output.
+1. **Terminal audit:** mostly complete. One final pass remains for newly added
+   active stages and non-TTY/JSON output consistency.
 2. **HTML reporting:** complete. Chromium verification passed at 1440x1000 and
    390x844: the hero rendered, filters loaded, no page-level horizontal overflow
    occurred, and filter/reset interactions produced the expected counts. The
@@ -53,9 +58,9 @@ non-applicable asset fields render as `-` instead of ambiguous blank cells.
    a fresh Python 3.12 environment; `sh4q --help` completed successfully.
    Configuration, database handling, and sensitive-output guidance remain
    documented.
-5. **Release review:** acceptance scan complete. A clean native Tesla scan
-   completed all core stages and its HTML report was reviewed against the
-   terminal summary. Final release tagging remains.
+5. **Release review:** acceptance scans are complete for native, Katana, vhost,
+   JavaScript, and reporting paths. Final tagging remains after the hardening
+   and provider-fix work below.
 
 ## Adapter Policy
 
@@ -66,9 +71,10 @@ The v1 adapter set is intentionally small:
   and experimental; v1 acceptance does not depend on it producing results.
 - ProjectDiscovery HTTPX remains opt-in endpoint enrichment with separately
   reported external-tool accounting.
-- A passive URL-history adapter based on waybackurls (with gau as a later
-  broader option) is a post-v1
-  candidate, pending licensing, scope filtering, provenance, and offline tests.
+- The passive URL-history adapter based on waybackurls is implemented with
+  scope filtering, provenance, bounded output, and offline tests. Its provider
+  invocation fix must be released before calling the stage production-ready;
+  gau remains a later provider option.
 - Nmap, Naabu, Nuclei, ffuf, and other active scanners are post-v1 candidates.
   They require a separate policy decision, stronger resource controls, and
   explicit authorization UX; adding them now would weaken the v1 focus.
@@ -80,15 +86,10 @@ guaranteed delivery date or automatic inclusion in v2:
 
 - **Phase 3 / post-v1:** JavaScript endpoint and secret-pattern extraction,
   deeper passive intelligence, cloud enumeration, and screenshots.
-- **Post-v1 candidate:** passive URL history through waybackurls, with gau as a
-  comparable provider. The contract/parser slice is implemented, but live CLI
-  wiring requires scope filtering, provenance, bounded output, licensing review,
-  and an end-to-end offline pipeline test. The evidence/ownership pipeline and
-  scheduler integration test are now complete; provider review and CLI release
-  gating remain.
-- **Post-v1 candidate:** virtual-host enumeration and directory/content
-  discovery. These are active or potentially high-volume workflows and need a
-  separate authorization and resource-control design.
+- **Implemented controlled enrichment:** JavaScript extraction, bounded Katana,
+  and bounded virtual-host discovery. Katana and vhost probing remain explicit
+  opt-ins because they are active and potentially high-volume. Directory/content
+  discovery has a design specification but no implementation yet.
 - **Separate policy candidates:** Nmap, Naabu, Nuclei, ffuf, and other active
   scanners. They are not promised v2 features and must not be enabled by
   implication through a generic adapter interface.
@@ -97,33 +98,43 @@ guaranteed delivery date or automatic inclusion in v2:
 - **Phase 5 / later direction:** historical tracking, scan diffs, graph
   visualization, AI summarization, and prioritization.
 
-## Post-v1 Engineering Backlog
+## Prioritized Engineering Backlog
 
 Prioritized work after the v1 review release:
 
-1. **Passive URL history:** add a waybackurls-style adapter only after
-   scope filtering, provenance, bounded output, licensing, and offline tests
-   are defined.
-2. **Scan-to-scan diffs:** identify new, removed, and changed assets and
-   relationships without rewriting immutable evidence.
-3. **Large-scan operations:** improve progress reporting, adaptive scheduling,
-   timeout summaries, and partial-completion UX for unreliable providers.
-4. **Documentation QA:** add automated checks for README links, version
-   strings, release status, and stale roadmap claims.
-5. **Export handling:** add deliberate redaction controls for query parameters,
-   sensitive evidence, and internal-looking hostnames before sharing reports.
-6. **Schema evolution:** introduce numbered SQLite migrations before adding
-   features that change persisted records or ownership semantics.
-7. **Controlled enrichment:** evaluate JavaScript extraction, vhost discovery,
-   directory discovery, and active adapters separately with explicit policy,
-   resource, and authorization designs.
+1. **Safety hardening:** rename the localhost-only sample configuration, warn
+   when private addresses are explicitly enabled, enforce restrictive SQLite
+   and output permissions, and make corrupted JSON/evidence records degrade
+   with actionable diagnostics.
+2. **Reproducible supply chain:** add dependency upper bounds, a release and
+   development lock strategy, `pip-audit`, automated dependency updates, and
+   pinned CI action references.
+3. **URL-history release gate:** merge and test the Waybackurls argument-form
+   fix, retain provider/raw-output evidence, and document provider limitations.
+4. **Large-scan performance:** measure and add remaining SQLite indexes, batch
+   writes where event ordering permits, and optimize export queries based on
+   benchmarks. Do not introduce connection pooling without evidence that it
+   improves scan throughput.
+5. **Operator UX:** add configuration and CLI references, quiet/verbose modes,
+   machine-readable progress events, consistent status formatting, and HTML
+   report interpretation guidance.
+6. **Controlled directory discovery:** implement the approved design only after
+   offline path normalization, traversal rejection, baseline comparison,
+   redirect, budget, persistence, and report tests exist.
+7. **Distribution:** publish versioned wheels through PyPI or `pipx`, verify
+   clean-environment installs, and keep release artifacts reproducible.
+8. **Workflow foundations:** add versioned scope-file support, safe scan
+   templates that disclose active stages, scheduled scans, proxy support, and
+   inventory exports with first/last-seen metadata.
+9. **Platform v2:** design the API, dashboard, worker queue, PostgreSQL-backed
+   deployment, authentication/RBAC, and webhook integrations as a separate
+   product milestone.
 
-Current status: numbered SQLite migrations are implemented and deployed. The
-opt-in Katana adapter is implemented with offline adapter and scheduler tests,
-bounded execution, and same-scope filtering. An authorized live acceptance
-scan completed successfully, but the tested target produced no additional
-runtime URLs; this remains an inconclusive provider-result limitation rather
-than a completeness claim.
+Current status: numbered SQLite migrations, scan diffs, export redaction, HTML
+reporting, URL history, Katana, and vhost discovery are implemented with
+offline coverage. The remaining release blockers are hardening,
+reproducible dependency/release controls, and the URL-history provider
+invocation fix.
 
 Each item should retain the v1 invariants: Gate 1 and Gate 2 enforcement,
 evidence-first handling, scan ownership, provenance, bounded execution, and
