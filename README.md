@@ -308,6 +308,7 @@ sh4q export --latest --format html --output report-redacted.html --redact
 
 - [Installation](docs/installation.md)
 - [Quick start](docs/quickstart.md)
+- [Operator reference](docs/operator_reference.md)
 - [Authorised use](docs/authorized_use.md)
 - [Troubleshooting](docs/troubleshooting.md)
 
