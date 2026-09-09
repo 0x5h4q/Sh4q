@@ -13,6 +13,10 @@ class SQLiteScanAssetStore:
                 relationship_id TEXT NOT NULL, source_plugin TEXT NOT NULL,
                 PRIMARY KEY (scan_run_id, relationship_id))"""
             )
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_scan_assets_scan_source_asset "
+                "ON scan_assets (scan_run_id, source_plugin, asset_id)"
+            )
             await db.commit()
 
     async def record(self, scan_run_id, asset_id, relationship_id, source_plugin) -> None:

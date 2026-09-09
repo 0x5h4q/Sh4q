@@ -56,6 +56,14 @@ class SQLiteEvidenceStore:
             columns = await (await db.execute("PRAGMA table_info(evidence)")).fetchall()
             if not any(row[1] == "scan_run_id" for row in columns):
                 await db.execute("ALTER TABLE evidence ADD COLUMN scan_run_id TEXT")
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_evidence_scan_kind_captured "
+                "ON evidence (scan_run_id, kind, captured_at)"
+            )
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_evidence_target_captured "
+                "ON evidence (target, captured_at)"
+            )
             await db.commit()
 
     async def append(self, evidence: Evidence) -> None:
