@@ -21,6 +21,7 @@ class Scheduler:
         retry_max_delay: float = 8.0,
         retry_jitter: float = 0.25,
         scan_run_id: str | None = None,
+        progress_callback=None,
     ):
         self._plugins = plugins
         self._scope = scope
@@ -36,6 +37,11 @@ class Scheduler:
         self.stage_durations: dict[str, float] = {}
         self.stage_outcomes: dict[str, dict] = {}
         self._scan_run_id = scan_run_id
+        self._progress_callback = progress_callback
+
+    def _progress(self, event: str, **fields) -> None:
+        if self._progress_callback is not None:
+            self._progress_callback({"event": event, "scan_run_id": self._scan_run_id, **fields})
 
     def _ordered_plugins(self) -> list[Plugin]:
         ordered: list[Plugin] = []
@@ -139,6 +145,7 @@ class Scheduler:
                 f"on {target} "
                 f"(attempt {attempt}/{total_attempts})"
             ))
+            self._progress("stage_attempt", stage=stage_name, target=target, attempt=attempt, attempts=total_attempts)
 
             progress_stop = asyncio.Event()
             progress_started = time.monotonic()
@@ -165,6 +172,7 @@ class Scheduler:
                     f"on {target} "
                     f"(attempt {attempt}/{total_attempts})"
                 , "error"))
+                self._progress("stage_timeout", stage=stage_name, target=target, attempt=attempt)
 
                 # Timeout is treated as a transient execution failure.
                 # Retry it using the Scheduler's generic retry policy.
@@ -190,6 +198,7 @@ class Scheduler:
                     f"attempt {attempt + 1}/{total_attempts} "
                     f"in {delay:.2f}s"
                 ))
+                self._progress("stage_retry", stage=stage_name, target=target, attempt=attempt + 1, delay_seconds=round(delay, 3))
 
                 await asyncio.sleep(delay)
                 continue
@@ -207,6 +216,7 @@ class Scheduler:
                     "status": "error", "attempts": attempt, "discoveries": 0,
                     "error": f"{type(e).__name__}: {e}",
                 }
+                self._progress("stage_error", stage=stage_name, target=target, attempt=attempt, error=f"{type(e).__name__}: {e}")
                 return []
 
             finally:
@@ -349,5 +359,6 @@ class Scheduler:
                 time.monotonic() - stage_started, 3
             )
             print("\n" + status_line(f"STAGE COMPLETE {plugin.metadata.name}", "ok"))
+            self._progress("stage_complete", stage=plugin.metadata.name, target=target, status=self.stage_outcomes.get(plugin.metadata.name, {}).get("status"), attempts=self.stage_outcomes.get(plugin.metadata.name, {}).get("attempts", 0), discoveries=len(discoveries))
 
         return decision

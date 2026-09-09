@@ -21,6 +21,16 @@ sh4q scan example.com -q
 sh4q scan example.com -v
 ```
 
+For automation, emit one JSON object per lifecycle update:
+
+```bash
+sh4q scan example.com --progress jsonl
+```
+
+JSONL progress includes Gate 1, stage attempts, retries, timeouts, errors,
+stage completion, and the final scan summary. Discovery records and evidence
+remain available through the database and normal result commands.
+
 Profiles enable tested passive bundles:
 
 ```bash
