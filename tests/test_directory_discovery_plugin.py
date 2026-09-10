@@ -47,6 +47,21 @@ def test_directory_probe_authorizes_host_and_classifies_paths(tmp_path: Path):
     assert sum(row.kind == "directory_rejected" for row in rows) == 2
 
 
+def test_directory_probe_stops_at_request_budget(tmp_path: Path):
+    words = tmp_path / "paths.txt"
+    words.write_text("one\ntwo\nthree\n", encoding="utf-8")
+    fake = FakeClient()
+    plugin = DirectoryDiscoveryPlugin(
+        ScopeEngine(Sh4qConfig(scope={"targets": ["example.com"], "ports": [443]})),
+        words,
+        request_budget=2,
+        client_factory=lambda: fake,
+    )
+    rows = asyncio.run(plugin.execute("example.com"))
+    assert fake.urls == ["https://example.com/", "https://example.com/one"]
+    assert sum(row.kind == "directory_budget_denied" for row in rows) == 2
+
+
 if __name__ == "__main__":
     import tempfile
 

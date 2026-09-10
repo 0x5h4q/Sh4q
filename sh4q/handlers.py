@@ -457,6 +457,9 @@ def make_discovery_handler(
         elif kind == "directory_rejected":
             display_bounded("directory rejections", f"  GATE 2 DENY path {data.get('path', '-')} -> {data.get('reason', 'rejected')}")
 
+        elif kind == "directory_budget_denied":
+            display_bounded("directory budget denials", f"  BUDGET DENY path {data.get('path', '-')} -> {data.get('reason', 'budget exhausted')}")
+
         elif kind == "directory_baseline":
             display_bounded("directory notices", f"  DIRECTORY baseline recorded for {data.get('endpoint', '-')}", limit=1)
 

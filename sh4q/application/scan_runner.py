@@ -257,7 +257,7 @@ async def run_scan(
         if include_vhosts:
             plugins.append(VhostDiscoveryPlugin(scope, vhosts_file, candidates=vhost_candidates))
         if include_directories:
-            plugins.append(DirectoryDiscoveryPlugin(scope, directories_file))
+            plugins.append(DirectoryDiscoveryPlugin(scope, directories_file, limiter=limiter))
         if include_amass:
             executable = shutil.which("amass")
             if executable is None:
