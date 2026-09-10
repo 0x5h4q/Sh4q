@@ -85,7 +85,9 @@ class DirectoryDiscoveryPlugin(Plugin):
             discoveries.append(Discovery(kind="directory_baseline", data={"endpoint": endpoint, "fingerprint": baseline_fp}))
             for path in loaded.accepted:
                 url = endpoint.rstrip("/") + path
-                if not self._scope.authorize(url).allowed:
+                parsed = urlsplit(url)
+                port = parsed.port or (443 if parsed.scheme == "https" else 80)
+                if not parsed.hostname or not self._scope.authorize(parsed.hostname, port).allowed:
                     discoveries.append(Discovery(kind="directory_rejected", data={"path": path, "reason": "out of scope"}))
                     continue
                 result = await self._probe(client, url)

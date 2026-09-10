@@ -437,7 +437,9 @@ def make_discovery_handler(
 
         elif kind == "directory_observation":
             url = data.get("url", "")
-            decision = scope.authorize(url)
+            parsed = HttpURL(url)
+            port = parsed.port or (443 if parsed.scheme == "https" else 80)
+            decision = scope.authorize(parsed.host or "", port)
             if not decision.allowed:
                 return
             node = Node(type="url", value=url, attributes={"status": data.get("status"), "classification": data.get("classification", "candidate_observation")})
