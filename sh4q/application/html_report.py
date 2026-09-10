@@ -96,6 +96,8 @@ def _report_metadata(database: str, run: ScanRun) -> dict:
     javascript = []
     vhosts = []
     vhost_rejections = []
+    directories = []
+    directory_rejections = []
     with open_sync_database(database) as db:
         table = db.execute(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name='evidence'"
@@ -139,10 +141,26 @@ def _report_metadata(database: str, run: ScanRun) -> dict:
                     failures.append(record | {"detail": content.get("error") or content.get("reason") or "unknown error"})
                 elif kind == "vhost_error":
                     failures.append(record | {"detail": content.get("error") or "unknown error"})
+                elif kind in {"directory_baseline", "directory_observation"}:
+                    directories.append(record | {
+                        "path": content.get("path", "baseline" if kind == "directory_baseline" else ""),
+                        "url": content.get("url", content.get("endpoint", "")),
+                        "status": content.get("status", ""),
+                        "classification": content.get("classification", "baseline" if kind == "directory_baseline" else "candidate_observation"),
+                        "location": content.get("location", ""),
+                    })
+                elif kind in {"directory_rejected", "directory_budget_denied"}:
+                    directory_rejections.append(record | {
+                        "path": content.get("path", ""),
+                        "reason": content.get("reason", "unknown reason"),
+                    })
+                elif kind == "directory_error":
+                    failures.append(record | {"detail": content.get("error") or "unknown error"})
                 evidence.append(record)
     javascript.sort(key=lambda item: (item["source_endpoint"], item["kind"], item["value"]))
     return {"evidence": evidence, "failures": failures, "javascript": javascript, "vhosts": vhosts,
             "vhost_rejections": vhost_rejections, "stages": stages, "request_metrics": request_metrics,
+            "directories": directories, "directory_rejections": directory_rejections,
             "historical_urls_rejected": historical_urls_rejected,
             "historical_urls_truncated": historical_urls_truncated}
 
@@ -228,6 +246,7 @@ pre {{ overflow-x: auto; padding: 14px; border: 1px solid #d5dee6; border-radius
 <div class="stat"><strong>{metadata["historical_urls_rejected"]}</strong>history rejected</div>
 <div class="stat"><strong>{len(metadata["javascript"])}</strong>JavaScript observations</div>
 <div class="stat"><strong>{len(metadata["vhosts"])}</strong>vhost observations</div>
+<div class="stat"><strong>{len(metadata["directories"])}</strong>directory observations</div>
 </div><section class="filters" aria-label="Report filters">
 <label>Search<input id="search" type="search" placeholder="hostname, URL, technology"></label>
 <label>Asset type<select id="type"><option value="">All</option></select></label>
@@ -243,6 +262,7 @@ pre {{ overflow-x: auto; padding: 14px; border: 1px solid #d5dee6; border-radius
 <details open><summary>Failures</summary><section><div class="table-wrap"><table><thead><tr><th>Plugin</th><th>Kind</th><th>Detail</th><th>Captured</th></tr></thead><tbody>{''.join(f'<tr><td>{html.escape(item["plugin"])}</td><td>{html.escape(item["kind"])}</td><td>{html.escape(item["detail"])}</td><td>{html.escape(item["captured_at"])}</td></tr>' for item in metadata["failures"]) or '<tr><td colspan="4">No recorded failures.</td></tr>'}</tbody></table></div></section></details>
 <details open><summary>JavaScript observations</summary><section><div class="table-wrap"><table><thead><tr><th>Type</th><th>Reference or pattern</th><th>Source endpoint</th><th>Captured</th></tr></thead><tbody>{''.join(f'<tr><td>{html.escape(item["kind"].removeprefix("javascript_"))}</td><td><code>{html.escape(str(item["value"]))}</code></td><td><code>{html.escape(str(item["source_endpoint"] or "-"))}</code></td><td>{html.escape(item["captured_at"])}</td></tr>' for item in metadata["javascript"]) or '<tr><td colspan="4">No JavaScript observations.</td></tr>'}</tbody></table></div><p>These are passive, unverified observations. They are not automatically requested or treated as confirmed secrets.</p></section></details>
 <details open><summary>Virtual-host observations</summary><section><div class="table-wrap"><table><thead><tr><th>Candidate</th><th>Endpoint</th><th>Status</th><th>Classification</th><th>Redirect</th><th>Captured</th></tr></thead><tbody>{''.join(f'<tr><td><code>{html.escape(str(item["candidate"] or "baseline"))}</code></td><td><code>{html.escape(str(item["endpoint"] or "-"))}</code></td><td>{html.escape(str(item["status"] or "-"))}</td><td>{html.escape(str(item["classification"]))}</td><td>{html.escape(str(item["location"] or "-"))}</td><td>{html.escape(item["captured_at"])}</td></tr>' for item in metadata["vhosts"]) or '<tr><td colspan="6">No virtual-host observations.</td></tr>'}</tbody></table></div><h3>Rejected candidates</h3><ul>{''.join(f'<li><code>{html.escape(str(item["candidate"]))}</code>: {html.escape(str(item["reason"]))}</li>' for item in metadata["vhost_rejections"]) or '<li>No rejected candidates.</li>'}</ul><p>Virtual-host observations are bounded, scope-checked candidates and are not security findings.</p></section></details>
+<details open><summary>Directory observations</summary><section><div class="table-wrap"><table><thead><tr><th>Path</th><th>URL</th><th>Status</th><th>Classification</th><th>Redirect</th><th>Captured</th></tr></thead><tbody>{''.join(f'<tr><td><code>{html.escape(str(item["path"] or "baseline"))}</code></td><td><code>{html.escape(str(item["url"] or "-"))}</code></td><td>{html.escape(str(item["status"] or "-"))}</td><td>{html.escape(str(item["classification"]))}</td><td>{html.escape(str(item["location"] or "-"))}</td><td>{html.escape(item["captured_at"])}</td></tr>' for item in metadata["directories"]) or '<tr><td colspan="6">No directory observations.</td></tr>'}</tbody></table></div><h3>Rejected or budget-denied paths</h3><ul>{''.join(f'<li><code>{html.escape(str(item["path"]))}</code>: {html.escape(str(item["reason"]))}</li>' for item in metadata["directory_rejections"]) or '<li>No rejected paths.</li>'}</ul><p>Directory observations are bounded, scope-checked responses and are not security findings.</p></section></details>
 <details><summary>Stage timings</summary><section><div class="table-wrap"><table><thead><tr><th>Stage</th><th>Status</th><th>Attempts</th><th>Findings</th><th>Duration</th></tr></thead><tbody>{''.join(f'<tr><td>{html.escape(str(item.get("name", "")))}</td><td>{html.escape(str(item.get("status", "")))}</td><td>{item.get("attempts", 0)}</td><td>{item.get("discoveries", 0)}</td><td>{item.get("duration_seconds", 0)}s</td></tr>' for item in metadata["stages"]) or '<tr><td colspan="5">No persisted stage metrics.</td></tr>'}</tbody></table></div></section></details>
 <details><summary>Request metrics</summary><section><pre>{html.escape(json.dumps(metadata["request_metrics"], indent=2, sort_keys=True))}</pre></section></details>
 <details><summary>Evidence index</summary><section><div class="count">{len(metadata["evidence"])} records retained for this scan.</div></section></details></main>

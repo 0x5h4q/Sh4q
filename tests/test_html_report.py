@@ -32,6 +32,9 @@ with tempfile.TemporaryDirectory() as directory:
         ("e5", "example.com", "vhost-discovery", "vhost_baseline", '{"endpoint":"https://example.com/","fingerprint":"base"}', "now", "scan-1"),
         ("e6", "example.com", "vhost-discovery", "vhost_observation", '{"candidate":"admin.example.com","endpoint":"https://example.com/","status":200,"classification":"candidate_observation"}', "now", "scan-1"),
         ("e7", "example.com", "vhost-discovery", "vhost_rejected", '{"candidate":"evil.test","reason":"out of scope"}', "now", "scan-1"),
+        ("e8", "example.com", "directory-discovery", "directory_baseline", '{"endpoint":"https://example.com/","fingerprint":"base"}', "now", "scan-1"),
+        ("e9", "example.com", "directory-discovery", "directory_observation", '{"path":"/admin","url":"https://example.com/admin","status":200,"classification":"candidate_observation"}', "now", "scan-1"),
+        ("e10", "example.com", "directory-discovery", "directory_rejected", '{"path":"../outside","reason":"path escapes the origin"}', "now", "scan-1"),
         ])
 
     run = ScanRun("scan-1", "example.com", "start", "end", "COMPLETED")
@@ -52,6 +55,9 @@ with tempfile.TemporaryDirectory() as directory:
     assert "Virtual-host observations" in report
     assert "admin.example.com" in report
     assert "Rejected candidates" in report
+    assert "Directory observations" in report
+    assert "example.com/admin" in report
+    assert "../outside" in report
     assert "evil.test" in report
     assert "https://example.com/api/me" in report
     assert "not automatically requested" in report
