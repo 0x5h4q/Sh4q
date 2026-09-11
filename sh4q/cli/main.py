@@ -354,6 +354,8 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="SCAN_ID",
         help="Use domain assets from a prior scan as bounded vhost candidates.",
     )
+    scan.add_argument("--directories", action="store_true", help="Enable bounded directory discovery.")
+    scan.add_argument("--directories-file", help="Relative path wordlist for --directories (maximum 200 paths).")
 
     events = subparsers.add_parser("events", help="Inspect durable event state")
     events.add_argument(
@@ -513,6 +515,8 @@ def main() -> None:
             parser.error("--vhosts-file and --vhosts-from-scan cannot be combined")
         if args.vhosts_from_scan and not args.vhosts:
             parser.error("--vhosts-from-scan requires --vhosts")
+        if args.directories_file and not args.directories:
+            parser.error("--directories-file requires --directories")
         if not args.quiet and args.progress == "human":
             render_identity()
         web_profile = args.profile in {"web", "full"}
@@ -533,6 +537,7 @@ def main() -> None:
                         include_javascript_bundles=args.js_bundles or web_profile,
                         include_katana=args.katana, include_vhosts=args.vhosts,
                         vhosts_file=args.vhosts_file, vhosts_scan_id=args.vhosts_from_scan,
+                        include_directories=args.directories, directories_file=args.directories_file,
                         progress_callback=progress_callback,
                     ))
             else:
@@ -545,6 +550,7 @@ def main() -> None:
                     include_javascript_bundles=args.js_bundles or web_profile,
                     include_katana=args.katana, include_vhosts=args.vhosts,
                     vhosts_file=args.vhosts_file, vhosts_scan_id=args.vhosts_from_scan,
+                    include_directories=args.directories, directories_file=args.directories_file,
                 ))
         except KeyboardInterrupt:
             print()

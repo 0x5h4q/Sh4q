@@ -2,6 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from urllib.parse import urlsplit
+import asyncio
+import hashlib
+import httpx
+from sh4q.network import RequestLimiter, ScopedHTTPClient, ScopedHTTPError
+from sh4q.scope import ScopeEngine
+from .discovery import Discovery
+from .interface import Plugin, PluginMetadata
 from pathlib import Path
 
 
@@ -57,6 +64,60 @@ def load_candidates(path: str | Path, *, max_paths: int = 200, max_length: int =
         seen.add(normalized.value)
         accepted.append(normalized.value)
     return CandidateLoadResult(tuple(accepted), tuple(rejected), duplicates)
+
+
+class DirectoryDiscoveryPlugin(Plugin):
+    metadata = PluginMetadata(name="directory-discovery", dependencies=["http"], timeout=900.0, risk_level="active-low", retry_on_timeout=False)
+
+    def __init__(self, scope: ScopeEngine, candidates_file: str | Path, *, max_paths: int = 200, request_budget: int = 200, client_factory=None, limiter: RequestLimiter | None = None):
+        if max_paths < 1 or request_budget < 1:
+            raise ValueError("directory discovery limits must be positive")
+        self._scope = scope
+        self._file = candidates_file
+        self._max_paths = max_paths
+        self._request_budget = request_budget
+        self._client_factory = client_factory or (lambda: ScopedHTTPClient(scope, timeout=15.0, limiter=limiter))
+
+    async def execute(self, target: str) -> list[Discovery]:
+        loaded = load_candidates(self._file, max_paths=self._max_paths)
+        endpoint = f"https://{self._scope.normalize_target(target)}/"
+        discoveries: list[Discovery] = [Discovery(kind="directory_rejected", data={"path": raw, "line": line, "reason": reason}) for line, raw, reason in loaded.rejected]
+        async with self._client_factory() as client:
+            remaining = self._request_budget
+            baseline = await self._probe(client, endpoint)
+            remaining -= 1
+            baseline_fp = baseline.data.get("fingerprint") if baseline.kind == "directory_observation" else None
+            discoveries.append(Discovery(kind="directory_baseline", data={"endpoint": endpoint, "fingerprint": baseline_fp}))
+            for path in loaded.accepted:
+                if remaining <= 0:
+                    discoveries.append(Discovery(kind="directory_budget_denied", data={"path": path, "reason": "directory request budget exhausted"}))
+                    continue
+                url = endpoint.rstrip("/") + path
+                parsed = urlsplit(url)
+                port = parsed.port or (443 if parsed.scheme == "https" else 80)
+                if not parsed.hostname or not self._scope.authorize(parsed.hostname, port).allowed:
+                    discoveries.append(Discovery(kind="directory_rejected", data={"path": path, "reason": "out of scope"}))
+                    continue
+                result = await self._probe(client, url)
+                remaining -= 1
+                if result.kind == "directory_observation":
+                    result.data["path"] = path
+                    result.data["classification"] = "not_found_match" if result.data.get("fingerprint") == baseline_fp else "candidate_observation"
+                discoveries.append(result)
+                await asyncio.sleep(1.0)
+        return discoveries
+
+    async def _probe(self, client, url: str) -> Discovery:
+        try:
+            response, body, truncated = await client.get_text_bounded(url, 32768, follow_redirects=False)
+            payload = f"{response.status_code}|{response.headers.get('content-type', '')}|{len(body.encode('utf-8'))}|{body}".encode()
+            return Discovery(kind="directory_observation", data={"url": url, "status": response.status_code, "location": response.headers.get("location", ""), "content_type": response.headers.get("content-type", ""), "content_length": len(body.encode("utf-8")), "body_truncated": truncated, "fingerprint": hashlib.sha256(payload).hexdigest()})
+        except asyncio.CancelledError:
+            raise
+        except (httpx.HTTPError, ScopedHTTPError, OSError) as error:
+            if isinstance(error, ScopedHTTPError) and getattr(error, "phase", None) == "limit":
+                return Discovery(kind="directory_budget_denied", data={"url": url, "path": urlsplit(url).path, "reason": str(error)})
+            return Discovery(kind="directory_error", data={"url": url, "error": str(error) or type(error).__name__})
 
 
 def normalize_candidate(raw: str, *, max_length: int = 512) -> NormalizedPath:
