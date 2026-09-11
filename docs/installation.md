@@ -60,6 +60,11 @@ The default suite does not require Subfinder or access to public scan targets.
 The scan target is currently a hostname, such as `example.com` or
 `www.example.com`; pass the scheme-free hostname rather than a full URL.
 
+Configuration files use `schema_version: 1` at the document root. Legacy
+unversioned configuration remains compatible, but new files should declare the
+version so future Sh4q releases can reject incompatible policy documents before
+network activity.
+
 ## Optional Subfinder Support
 
 `--sub` requires ProjectDiscovery Subfinder to be installed separately and available on `PATH`.
