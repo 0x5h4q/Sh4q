@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.2.0 - Unreleased
+## 1.2.0 - 2026-09-11
 
 Post-1.1 maintenance and controlled discovery release.
 
@@ -14,8 +14,8 @@ Post-1.1 maintenance and controlled discovery release.
 - Added offline regression coverage for directory discovery and its report
   presentation.
 
-This release is not tagged or published yet. Automated release validation is
-pending restoration of GitHub Actions access.
+The release is published from the `v1.2.0` tag. Automated release validation
+remains unavailable while GitHub Actions access is disabled.
 
 ## 1.1.1 - 2026-09-06
 
