@@ -31,9 +31,9 @@ JSONL progress includes Gate 1, stage attempts, retries, timeouts, errors,
 stage completion, and the final scan summary. Discovery records and evidence
 remain available through the database and normal result commands.
 
-Directory/content discovery is not enabled by any current profile. It is being
-implemented as a separately bounded, operator-supplied wordlist stage and will
-require an explicit opt-in when released.
+Directory/content discovery is not enabled by any profile. It is available as
+a separately bounded, operator-supplied wordlist stage and requires explicit
+opt-in with `--directories --directories-file`.
 
 Profiles enable tested passive bundles:
 
@@ -136,7 +136,12 @@ sh4q export --latest --format html --output report.html --redact
 sh4q diff --before BEFORE_ID --after AFTER_ID --format text
 ```
 
-The HTML report is self-contained and can be opened offline. Redaction removes
+The HTML report is self-contained and can be opened offline. The asset table
+is the verified scan-owned surface; the JavaScript, vhost, and directory
+sections contain bounded observations that still require operator review.
+`not_found_match` means a directory response matched the baseline fingerprint;
+`candidate_observation` means it differed from that baseline. Neither label is
+a security finding. Redaction removes
 URL query values before sharing a report. The SQLite database and raw evidence
 may contain sensitive target data; review them before distribution.
 

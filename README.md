@@ -3,7 +3,7 @@
 <table><tr><td align="center"><img src="banner-readme.png" alt="Sh4q" width="720"></td></tr></table>
 
 <p align="center">
-  <a href="https://github.com/0x5h4q/Sh4q/releases/tag/v1.1.1"><img src="https://img.shields.io/badge/release-v1.1.1-2c9c94.svg" alt="Release v1.1.1"></a>
+  <a href="https://github.com/0x5h4q/Sh4q/releases/tag/v1.2.0"><img src="https://img.shields.io/badge/release-v1.2.0-2c9c94.svg" alt="Release v1.2.0"></a>
   <a href="https://github.com/0x5h4q/Sh4q/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-167d76.svg" alt="MIT License"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.11%2B-3776ab.svg" alt="Python 3.11+"></a>
   <a href="https://github.com/0x5h4q/Sh4q"><img src="https://img.shields.io/badge/platform-Linux-lightgrey.svg" alt="Linux"></a>
@@ -247,7 +247,7 @@ python -m pip install -e .
 For a globally available command with isolated dependencies, use `pipx`:
 
 ```bash
-pipx install git+https://github.com/0x5h4q/Sh4q.git@v1.1.1
+pipx install git+https://github.com/0x5h4q/Sh4q.git@v1.2.0
 ```
 
 Scan a domain you own or are explicitly authorised to test:
@@ -354,7 +354,8 @@ The default database is `./sh4q-output/sh4q.db`. It may contain sensitive target
 
 ## Project Status
 
-Sh4q `v1.1.1` is available as a limited review release for trusted testers.
+Sh4q `v1.2.0` is the next release target for trusted testers; it is currently
+unreleased pending release validation and tagging.
 It includes backward-compatible JavaScript extraction, scan profiles, improved
 HTTP timeout handling, and interactive HTML report improvements.
 Expect variable live-provider results and the documented limitations
