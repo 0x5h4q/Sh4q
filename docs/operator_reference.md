@@ -68,6 +68,8 @@ and adapter bounds. Without a config file, the target and its subdomains are
 allowed on ports 80 and 443.
 
 ```yaml
+schema_version: 1
+
 scope:
   targets: ["example.com"]
   excluded: []
@@ -96,6 +98,11 @@ adapters:
 Private or reserved address access is denied by default. Enabling
 `allow_private_addresses` is an explicit policy decision and should be limited
 to controlled test environments.
+
+`schema_version: 1` identifies the configuration contract. New files should
+declare it explicitly. Existing unversioned files are treated as legacy version
+1 files, while unsupported or malformed versions are rejected before any scan
+or network activity starts.
 
 ## Inspecting Results
 

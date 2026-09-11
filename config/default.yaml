@@ -3,6 +3,8 @@
 # Deliberately scoped to localhost only, so testing never risks touching
 # anything real. This is the file the Scope Engine will validate against next.
 
+schema_version: 1
+
 scope:
   targets:
     - "127.0.0.1"

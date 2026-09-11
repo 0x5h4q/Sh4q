@@ -1,6 +1,11 @@
 
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+
+CURRENT_CONFIG_SCHEMA_VERSION = 1
 
 
 class ScopeConfig(BaseModel):
@@ -41,6 +46,9 @@ class AdaptersConfig(BaseModel):
 
 
 class Sh4qConfig(BaseModel):
+    schema_version: Literal[CURRENT_CONFIG_SCHEMA_VERSION] = (
+        CURRENT_CONFIG_SCHEMA_VERSION
+    )
     scope: ScopeConfig = Field(default_factory=ScopeConfig)
     rate_limit: RateLimitConfig = Field(default_factory=RateLimitConfig)
     timeout: TimeoutConfig = Field(default_factory=TimeoutConfig)
