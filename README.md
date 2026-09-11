@@ -3,7 +3,7 @@
 <table><tr><td align="center"><img src="banner-readme.png" alt="Sh4q" width="720"></td></tr></table>
 
 <p align="center">
-  <a href="https://github.com/0x5h4q/Sh4q/releases/tag/v1.1.1"><img src="https://img.shields.io/badge/release-v1.1.1-2c9c94.svg" alt="Release v1.1.1"></a>
+  <a href="https://github.com/0x5h4q/Sh4q/releases/tag/v1.2.0"><img src="https://img.shields.io/badge/release-v1.2.0-2c9c94.svg" alt="Release v1.2.0"></a>
   <a href="https://github.com/0x5h4q/Sh4q/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-167d76.svg" alt="MIT License"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.11%2B-3776ab.svg" alt="Python 3.11+"></a>
   <a href="https://github.com/0x5h4q/Sh4q"><img src="https://img.shields.io/badge/platform-Linux-lightgrey.svg" alt="Linux"></a>
@@ -170,6 +170,36 @@ Katana runs with bounded crawl depth, duration, response size, retries, and
 redirects. Only same-scope HTTP(S) URLs are retained, and Katana is not enabled
 by the `web` or `full` profiles.
 
+For bounded virtual-host discovery, provide an explicit candidate file:
+
+```bash
+sh4q scan company.example --vhosts --vhosts-file ./vhosts.txt
+```
+
+Directory/content discovery is also explicit and requires an operator-supplied
+relative-path wordlist:
+
+```bash
+sh4q scan company.example \
+  --directories \
+  --directories-file ./directories.txt
+```
+
+Both stages enforce scope, request limits, evidence retention, and scan-owned
+provenance. They are not enabled by `--profile full` because they perform
+active, potentially high-volume requests.
+
+For scripts and scheduled jobs, select the output mode explicitly:
+
+```bash
+sh4q scan company.example --quiet
+sh4q scan company.example --progress jsonl
+```
+
+`--quiet` prints the final summary only. `--progress jsonl` emits structured
+lifecycle records for stage attempts, retries, timeouts, errors, completion,
+and the final scan result.
+
 For common combinations, use a scan profile:
 
 ```bash
@@ -247,7 +277,7 @@ python -m pip install -e .
 For a globally available command with isolated dependencies, use `pipx`:
 
 ```bash
-pipx install git+https://github.com/0x5h4q/Sh4q.git@v1.1.1
+pipx install git+https://github.com/0x5h4q/Sh4q.git@v1.2.0
 ```
 
 Scan a domain you own or are explicitly authorised to test:
@@ -348,15 +378,22 @@ The default database is `./sh4q-output/sh4q.db`. It may contain sensitive target
 - Opt-in passive JavaScript extraction with bounded, scope-checked bundle inspection.
 - JavaScript observations available through CLI filters, JSON export, and HTML reports.
 - Opt-in Katana runtime URL discovery with bounded, same-scope crawling.
+- Opt-in virtual-host discovery from bounded candidate files or prior scan assets.
+- Opt-in directory discovery with path normalization, baseline comparison,
+  request budgets, durable evidence, and HTML-report observations.
+- Quiet/verbose scan output and machine-readable JSON Lines progress events.
 - A deterministic offline suite used by CI.
 - A self-contained HTML asset report with client-side filters for type, host,
-  status, technology/category, source, and text search.
+  status, technology/category, source, and text search, plus JavaScript,
+  virtual-host, and directory observation sections.
 
 ## Project Status
 
-Sh4q `v1.1.1` is available as a limited review release for trusted testers.
-It includes backward-compatible JavaScript extraction, scan profiles, improved
-HTTP timeout handling, and interactive HTML report improvements.
+Sh4q `v1.2.0` is the next release target for trusted testers; it is currently
+unreleased pending release validation and tagging.
+It includes bounded JavaScript, Katana, virtual-host, and directory discovery,
+scan profiles, SQLite large-scan indexing, machine-readable progress output,
+improved HTTP timeout handling, and interactive HTML report improvements.
 Expect variable live-provider results and the documented limitations
 around completeness, active scanning, and external-tool availability. Passive
 Amass support is experimental and optional.

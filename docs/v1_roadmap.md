@@ -118,10 +118,10 @@ Prioritized work after the v1 review release:
 5. **Operator UX:** add configuration and CLI references, quiet/verbose modes,
    machine-readable progress events, consistent status formatting, and HTML
    report interpretation guidance.
-6. **Controlled directory discovery:** implement the approved design only after
-   offline path normalization, traversal rejection, baseline comparison,
-   redirect, budget, persistence, and report tests exist.
-7. **Distribution:** publish versioned wheels through PyPI or `pipx`, verify
+6. **Controlled directory discovery:** complete. The approved design is
+   implemented as an explicit, bounded, scope-checked stage with offline path,
+   loading, probe, persistence, and HTML-report coverage.
+7. **Distribution:** next. Publish versioned wheels through PyPI or `pipx`, verify
    clean-environment installs, and keep release artifacts reproducible.
 8. **Workflow foundations:** add versioned scope-file support, safe scan
    templates that disclose active stages, scheduled scans, proxy support, and
@@ -130,11 +130,12 @@ Prioritized work after the v1 review release:
    deployment, authentication/RBAC, and webhook integrations as a separate
    product milestone.
 
-Current status: numbered SQLite migrations, scan diffs, export redaction, HTML
-reporting, URL history, Katana, and vhost discovery are implemented with
-offline coverage. The remaining release blockers are hardening,
-reproducible dependency/release controls, and the URL-history provider
-invocation fix.
+Current status: safety hardening, reproducible dependency controls, numbered
+SQLite migrations, scan diffs, export redaction, HTML reporting, URL history,
+Katana, vhost discovery, JSONL progress, and bounded directory discovery are
+implemented with offline coverage. Distribution remains pending release
+validation; the three Dependabot action updates remain unverified while GitHub
+Actions is disabled.
 
 Each item should retain the v1 invariants: Gate 1 and Gate 2 enforcement,
 evidence-first handling, scan ownership, provenance, bounded execution, and

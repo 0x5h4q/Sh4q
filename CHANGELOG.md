@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.2.0 - Unreleased
+
+Post-1.1 maintenance and controlled discovery release.
+
+- Added restrictive SQLite indexes for large-scan result, evidence, event,
+  relationship, and node queries.
+- Added quiet and verbose scan output modes plus JSON Lines progress events.
+- Added a consolidated operator reference and expanded installation guidance.
+- Added bounded, explicitly opt-in directory discovery with candidate
+  normalization, scope checks, request budgets, baseline comparison, durable
+  evidence, scan ownership, and HTML reporting.
+- Added offline regression coverage for directory discovery and its report
+  presentation.
+
+This release is not tagged or published yet. Automated release validation is
+pending restoration of GitHub Actions access.
+
 ## 1.1.1 - 2026-09-06
 
 Patch release correcting package and release metadata after the `v1.1.0`
