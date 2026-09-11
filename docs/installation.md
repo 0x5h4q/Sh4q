@@ -47,8 +47,7 @@ source changes, and repeatable test runs. Installing directly into a system
 Python is possible where the operating system permits it, but is not the
 recommended deployment path.
 
-The `v1.2.0` tag becomes installable once the release-readiness checks pass
-and the release is published.
+The `v1.2.0` tag is installable from the published GitHub release.
 
 Run the offline checks:
 
