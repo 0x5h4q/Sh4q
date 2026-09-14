@@ -1,4 +1,4 @@
-# Path To v1
+# Sh4q Roadmap
 
 Sh4q v1 is a defensible review release, not a promise to replace every mature
 reconnaissance tool. The acceptance bar is reproducibility, policy clarity,
@@ -121,21 +121,23 @@ Prioritized work after the v1 review release:
 6. **Controlled directory discovery:** complete. The approved design is
    implemented as an explicit, bounded, scope-checked stage with offline path,
    loading, probe, persistence, and HTML-report coverage.
-7. **Distribution:** next. Publish versioned wheels through PyPI or `pipx`, verify
-   clean-environment installs, and keep release artifacts reproducible.
-8. **Workflow foundations:** add versioned scope-file support, safe scan
+7. **Distribution:** substantially complete. v1.2.0 is published as a GitHub
+   release and verified in a clean virtual environment. PyPI publication remains
+   optional future work if that distribution channel is adopted.
+8. **Workflow foundations:** in progress. Versioned configuration files are
+   implemented; next add safe scan
    templates that disclose active stages, scheduled scans, proxy support, and
    inventory exports with first/last-seen metadata.
 9. **Platform v2:** design the API, dashboard, worker queue, PostgreSQL-backed
    deployment, authentication/RBAC, and webhook integrations as a separate
    product milestone.
 
-Current status: safety hardening, reproducible dependency controls, numbered
+Current status: v1.2.0 is released. Safety hardening, reproducible dependency controls, numbered
 SQLite migrations, scan diffs, export redaction, HTML reporting, URL history,
 Katana, vhost discovery, JSONL progress, and bounded directory discovery are
-implemented with offline coverage. Distribution remains pending release
-validation; the three Dependabot action updates remain unverified while GitHub
-Actions is disabled.
+implemented with offline coverage. Versioned configuration is implemented on
+the current workflow-foundations branch. The three Dependabot action updates
+remain unverified while GitHub Actions is disabled.
 
 Each item should retain the v1 invariants: Gate 1 and Gate 2 enforcement,
 evidence-first handling, scan ownership, provenance, bounded execution, and

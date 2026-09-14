@@ -1,8 +1,8 @@
 # Passive URL-History Policy
 
-This document defines the boundary for integrating a passive URL-history
-provider such as `waybackurls` or `gau` into Sh4q. It is a design prerequisite,
-not an indication that a provider is enabled in the current CLI.
+This document records the policy boundary for Sh4q's passive URL-history
+integration. The feature is implemented and exposed through the explicit
+`--url-history` option; this document remains the design and policy record.
 
 ## Purpose
 

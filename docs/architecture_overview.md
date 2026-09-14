@@ -12,7 +12,8 @@ CLI -> scan runner and scheduler
           |\
           +-> scope engine (Gate 1 and Gate 2)
           +-> plugins and adapters (DNS, HTTP, CT, Subfinder, Amass,
-          |                         Waybackurls, HTTPX)
+          |                         Waybackurls, HTTPX, Katana, vhost,
+          |                         directory discovery)
           +-> durable event bus (retries, timeouts, interruption handling)
           +-> SQLite storage (assets, relationships, evidence, failures,
                               technologies, provenance, scan ownership)

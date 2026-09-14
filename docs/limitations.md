@@ -1,6 +1,6 @@
 # Known Limitations
 
-This list describes the private-alpha boundary. It should be read before judging scan output.
+This list describes the v1.2.0 boundary. It should be read before judging scan output.
 
 ## Discovery and Providers
 
@@ -55,7 +55,8 @@ This list describes the private-alpha boundary. It should be read before judging
 - Sh4q does not perform vulnerability exploitation.
 - It does not currently crawl applications broadly or perform general port scanning.
 - It is not a direct replacement for reconFTW, Amass, Nmap, or a commercial attack-surface management platform.
-- The private-alpha package is source-based and currently requires Python and a local virtual environment; no standalone binary is provided.
+- The package is distributed as a Python wheel and source archive. A standalone
+  native binary is not provided.
 - Technology detection uses a curated offline signature set over a bounded response sample. It is intentionally smaller than Wappalyzer and does not execute page JavaScript or make additional fingerprinting requests.
 - External adapter tools can be unavailable, misinstalled, or provider-blocked. Sh4q now fails fast when an adapter's bounded version probe hangs, but a working tool installation and provider configuration remain the operator's responsibility.
 - Passive Amass enumeration has an explicit 20-second process ceiling. A tool
@@ -64,6 +65,6 @@ This list describes the private-alpha boundary. It should be read before judging
 
 ## Review Status
 
-The threat-model and limitations review was updated for `v0.1.0-alpha.34`.
-The Amass scheduler/provenance path is covered offline, but this does not turn
+The limitations review applies to the published `v1.2.0` release. The Amass
+scheduler/provenance path is covered offline, but this does not turn
 third-party tool output into a completeness or liveness guarantee.

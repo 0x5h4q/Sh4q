@@ -1,6 +1,6 @@
-# v2 Phase 1: JavaScript Extraction
+# JavaScript Extraction Design
 
-This is the acceptance contract for the first v2 feature. It extends Sh4q's
+This is the acceptance contract for the JavaScript extraction feature. It extends Sh4q's
 passive, evidence-first workflow without changing the v1 scope or persistence
 invariants.
 

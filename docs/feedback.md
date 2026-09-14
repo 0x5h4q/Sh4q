@@ -1,4 +1,4 @@
-# Private-Alpha Feedback
+# Feedback
 
 Good feedback includes enough detail to reproduce the problem without exposing sensitive scan data.
 
