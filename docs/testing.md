@@ -2,7 +2,7 @@
 
 ## Deterministic Offline Suite
 
-Run the same suite used by continuous integration:
+Run the repository's deterministic offline suite:
 
 ```bash
 venv/bin/python tools/run_offline_tests.py
@@ -24,7 +24,11 @@ The default suite uses fakes, temporary SQLite databases, controlled subprocesse
 
 `--include-integration` adds local integration checks that may require operating-system facilities such as OpenSSL and loopback socket binding. These checks still do not contact a public target.
 
-Live checks and manual engineering scripts remain outside CI. They must be run deliberately and documented with the target authorization, network conditions, tool versions, and exact Git commit.
+The workflow is configured for CI, but GitHub Actions is currently disabled due
+to the repository owner's billing issue. Run the suite locally before merging.
+Live checks and manual engineering scripts remain outside the offline suite.
+They must be run deliberately and documented with the target authorization,
+network conditions, tool versions, and exact Git commit.
 
 ## Interpreting Test Results
 
