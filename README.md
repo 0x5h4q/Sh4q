@@ -7,7 +7,7 @@
   <a href="https://github.com/0x5h4q/Sh4q/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-167d76.svg" alt="MIT License"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.11%2B-3776ab.svg" alt="Python 3.11+"></a>
   <a href="https://github.com/0x5h4q/Sh4q"><img src="https://img.shields.io/badge/platform-Linux-lightgrey.svg" alt="Linux"></a>
-  <img src="https://img.shields.io/badge/offline%20tests-57%2F57-2ea043.svg" alt="57 of 57 offline tests passing">
+  <img src="https://img.shields.io/badge/offline%20tests-58%2F58-2ea043.svg" alt="58 of 58 offline tests passing">
 </p>
 
 <p align="center"><strong>Know what you touched. Know why. Know it was authorised.</strong></p>
@@ -236,6 +236,8 @@ produce names outside that boundary or follow a redirect to a third party.
 With Sh4q, place the approved targets and exclusions in a configuration file:
 
 ```yaml
+schema_version: 1
+
 scope:
   targets:
     - "acme-bank.example"

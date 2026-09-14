@@ -20,6 +20,7 @@ from sh4q.application.results import friendly_technology_source, list_assets, li
 from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
 from sh4q.application.scan_report import build_scan_report
 from sh4q.application.diff import build_scan_diff, diff_document
+from sh4q.config import ConfigFileError
 from sh4q.storage.db import SchemaVersionError, ensure_schema_version
 from sh4q.cli.branding import render_scan_banner
 from sh4q.dependencies import OPTIONAL_DEPENDENCIES, dependency_status
@@ -558,7 +559,7 @@ def main() -> None:
             print("  Unfinished durable events will be recovered on the next scan.")
             print()
             sys.exit(130)
-        except (AdapterExecutionError, SchemaVersionError) as error:
+        except (AdapterExecutionError, ConfigFileError, SchemaVersionError) as error:
             print(f"  Scan could not start: {error}")
             sys.exit(2)
         if args.progress == "jsonl":
