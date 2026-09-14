@@ -347,8 +347,8 @@ sh4q export --latest --format html --output report-redacted.html --redact
 - [Known limitations](docs/limitations.md)
 - [Architecture](docs/architecture_overview.md)
 - [Threat model](docs/threat_model.md)
-- [JavaScript extraction design specification](docs/v2_javascript_extraction_spec.md)
-- [Passive URL-history policy](docs/url_history_policy.md)
+- [JavaScript extraction design specification](docs/design/javascript_extraction.md)
+- [Passive URL-history policy](docs/design/url_history.md)
 - [Testing](docs/testing.md)
 - [Feedback guide](docs/feedback.md)
 - [Contributing](CONTRIBUTING.md)
@@ -356,9 +356,12 @@ sh4q export --latest --format html --output report-redacted.html --redact
 
 ### Project history and internal notes
 
-- [v1 baseline](docs/v1_baseline.md)
+- [v1 baseline (historical)](docs/historical/v1_baseline.md)
 - [v1 roadmap](docs/v1_roadmap.md)
-- [Virtual-host discovery design](docs/vhost_discovery_design.md)
+- [Virtual-host discovery design](docs/design/vhost_discovery.md)
+- [JavaScript extraction design](docs/design/javascript_extraction.md)
+- [URL-history policy](docs/design/url_history.md)
+- [Academic submission plan](docs/academic/submission_plan.md)
 
 The continuation handoff is an internal engineering note. The outreach pitch
 is a separate communication aid and is not required to install or use Sh4q.

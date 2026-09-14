@@ -1,4 +1,4 @@
-# Academic Submission Plan
+# Academic Submission Plan (Separate From Product Status)
 
 The Sh4q repository will continue evolving after the v1 review release. The
 academic project should therefore define a reproducible thesis snapshot rather
@@ -6,7 +6,8 @@ than attempt to describe every later repository change.
 
 ## Version strategy
 
-- Treat `v1.0.0` as the validated baseline implementation.
+- Treat the selected, explicitly frozen thesis snapshot as the validated
+  academic baseline. The repository's current product release is v1.2.0.
 - Continue v2 development as a separate engineering phase.
 - Select and record a thesis snapshot before final evaluation, ideally 8-12
   weeks before submission.

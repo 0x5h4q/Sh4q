@@ -1,9 +1,7 @@
 # Virtual-host discovery design
 
-This document defines a possible, opt-in virtual-host discovery slice. It is
-design work only: it does not add a CLI flag, generate candidates, or make
-network requests. Implementation requires a separate feature branch, offline
-tests, and a reviewed pull request.
+This document records the policy and acceptance contract for the implemented,
+opt-in virtual-host discovery stage. It does not itself make network requests.
 
 ## Purpose and boundary
 

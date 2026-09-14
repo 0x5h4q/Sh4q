@@ -1,6 +1,6 @@
-# Sh4q v1 Baseline
+# Sh4q v1 Baseline (Historical Snapshot)
 
-This document defines the v1 implementation that should remain stable while
+This document defines the historical v1 implementation that should remain stable while
 post-v1 development proceeds. It is the reference point for regression tests,
 release notes, demonstrations, and the academic evaluation.
 
@@ -144,10 +144,11 @@ Post-v1 work must preserve these v1 invariants:
 New features may extend the system, but they should not silently change the
 meaning of existing statuses, relationships, exports, or safety decisions.
 
-## Release Identity
+## Release Identity (Historical)
 
-The package declares version `1.0.0`. The repository used alpha tags during
-development; the `v1.0.0` tag is the formal v1 review-release tag. Do not move
+The historical snapshot declared package version `1.0.0`. The repository used
+alpha tags during development; the `v1.0.0` tag is the formal historical
+review-release tag. Do not move
 an existing alpha tag or reuse a release tag for a materially different
 implementation.
 

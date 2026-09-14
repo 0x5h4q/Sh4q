@@ -1,6 +1,6 @@
-# Sh4q Private Alpha Guide
+# Sh4q Guided Workflow
 
-Sh4q is a policy-controlled reconnaissance tool for domains you own or are explicitly authorised to test. It records what it observed, where the observation came from, and why a request or result was accepted or rejected.
+Sh4q is a policy-controlled reconnaissance tool for domains you own or are explicitly authorised to test. It records what it observed, where the observation came from, and why a request or result was accepted or rejected. For the complete current command reference, see [Quick start](quickstart.md) and the [Operator reference](operator_reference.md).
 
 ## Install
 

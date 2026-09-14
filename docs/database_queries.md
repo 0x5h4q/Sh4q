@@ -47,7 +47,7 @@ ORDER BY updated_at DESC;
 
 Exit with `.quit`.
 
-## Planned Non-SQL Interface
+## Supported Non-SQL Interface
 
 Ordinary users should not need SQL. The supported interfaces are `sh4q results` with target/type filters, `sh4q show` for scan summaries, JSON/CSV export, and self-contained HTML reports with offline client-side filters.
 
@@ -65,7 +65,7 @@ sh4q results --failures --target example.com
 sh4q scans
 ```
 
-Asset target filtering matches the exact root domain and its subdomains. IP filtering follows stored `RESOLVES_TO` relationships from matching domains. These are historical target views across the database, not exact per-scan views. First-class `scan_run` records are required before `--latest` and exact per-scan asset views can be implemented correctly.
+Asset target filtering matches the exact root domain and its subdomains. IP filtering follows stored `RESOLVES_TO` relationships from matching domains. Exact per-scan views are available for scans with scan ownership; migration-era scans remain historical target views.
 
 The first scan-run view is now available:
 
