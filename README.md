@@ -7,7 +7,7 @@
   <a href="https://github.com/0x5h4q/Sh4q/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-167d76.svg" alt="MIT License"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.11%2B-3776ab.svg" alt="Python 3.11+"></a>
   <a href="https://github.com/0x5h4q/Sh4q"><img src="https://img.shields.io/badge/platform-Linux-lightgrey.svg" alt="Linux"></a>
-  <img src="https://img.shields.io/badge/offline%20tests-58%2F58-2ea043.svg" alt="58 of 58 offline tests passing">
+  <img src="https://img.shields.io/badge/offline%20suite-58%20checks-2ea043.svg" alt="58 offline checks">
 </p>
 
 <p align="center"><strong>Know what you touched. Know why. Know it was authorised.</strong></p>
@@ -346,6 +346,7 @@ sh4q export --latest --format html --output report-redacted.html --redact
 
 ### Developer and reviewer reference
 
+- [Current state and maintainer guide](docs/current_state.md)
 - [Known limitations](docs/limitations.md)
 - [Architecture](docs/architecture_overview.md)
 - [Threat model](docs/threat_model.md)
