@@ -162,7 +162,6 @@ Implemented explicit or experimental capabilities:
 
 Not implemented yet:
 
-- named scan templates;
 - built-in scheduling;
 - proxy configuration;
 - comparison metadata for effective configuration and tool versions;
@@ -174,7 +173,8 @@ Not implemented yet:
 The current workflow-foundations milestone proceeds in this order:
 
 1. Versioned configuration files: complete.
-2. Named scan templates with explicit stage/risk disclosure: next.
+2. Named scan templates with explicit stage/risk disclosure: first bounded
+   slice implemented; broader template metadata remains follow-up work.
 3. Persist effective template/configuration and tool-version identity for
    repeatable comparisons.
 4. Proxy support with explicit per-transport and per-adapter behavior.

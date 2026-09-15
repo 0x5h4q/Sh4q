@@ -20,7 +20,7 @@ from sh4q.application.results import friendly_technology_source, list_assets, li
 from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
 from sh4q.application.scan_report import build_scan_report
 from sh4q.application.diff import build_scan_diff, diff_document
-from sh4q.config import ConfigFileError
+from sh4q.config import ConfigFileError, load_template
 from sh4q.storage.db import SchemaVersionError, ensure_schema_version
 from sh4q.cli.branding import render_scan_banner
 from sh4q.dependencies import OPTIONAL_DEPENDENCIES, dependency_status
@@ -288,6 +288,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to a YAML config file. If omitted, scope defaults to just the target itself (and its subdomains) on ports 80/443.",
     )
     scan.add_argument(
+        "--template",
+        help="Path to a versioned YAML scan template that selects stages and configuration.",
+    )
+    scan.add_argument(
         "--profile",
         choices=["web", "full"],
         help="Enable a tested bundle of optional stages: web=JavaScript extraction and bundles; full=all current adapters and web stages.",
@@ -510,6 +514,32 @@ def main() -> None:
                 parser.error(str(error))
 
     if args.command == "scan":
+        template = None
+        if args.template:
+            if args.profile:
+                parser.error("--template cannot be combined with --profile")
+            try:
+                template = load_template(args.template)
+            except ValueError as error:
+                parser.error(str(error))
+            if args.config:
+                parser.error("--template cannot be combined with --config")
+            args.config = str(template.config) if template.config else None
+            selected = set(template.stages)
+            args.sub = "sub" in selected
+            args.httpx = "httpx" in selected
+            args.amass = "amass" in selected
+            args.url_history = "url-history" in selected
+            args.js = "js" in selected
+            args.js_bundles = "js-bundles" in selected
+            args.katana = "katana" in selected
+            args.vhosts = "vhosts" in selected
+            args.directories = "directories" in selected
+            args.vhosts_file = template.vhosts_file
+            args.directories_file = template.directories_file
+            if not args.quiet and args.progress == "human":
+                print(f"  TEMPLATE {template.name}")
+                print(f"  STAGES   {', '.join(template.stages) or 'native'}")
         if args.vhosts_file and not args.vhosts:
             parser.error("--vhosts-file requires --vhosts")
         if args.vhosts_file and args.vhosts_from_scan:
