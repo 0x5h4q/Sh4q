@@ -20,6 +20,32 @@ TEMPLATE_STAGES = {
 }
 
 
+# Options a template already decides. Supplying any of them alongside
+# --template is a conflict, not an override: the template is the single
+# source of truth for stage selection and configuration.
+TEMPLATE_OWNED_OPTIONS = (
+    ("--config", "config"),
+    ("--profile", "profile"),
+    ("--sub", "sub"),
+    ("--httpx", "httpx"),
+    ("--amass", "amass"),
+    ("--url-history", "url_history"),
+    ("--js", "js"),
+    ("--js-bundles", "js_bundles"),
+    ("--katana", "katana"),
+    ("--vhosts", "vhosts"),
+    ("--vhosts-file", "vhosts_file"),
+    ("--vhosts-from-scan", "vhosts_from_scan"),
+    ("--directories", "directories"),
+    ("--directories-file", "directories_file"),
+)
+
+
+def conflicting_template_options(args) -> list[str]:
+    """Return the option names a template would otherwise silently overwrite."""
+    return [flag for flag, attribute in TEMPLATE_OWNED_OPTIONS if getattr(args, attribute, None)]
+
+
 @dataclass(frozen=True)
 class ScanTemplate:
     name: str
@@ -64,10 +90,33 @@ def load_template(path: str | Path) -> ScanTemplate:
         config_path = (template_path.parent / config).resolve()
         if not config_path.is_file():
             raise ValueError(f"scan template config not found: {config_path}")
+    vhosts_file = _optional_path_field(raw, "vhosts_file")
+    directories_file = _optional_path_field(raw, "directories_file")
+    if vhosts_file and "vhosts" not in stages:
+        raise ValueError("scan template sets vhosts_file but does not select the 'vhosts' stage")
+    if directories_file and "directories" not in stages:
+        raise ValueError(
+            "scan template sets directories_file but does not select the 'directories' stage"
+        )
+    if "directories" in stages and not directories_file:
+        raise ValueError(
+            "scan template selects the 'directories' stage but sets no directories_file; "
+            "directory discovery always requires an explicit candidate file"
+        )
     return ScanTemplate(
         name=name.strip(),
         config=config_path,
         stages=tuple(stages),
-        vhosts_file=raw.get("vhosts_file"),
-        directories_file=raw.get("directories_file"),
+        vhosts_file=vhosts_file,
+        directories_file=directories_file,
     )
+
+
+def _optional_path_field(raw: dict, field: str) -> str | None:
+    """Validate an optional path-valued template field the same way as the rest."""
+    value = raw.get(field)
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"scan template {field} must be a non-empty path")
+    return value.strip()

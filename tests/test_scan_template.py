@@ -1,29 +1,137 @@
+import subprocess
+import sys
 from pathlib import Path
 
-from sh4q.config import load_template
+from sh4q.config import conflicting_template_options, load_template
 from sh4q.cli.main import build_parser
 
 
 root = Path("/tmp/sh4q_template_test")
 root.mkdir(parents=True, exist_ok=True)
 (root / "scope.yaml").write_text("schema_version: 1\nscope:\n  targets: [example.com]\n", encoding="utf-8")
-(root / "template.yaml").write_text(
+(root / "paths.txt").write_text("admin\n", encoding="utf-8")
+
+
+def write(name: str, body: str) -> Path:
+    path = root / name
+    path.write_text(body, encoding="utf-8")
+    return path
+
+
+def rejects(name: str, body: str, fragment: str) -> None:
+    """A malformed template must be refused with an explanatory message."""
+    try:
+        load_template(write(name, body))
+    except ValueError as error:
+        assert fragment in str(error), f"{name}: expected {fragment!r}, got {str(error)!r}"
+    else:
+        raise AssertionError(f"{name}: should have been rejected")
+
+
+def cli_rejects(argv: list[str], fragment: str) -> None:
+    """The CLI exits 2 and explains the conflict on stderr. No scan starts."""
+    completed = subprocess.run(
+        [sys.executable, "-m", "sh4q", *argv],
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 2, f"{argv}: expected exit 2, got {completed.returncode}"
+    assert fragment in completed.stderr, f"{argv}: expected {fragment!r}, got {completed.stderr!r}"
+
+
+# --- a well-formed template loads and resolves its config relative to itself ---
+template_path = write(
+    "template.yaml",
     "schema_version: 1\nname: passive\nconfig: scope.yaml\nstages: [sub, js]\n",
-    encoding="utf-8",
 )
-template = load_template(root / "template.yaml")
+template = load_template(template_path)
 assert template.name == "passive"
 assert template.stages == ("sub", "js")
 assert template.config == (root / "scope.yaml").resolve()
-args = build_parser().parse_args(["scan", "example.com", "--template", str(root / "template.yaml")])
-assert args.template == str(root / "template.yaml")
+assert template.vhosts_file is None
+assert template.directories_file is None
 
-(root / "bad.yaml").write_text("schema_version: 1\nname: bad\nstages: [unknown]\n", encoding="utf-8")
-try:
-    load_template(root / "bad.yaml")
-except ValueError as error:
-    assert "unknown scan template stage" in str(error)
-else:
-    raise AssertionError("unknown stages should be rejected")
+args = build_parser().parse_args(["scan", "example.com", "--template", str(template_path)])
+assert args.template == str(template_path)
+
+# --- stage list validation ---
+rejects("bad.yaml", "schema_version: 1\nname: bad\nstages: [unknown]\n", "unknown scan template stage")
+rejects("dupe.yaml", "schema_version: 1\nname: dupe\nstages: [sub, sub]\n", "must not contain duplicates")
+rejects("noname.yaml", "schema_version: 1\nstages: [sub]\n", "name must be a non-empty string")
+rejects("badver.yaml", "schema_version: 99\nname: v\nstages: [sub]\n", "unsupported")
+rejects("notmap.yaml", "- just\n- a\n- list\n", "must contain a YAML mapping")
+
+# --- optional path fields are typed, not passed through raw ---
+rejects(
+    "listfile.yaml",
+    "schema_version: 1\nname: t\nstages: [vhosts]\nvhosts_file: [a, b]\n",
+    "vhosts_file must be a non-empty path",
+)
+rejects(
+    "emptyfile.yaml",
+    "schema_version: 1\nname: t\nstages: [vhosts]\nvhosts_file: '   '\n",
+    "vhosts_file must be a non-empty path",
+)
+
+# --- a path field without its stage, and the directories stage without its file ---
+rejects(
+    "orphanvhost.yaml",
+    "schema_version: 1\nname: t\nstages: [sub]\nvhosts_file: hosts.txt\n",
+    "does not select the 'vhosts' stage",
+)
+rejects(
+    "orphandirs.yaml",
+    "schema_version: 1\nname: t\nstages: [sub]\ndirectories_file: paths.txt\n",
+    "does not select the 'directories' stage",
+)
+rejects(
+    "dirsnofile.yaml",
+    "schema_version: 1\nname: t\nstages: [directories]\n",
+    "sets no directories_file",
+)
+
+# --- a directory template that is complete loads, and reaches argparse intact ---
+complete = write(
+    "complete.yaml",
+    "schema_version: 1\nname: dirs\nstages: [directories]\ndirectories_file: paths.txt\n",
+)
+loaded = load_template(complete)
+assert loaded.directories_file == "paths.txt"
+assert loaded.stages == ("directories",)
+
+# --- the template owns stage selection: conflicts are detected, not overwritten ---
+# Every template-owned option is covered, checked against the parser's own
+# destinations so a renamed flag cannot silently drop out of the conflict set.
+parser = build_parser()
+for flag, attribute in [
+    ("--config", "config"), ("--profile", "profile"), ("--sub", "sub"),
+    ("--httpx", "httpx"), ("--amass", "amass"), ("--url-history", "url_history"),
+    ("--js", "js"), ("--js-bundles", "js_bundles"), ("--katana", "katana"),
+    ("--vhosts", "vhosts"), ("--vhosts-file", "vhosts_file"),
+    ("--vhosts-from-scan", "vhosts_from_scan"), ("--directories", "directories"),
+    ("--directories-file", "directories_file"),
+]:
+    value = [] if attribute in {"sub", "httpx", "amass", "url_history", "js", "js_bundles",
+                                "katana", "vhosts", "directories"} else ["web" if flag == "--profile" else "x"]
+    parsed = parser.parse_args(["scan", "example.com", "--template", str(template_path), flag, *value])
+    assert getattr(parsed, attribute), f"{flag} did not set {attribute}"
+    assert conflicting_template_options(parsed) == [flag], (
+        f"{flag} was not reported as conflicting with --template"
+    )
+
+# a template on its own conflicts with nothing
+clean = parser.parse_args(["scan", "example.com", "--template", str(template_path)])
+assert conflicting_template_options(clean) == []
+
+# end to end: the process exits 2 before any scan work begins
+cli_rejects(
+    ["scan", "example.com", "--template", str(template_path), "--sub"],
+    "--template cannot be combined with --sub",
+)
+cli_rejects(
+    ["scan", "example.com", "--template", str(root / "dirsnofile.yaml")],
+    "sets no directories_file",
+)
 
 print("scan template test passed")

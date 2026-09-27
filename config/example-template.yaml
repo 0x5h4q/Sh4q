@@ -1,9 +1,20 @@
+# A named, reviewable scan recipe. Run it with:
+#   sh4q scan your-authorised-target.example --template config/example-template.yaml
+#
+# Every stage below is passive. Active-low stages (vhosts, directories,
+# katana) must be listed explicitly and are never implied.
 schema_version: 1
 name: passive-web-inventory
-config: example_com.yaml
 stages:
   - sub
   - httpx
   - url-history
   - js
   - js-bundles
+
+# A template may also pin the scope it runs under, resolved relative to this
+# file. Omitted here on purpose: without it, Sh4q derives a narrow scope from
+# the target you pass on the command line, so this template stays usable for
+# any target you are authorised to scan.
+#
+# config: your-scope.yaml

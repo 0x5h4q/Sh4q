@@ -20,7 +20,7 @@ from sh4q.application.results import friendly_technology_source, list_assets, li
 from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
 from sh4q.application.scan_report import build_scan_report
 from sh4q.application.diff import build_scan_diff, diff_document
-from sh4q.config import ConfigFileError, load_template
+from sh4q.config import ConfigFileError, conflicting_template_options, load_template
 from sh4q.storage.db import SchemaVersionError, ensure_schema_version
 from sh4q.cli.branding import render_scan_banner
 from sh4q.dependencies import OPTIONAL_DEPENDENCIES, dependency_status
@@ -516,14 +516,20 @@ def main() -> None:
     if args.command == "scan":
         template = None
         if args.template:
-            if args.profile:
-                parser.error("--template cannot be combined with --profile")
+            # A template is the single source of truth for stage selection.
+            # Anything it would otherwise overwrite is rejected explicitly
+            # rather than silently discarded.
+            conflicting = conflicting_template_options(args)
+            if conflicting:
+                parser.error(
+                    "--template cannot be combined with "
+                    + ", ".join(conflicting)
+                    + "; the template already declares stages and configuration"
+                )
             try:
                 template = load_template(args.template)
             except ValueError as error:
                 parser.error(str(error))
-            if args.config:
-                parser.error("--template cannot be combined with --config")
             args.config = str(template.config) if template.config else None
             selected = set(template.stages)
             args.sub = "sub" in selected
