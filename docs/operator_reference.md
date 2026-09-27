@@ -53,6 +53,11 @@ sh4q scan example.com --katana
 sh4q scan example.com -vh --vhosts-file candidates.txt
 ```
 
+Virtual-host and directory discovery both probe at most one request per second,
+are capped at 500 and 200 candidates respectively, and draw on the same
+`rate_limit.budget` as every other stage. Exhausting that budget stops further
+probes and records the refusal rather than failing the scan.
+
 Virtual-host discovery requires either `--vhosts-file` or
 `--vhosts-from-scan SCAN_ID`. A prior scan can provide bounded domain
 candidates:
@@ -60,6 +65,54 @@ candidates:
 ```bash
 sh4q scan example.com -vh --vhosts-from-scan SCAN_ID
 ```
+
+## Scan Templates
+
+A template is a named, reviewable recipe: it records the stages a scan runs, so
+a long command does not have to be remembered, retyped, or reconstructed from
+shell history before a repeat run.
+
+```bash
+sh4q scan example.com --template config/example-template.yaml
+```
+
+Sh4q prints the template name and its stage list before the scan starts.
+
+```yaml
+schema_version: 1
+name: passive-web-inventory
+stages:
+  - sub
+  - httpx
+  - url-history
+  - js
+  - js-bundles
+```
+
+Fields:
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `schema_version` | yes | Must be `1`. Unsupported versions fail before any network activity. |
+| `name` | yes | Shown before the scan runs. |
+| `stages` | yes | Any of `sub`, `httpx`, `amass`, `url-history`, `js`, `js-bundles`, `katana`, `vhosts`, `directories`. No duplicates, no unknown names. |
+| `config` | no | A configuration file, resolved relative to the template. Omit it to derive a narrow scope from the target on the command line. |
+| `vhosts_file` | no | Candidate file for the `vhosts` stage. |
+| `directories_file` | no | Candidate file for the `directories` stage. Required whenever `directories` is selected. |
+
+A template declares stages and configuration, so it cannot be combined with
+`--config`, `--profile`, or any stage flag. Supplying one is an error rather
+than a silent override, and the conflicting option is named:
+
+```text
+sh4q: error: --template cannot be combined with --sub; the template already
+declares stages and configuration
+```
+
+A template selects existing bounded stages. It does not bypass Gate 1, Gate 2,
+request budgets, evidence retention, or provenance, and it cannot enable an
+active stage implicitly: `katana`, `vhosts`, and `directories` are only ever
+run when the template lists them by name.
 
 ## Configuration
 
