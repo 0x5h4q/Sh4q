@@ -11,6 +11,26 @@ sh4q.egg-info/
 *.db
 .~*
 
+# Scan artefacts and engagement data: never commit target evidence.
+# HTML/CSV reports, terminal recordings, candidate and target lists.
+*.html
+*.cast
+*.gif
+directories.txt
+cu-vh.txt
+the_test.txt
+# Published demo assets are intentional project content.
+!docs/demo/**
+
+# Build artefacts produced locally
+dist/
+build/
+
+# Internal working notes: known gaps and unfixed weaknesses are not
+# published in a public repository.
+BACKLOG.md
+reconftw_README.md
+
 # Personal/submission documents are not part of a tester checkout
 RERE'S SUBMITTABLE PROJECT.docx
 
@@ -18,6 +38,7 @@ RERE'S SUBMITTABLE PROJECT.docx
 AGENTS.md
 CLAUDE.md
 Sh4q_Academic_Project_Draft.docx
+Sh4q_Architecture_Progress_Review.docx
 docs/academic_project_outline.md
 docs/research_workflow.md
 docs/research/
