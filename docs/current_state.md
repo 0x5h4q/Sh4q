@@ -13,8 +13,15 @@ documents provide context but do not override this guide.
 - Deployment model: local, single-user CLI backed by SQLite
 - Distribution: GitHub release and tag; wheel and source artifacts built and
   verified locally; tagged `pipx` installation supported
-- GitHub Actions: currently disabled because of the repository owner's billing
-  issue; do not describe remote CI as currently running
+- GitHub Actions: the account is billing-locked, so no workflow job can start.
+  Jobs were being refused with `The job was not started because your account is
+  locked due to a billing issue`, which surfaced on pull requests as red checks
+  that said nothing about the code. The `Offline tests` and `Release` workflows
+  are therefore disabled manually, and Dependabot's `github-actions` ecosystem
+  is paused. Dependabot's `pip` ecosystem still runs, because those updates can
+  be verified locally. Do not describe remote CI as running: the offline suite
+  has never once passed on GitHub, and every release so far was published by
+  hand after local verification
 
 Sh4q is a policy-controlled reconnaissance and evidence tool. It is not a
 vulnerability scanner, exploitation framework, broad port scanner, or a
@@ -173,8 +180,11 @@ Not implemented yet:
 The current workflow-foundations milestone proceeds in this order:
 
 1. Versioned configuration files: complete.
-2. Named scan templates with explicit stage/risk disclosure: first bounded
-   slice implemented; broader template metadata remains follow-up work.
+2. Named scan templates with explicit stage/risk disclosure: implemented and
+   merged, with validation covering stage lists, both candidate-file fields,
+   stage/file pairing, and conflicts against every template-owned CLI option.
+   Per-stage disclosure of risk level, required tool, and effective limit
+   remains follow-up work.
 3. Persist effective template/configuration and tool-version identity for
    repeatable comparisons.
 4. Proxy support with explicit per-transport and per-adapter behavior.
