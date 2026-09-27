@@ -364,6 +364,7 @@ sh4q export --latest --format html --output report-redacted.html --redact
 - [Passive URL-history policy](docs/design/url_history.md)
 - [Testing](docs/testing.md)
 - [Feedback guide](docs/feedback.md)
+- [Releasing](RELEASING.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 
