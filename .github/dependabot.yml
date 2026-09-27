@@ -5,8 +5,12 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+  # Paused while GitHub Actions is unavailable (account billing lock).
+  # These bumps only change the workflow files themselves, so they cannot be
+  # verified locally the way a pip bump can -- the offline suite does not
+  # exercise them. Restore `open-pull-requests-limit: 5` once CI runs again.
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: monthly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
