@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from sh4q.network import ScopedHTTPClient, ScopedHTTPError
+from sh4q.network import RequestLimiter, ScopedHTTPClient, ScopedHTTPError
 from sh4q.scope import ScopeEngine
 
 from .discovery import Discovery
@@ -37,6 +37,7 @@ class VhostDiscoveryPlugin(Plugin):
         endpoint_scheme: str = "https",
         endpoint_port: int = 443,
         request_interval: float = 1.0,
+        limiter: RequestLimiter | None = None,
     ):
         if max_candidates < 1:
             raise ValueError("max_candidates must be positive")
@@ -50,7 +51,7 @@ class VhostDiscoveryPlugin(Plugin):
         self._discovered_candidates: list[str] = []
         self._max_candidates = max_candidates
         self._client_factory = client_factory or (
-            lambda: ScopedHTTPClient(scope, timeout=15.0)
+            lambda: ScopedHTTPClient(scope, timeout=15.0, limiter=limiter)
         )
         self._scheme = endpoint_scheme
         self._port = endpoint_port
@@ -94,10 +95,10 @@ class VhostDiscoveryPlugin(Plugin):
             seen.add(value)
             if len(result) >= self._max_candidates:
                 break
-            if not self._scope.authorize(value, self._port).allowed:
-                result.append((value, line_number))
-            else:
-                result.append((value, line_number))
+            # Authorization is decided in execute(), which records a
+            # vhost_rejected observation for each denial. Candidates are only
+            # collected here.
+            result.append((value, line_number))
         return result
 
     def accept_discoveries(self, discoveries: list[Discovery], source_plugin: str | None = None) -> None:
@@ -158,6 +159,11 @@ class VhostDiscoveryPlugin(Plugin):
         except asyncio.CancelledError:
             raise
         except (httpx.HTTPError, ScopedHTTPError, OSError) as error:
+            if isinstance(error, ScopedHTTPError) and getattr(error, "phase", None) == "limit":
+                return Discovery(kind="vhost_budget_denied", data={
+                    "candidate": candidate, "endpoint": endpoint, "line": line_number,
+                    "reason": str(error),
+                })
             return Discovery(kind="vhost_error", data={
                 "candidate": candidate, "endpoint": endpoint, "line": line_number,
                 "error": str(error).strip() or f"{type(error).__name__} without detail",
