@@ -212,6 +212,16 @@ the current discovery, history, fingerprint, and web stages (`--sub`,
 passive discovery remains explicit via `--amass` and is not implied by a
 profile.
 
+Versioned scan templates provide a named, reviewable stage selection:
+
+```bash
+sh4q scan company.example --template config/example-template.yaml
+```
+
+Templates declare `schema_version`, a name, an optional configuration file,
+and explicit stages. Sh4q prints the selected template and stages before the
+scan starts. A template cannot be combined with `--profile` or `--config`.
+
 Check optional dependencies before a profile or adapter scan:
 
 ```bash
