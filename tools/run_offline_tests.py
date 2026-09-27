@@ -56,6 +56,8 @@ OFFLINE_TESTS = (
     "test_scan_report.py",
     "test_scan_runs.py",
     "test_schema_version.py",
+    "test_scope_engine.py",
+    "test_scope_manual.py",
     "test_scoped_http.py",
     "test_sqlite_concurrency.py",
     "test_stage_timing.py",

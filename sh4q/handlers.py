@@ -466,6 +466,18 @@ def make_discovery_handler(
         elif kind == "subdomain_found":
             hostname = data["hostname"]
             root_domain = data["domain"]
+
+            # Both ends of the edge are plugin-supplied, and adapter output is
+            # untrusted. Authorize the parent before it is persisted: an
+            # unauthorized root must never enter the graph, nor anchor an edge.
+            root_decision = scope.authorize(root_domain)
+            if not root_decision.allowed:
+                print(
+                    f"  GATE 2 DENY: {root_domain} -> {root_decision.reason} "
+                    f"(parent of {hostname}; not persisted as an asset)"
+                )
+                return
+
             root_node = Node(type="domain", value=root_domain)
             await storage.save_node(root_node)
 
