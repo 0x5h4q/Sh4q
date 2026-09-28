@@ -7,8 +7,8 @@ documents provide context but do not override this guide.
 
 ## Current Release
 
-- Published release: `v1.2.0`
-- Package version on `main`: `1.2.0`
+- Published release: `v1.3.0`
+- Package version on `main`: `1.3.0`
 - Runtime: Python 3.11 or newer on Linux
 - Deployment model: local, single-user CLI backed by SQLite
 - Distribution: GitHub release and tag; wheel and source artifacts built and
@@ -222,11 +222,13 @@ Acceptance means:
 - the PR states motivation, implementation, exact tests, and any unverified
   environment-dependent behavior.
 
-The current Python 3.14 environment has reproduced timeouts in existing async
-event and SQLite tests. Do not report a full-suite pass from that environment
-unless the runner actually completes successfully. The published v1.2.0
-release was separately validated with the then-current 57-test suite and a
-clean wheel installation.
+The `v1.3.0` release was validated locally on Python 3.14.4: 77/77 offline
+tests, documentation and configuration-schema checks, a fresh-wheel
+installation, and an end-to-end scan against a local lab target exercising the
+virtual-host, directory, JavaScript, and template paths. An earlier note here
+warned that Python 3.14 reproduced timeouts in the async event and SQLite
+tests; that has not recurred in repeated runs during this cycle. Report a
+full-suite pass only when the runner actually completes.
 
 ## Documentation Authority
 
