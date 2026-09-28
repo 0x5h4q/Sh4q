@@ -22,6 +22,20 @@ unrelated feature branches or silently reorder the roadmap.
 - Published GitHub release and tag `v1.2.0` with verified wheel installation.
 - Versioned configuration schema with legacy v1 compatibility.
 
+## Completed in v1.3.0
+
+- Named scan templates: versioned recipes that own stage selection, validate
+  their stage list and candidate files, and refuse conflicting flags.
+- Every authorized port probed, rather than only the well-known pair.
+- Gate 2 parent-domain authorization, virtual-host request accounting, and
+  virtual-host port correctness.
+- Directory classification against a generated not-found baseline.
+- The Amass adapter retired; Subfinder covers passive subdomain discovery.
+- Finding-oriented terminal output, with colour limited to interactive use.
+- Perimeter, wiring, packaged-config, and port regression coverage; the
+  offline suite runs 77 tests with every file accounted for.
+- A documented release process in `RELEASING.md`.
+
 Katana, virtual-host discovery, and directory discovery
 remain explicit opt-ins. Their implementation does not make them suitable for
 silent inclusion in a general profile.
@@ -30,9 +44,9 @@ silent inclusion in a general profile.
 
 1. **Versioned configuration:** complete. New files declare
    `schema_version: 1`; incompatible versions fail before network activity.
-2. **Scan templates:** next. Add named, reviewable recipes that disclose every
-   enabled stage, required dependency, active/passive classification, and
-   effective limit before execution.
+2. **Scan templates:** the recipe itself is complete and shipped in v1.3.0.
+   Remaining: disclose every enabled stage, its required dependency, its
+   active/passive classification, and its effective limit before execution.
 3. **Repeatable comparisons:** persist the effective configuration/template,
    selected stages, and relevant tool versions with each scan so result changes
    can be separated from execution-setting changes.
