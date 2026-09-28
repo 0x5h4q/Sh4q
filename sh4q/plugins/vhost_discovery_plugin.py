@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from sh4q.network import RequestLimiter, ScopedHTTPClient, ScopedHTTPError
+from sh4q.network import RequestLimiter, ScopedHTTPClient, ScopedHTTPError, probe_url
 from sh4q.scope import ScopeEngine
 
 from .discovery import Discovery
@@ -114,13 +114,8 @@ class VhostDiscoveryPlugin(Plugin):
     async def execute(self, target: str) -> list[Discovery]:
         candidates = self._candidates(target)
         # endpoint_port authorizes the probe, so it must also be the port the
-        # probe actually reaches. Omit it only when it is the scheme default,
-        # to keep the recorded endpoint canonical.
-        default_port = 443 if self._scheme == "https" else 80
-        authority = self._scope.normalize_target(target)
-        if self._port != default_port:
-            authority = f"{authority}:{self._port}"
-        endpoint = f"{self._scheme}://{authority}/"
+        # probe actually reaches.
+        endpoint = probe_url(self._scheme, self._scope.normalize_target(target), self._port, "/")
         discoveries: list[Discovery] = []
         try:
             async with self._client_factory() as client:

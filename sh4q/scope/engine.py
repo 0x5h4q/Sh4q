@@ -32,6 +32,11 @@ class ScopeEngine:
         self._ports = set(config.scope.ports)
         self._allow_private_addresses = config.scope.allow_private_addresses
 
+    @property
+    def authorized_ports(self) -> tuple[int, ...]:
+        """Ports this scope permits. Empty means every port is authorized."""
+        return tuple(sorted(self._ports))
+
     def authorize(self, target: str, port: int | None = None) -> ScopeDecision:
         target = self.normalize_target(target)
         # Excluded list always wins, even over an otherwise-valid match.
