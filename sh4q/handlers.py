@@ -6,6 +6,7 @@ from sh4q.storage import Node, Relationship, StorageRepository
 from sh4q.storage.evidence import Evidence, EvidenceStore
 from sh4q.cli.branding import status_line
 from sh4q.fingerprints.normalize import normalize_external_technology
+from sh4q.network import probe_url
 
 
 def _canonical_url(value: str) -> str:
@@ -410,7 +411,12 @@ def make_discovery_handler(
             if candidate and endpoint and scope.authorize(candidate).allowed:
                 domain_node = Node(type="domain", value=candidate)
                 endpoint_parts = HttpURL(endpoint)
-                candidate_url = f"{endpoint_parts.scheme}://{candidate}/"
+                # Record the origin that was actually contacted. Dropping the
+                # port stored a URL that was never requested and that points at
+                # a different service on the default port.
+                scheme = endpoint_parts.scheme
+                port = endpoint_parts.port or (443 if scheme == "https" else 80)
+                candidate_url = probe_url(scheme, candidate, port, "/")
                 url_node = Node(type="url", value=candidate_url, attributes={
                     "vhost_candidate": candidate,
                     "probe_endpoint": endpoint,
@@ -448,6 +454,15 @@ def make_discovery_handler(
             port = parsed.port or (443 if parsed.scheme == "https" else 80)
             decision = scope.authorize(parsed.host or "", port)
             if not decision.allowed:
+                return
+            # A path that matched the server's not-found response is a
+            # negative result. It stays in evidence, where the record of what
+            # was probed belongs, but it is not inventory.
+            if data.get("classification") == "not_found_match":
+                display_bounded(
+                    "directory not-found results",
+                    f"  NOT FOUND {data.get('path', url)} [{data.get('status', '-')}]",
+                )
                 return
             node = Node(type="url", value=url, attributes={"status": data.get("status"), "classification": data.get("classification", "candidate_observation")})
             await storage.save_node(node)

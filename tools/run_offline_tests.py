@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 OFFLINE_TESTS = (
     "test_amass_adapter.py",
+    "test_amass_version_guard.py",
     "test_amass_scheduler_integration.py",
     "test_adapter_contract.py",
     "test_adapter_execution_reporting.py",
