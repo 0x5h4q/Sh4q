@@ -42,6 +42,7 @@ from sh4q.adapters import (
     SubfinderAdapter,
     URLHistoryAdapter,
     KatanaAdapter,
+    validate_amass,
     validate_projectdiscovery_httpx,
 )
 from sh4q.dependencies import format_missing, missing_dependencies
@@ -277,6 +278,15 @@ async def run_scan(
             adapter = AmassPassiveAdapter(executable=executable)
             adapter_home = Path(config.output.directory) / "adapters" / "amass-home"
             adapter_home.mkdir(parents=True, exist_ok=True)
+            # Amass 4+ stopped printing names to stdout, which this adapter
+            # parses. Fail before the scan rather than report an empty stage.
+            await validate_amass(
+                executable,
+                ControlledProcessRunner(
+                    {executable}, environment={"HOME": str(adapter_home.resolve())}
+                ),
+                cwd=Path(config.output.directory),
+            )
             plugins.append(
                 ExternalAdapterPlugin(
                     adapter,

@@ -8,6 +8,7 @@ from .amass import AmassPassiveAdapter
 from .httpx_fingerprint import HttpxFingerprintAdapter
 from .httpx_plugin import HttpxFingerprintPlugin
 from .httpx_identity import validate_projectdiscovery_httpx
+from .amass_identity import parse_amass_version, validate_amass
 from .runner import AdapterExecutionError, ControlledProcessRunner, ProcessResult
 from .katana import KatanaAdapter
 
@@ -20,6 +21,8 @@ __all__ = [
     "HttpxFingerprintAdapter",
     "HttpxFingerprintPlugin",
     "validate_projectdiscovery_httpx",
+    "parse_amass_version",
+    "validate_amass",
     "SubfinderAdapter",
     "URLHistoryAdapter",
     "AmassPassiveAdapter",
