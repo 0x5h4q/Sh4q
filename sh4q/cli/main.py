@@ -23,7 +23,7 @@ from sh4q.application.diff import build_scan_diff, diff_document
 from sh4q.config import ConfigFileError, conflicting_template_options, load_template
 from sh4q.storage.db import SchemaVersionError, ensure_schema_version
 from sh4q.cli.branding import render_scan_banner
-from sh4q.dependencies import OPTIONAL_DEPENDENCIES, dependency_status
+from sh4q.dependencies import dependency_reports
 
 
 def _fit(value: object, width: int) -> str:
@@ -614,16 +614,19 @@ def main() -> None:
 
     if args.command == "doctor":
         print("\n  SH4Q DOCTOR\n  ===========")
-        status = dependency_status()
         missing = 0
-        for item in OPTIONAL_DEPENDENCIES:
-            executable = status[item.name]
-            if executable:
-                print(f"  PASS  {item.name:<12} {executable}")
+        for report in dependency_reports():
+            item = report.dependency
+            if report.path:
+                print(f"  PASS  {item.name:<12} {report.path}")
             else:
                 missing += 1
                 print(f"  MISS  {item.name:<12} not found on PATH")
                 print(f"        Install: {item.install_hint}")
+            # Naming what was passed over turns a confusing PASS or MISS into a
+            # diagnosis: the operator can see a different tool is shadowing it.
+            for shadowed in report.rejected:
+                print(f"        ignored {shadowed} (not the {item.name} Sh4q needs)")
         print()
         if missing:
             print(f"  {missing} optional tool(s) missing. Core scans still work; requested missing tools block their stages.")

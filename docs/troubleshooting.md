@@ -105,3 +105,30 @@ python3.13 -m venv venv
 source venv/bin/activate
 python -m pip install -e .
 ```
+
+## `doctor` says a tool is missing, but I installed it
+
+Two causes account for almost all of these.
+
+**The tool is not on this shell's PATH.** Go installs to `$(go env GOPATH)/bin`,
+usually `~/go/bin`, which many shells do not include by default. Confirm with
+`ls ~/go/bin`, then add it to the file your shell actually reads. For zsh that
+is `$ZDOTDIR/.zshrc` when `ZDOTDIR` is set, which is not always `~/.zshrc`:
+
+```bash
+echo $ZDOTDIR            # empty means ~/.zshrc; otherwise that directory
+echo 'export PATH="$HOME/go/bin:$PATH"' >> "${ZDOTDIR:-$HOME}/.zshrc"
+exec zsh
+```
+
+**Another program has the same name.** `httpx` is both the ProjectDiscovery
+scanner Sh4q uses and the console script of the Python `httpx` library, which
+takes precedence whenever a virtual environment is active. `doctor` checks what
+it finds rather than trusting the name, and reports anything it passed over:
+
+```text
+PASS  httpx        /usr/local/bin/httpx
+      ignored /path/to/venv/bin/httpx (not the httpx Sh4q needs)
+```
+
+A scan resolves the same way, so a shadowing executable does not break it.
