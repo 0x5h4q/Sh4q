@@ -29,25 +29,16 @@ guaranteed-complete attack-surface platform.
 
 ## The Mental Model
 
-```text
-operator command
-      |
-      v
-Gate 1: authorize initial target
-      |
-      v
-scheduler runs selected bounded stages
-      |
-      v
-Gate 2: validate discovered destinations
-      |
-      +--> rejected observation remains evidence
-      |
-      v
-accepted scan-owned assets + relationships + evidence
-      |
-      v
-terminal views, JSON/CSV/HTML exports, and scan diffs
+```mermaid
+flowchart TD
+    CMD["Operator command"] --> G1{"Gate 1<br>authorize the initial target"}
+    G1 -- denied --> STOP["Nothing runs.<br>Exit 1."]
+    G1 -- allowed --> SCHED["Scheduler runs the selected bounded stages"]
+    SCHED --> G2{"Gate 2<br>validate each discovered destination"}
+    G2 -- refused --> EVONLY[("Recorded as evidence<br><small>an expected outcome</small>")]
+    G2 -- allowed --> OWNED[("Scan-owned assets, relationships,<br>and evidence")]
+    OWNED --> VIEWS["Terminal views, JSON/CSV/HTML export, scan diff"]
+    EVONLY --> VIEWS
 ```
 
 Gate 1 and Gate 2 are the core invariants. New features must not bypass them.
