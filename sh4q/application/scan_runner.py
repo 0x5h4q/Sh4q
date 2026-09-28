@@ -12,7 +12,7 @@ from sh4q.config import Sh4qConfig, load_config
 from sh4q.events import EventBus
 from sh4q.events.event_log import DurableEventLog
 from sh4q.handlers import make_discovery_handler
-from sh4q.network import RequestLimiter, ScopedHTTPClient
+from sh4q.network import RequestLimiter, ScopedHTTPClient, primary_probe_target
 from sh4q.plugins.ct_plugin import CTPlugin
 from sh4q.plugins.discovered_dns_plugin import DiscoveredDNSPlugin
 from sh4q.plugins.discovered_http_plugin import DiscoveredHTTPPlugin
@@ -254,10 +254,20 @@ async def run_scan(
                     ),
                 )
             )
+        # Both stages sweep a single origin rather than every authorized port,
+        # so a candidate list is not multiplied by the port count. HTTPS is
+        # preferred when authorized, keeping default 80/443 behaviour.
+        sweep_scheme, sweep_port = primary_probe_target(scope.authorized_ports)
         if include_vhosts:
-            plugins.append(VhostDiscoveryPlugin(scope, vhosts_file, candidates=vhost_candidates, limiter=limiter))
+            plugins.append(VhostDiscoveryPlugin(
+                scope, vhosts_file, candidates=vhost_candidates, limiter=limiter,
+                endpoint_scheme=sweep_scheme, endpoint_port=sweep_port,
+            ))
         if include_directories:
-            plugins.append(DirectoryDiscoveryPlugin(scope, directories_file, limiter=limiter))
+            plugins.append(DirectoryDiscoveryPlugin(
+                scope, directories_file, limiter=limiter,
+                endpoint_scheme=sweep_scheme, endpoint_port=sweep_port,
+            ))
         if include_amass:
             executable = shutil.which("amass")
             if executable is None:

@@ -8,7 +8,7 @@ from sh4q.scope import ScopeEngine
 
 from .discovery import Discovery
 from .interface import Plugin, PluginMetadata
-from sh4q.network import RequestLimiter, ScopedHTTPClient, ScopedHTTPError
+from sh4q.network import RequestLimiter, ScopedHTTPClient, ScopedHTTPError, probe_targets, probe_url
 from sh4q.fingerprints import extract_http_metadata, fingerprint_response
 
 
@@ -34,11 +34,15 @@ class HTTPPlugin(Plugin):
         probe_timeout = timeout if timeout is not None else self.metadata.timeout
         if probe_timeout <= 0:
             raise ValueError("timeout must be positive")
+        # Probes run concurrently but are rate limited, so the stage deadline
+        # scales with how many origins the scope authorizes. A default 80/443
+        # scope yields two probes and the original deadline.
+        origins = max(1, len(probe_targets(scope.authorized_ports)))
         self.metadata = PluginMetadata(
             name="http",
             dependencies=["dns"],
             risk_level="active-low",
-            timeout=probe_timeout + 1.0,
+            timeout=probe_timeout * max(1, (origins + 1) // 2) + 1.0,
         )
         self._probe_timeout = probe_timeout
         self._enforce_overall_probe_timeout = enforce_overall_probe_timeout
@@ -56,8 +60,9 @@ class HTTPPlugin(Plugin):
         async with self._client_factory() as client:
             probe_timeout = min(self._probe_timeout, self.metadata.timeout)
 
-            async def probe(scheme: str) -> Discovery:
-                url = f"{scheme}://{target}"
+            async def probe(origin: tuple[str, int]) -> Discovery:
+                scheme, port = origin
+                url = probe_url(scheme, target, port)
                 started = time.monotonic()
 
                 try:
@@ -103,13 +108,13 @@ class HTTPPlugin(Plugin):
                         },
                     )]
 
-            async def bounded_probe(scheme: str) -> Discovery:
+            async def bounded_probe(origin: tuple[str, int]) -> Discovery:
                 if not self._enforce_overall_probe_timeout:
-                    return await probe(scheme)
+                    return await probe(origin)
                 try:
-                    return await asyncio.wait_for(probe(scheme), timeout=probe_timeout)
+                    return await asyncio.wait_for(probe(origin), timeout=probe_timeout)
                 except asyncio.TimeoutError:
-                    url = f"{scheme}://{target}"
+                    url = probe_url(origin[0], target, origin[1])
                     return [Discovery(
                         kind="http_error",
                         data={
@@ -121,8 +126,9 @@ class HTTPPlugin(Plugin):
                         },
                     )]
 
+            # Every authorized port is probed, not only the well-known pair.
             batches = await asyncio.gather(
-                *(bounded_probe(scheme) for scheme in ("https", "http"))
+                *(bounded_probe(origin) for origin in probe_targets(self.scope.authorized_ports))
             )
             discoveries = [item for batch in batches for item in batch]
 

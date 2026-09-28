@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from urllib.parse import urlsplit
 import asyncio
 import hashlib
+import secrets
 import httpx
-from sh4q.network import RequestLimiter, ScopedHTTPClient, ScopedHTTPError
+from sh4q.network import RequestLimiter, ScopedHTTPClient, ScopedHTTPError, probe_url
 from sh4q.scope import ScopeEngine
 from .discovery import Discovery
 from .interface import Plugin, PluginMetadata
@@ -69,10 +70,14 @@ def load_candidates(path: str | Path, *, max_paths: int = 200, max_length: int =
 class DirectoryDiscoveryPlugin(Plugin):
     metadata = PluginMetadata(name="directory-discovery", dependencies=["http"], timeout=900.0, risk_level="active-low", retry_on_timeout=False)
 
-    def __init__(self, scope: ScopeEngine, candidates_file: str | Path, *, max_paths: int = 200, request_budget: int = 200, client_factory=None, limiter: RequestLimiter | None = None):
+    def __init__(self, scope: ScopeEngine, candidates_file: str | Path, *, max_paths: int = 200, request_budget: int = 200, client_factory=None, limiter: RequestLimiter | None = None, endpoint_scheme: str = "https", endpoint_port: int = 443):
         if max_paths < 1 or request_budget < 1:
             raise ValueError("directory discovery limits must be positive")
+        if endpoint_scheme not in {"http", "https"}:
+            raise ValueError("endpoint_scheme must be http or https")
         self._scope = scope
+        self._scheme = endpoint_scheme
+        self._port = endpoint_port
         self._file = candidates_file
         self._max_paths = max_paths
         self._request_budget = request_budget
@@ -80,14 +85,29 @@ class DirectoryDiscoveryPlugin(Plugin):
 
     async def execute(self, target: str) -> list[Discovery]:
         loaded = load_candidates(self._file, max_paths=self._max_paths)
-        endpoint = f"https://{self._scope.normalize_target(target)}/"
+        endpoint = probe_url(self._scheme, self._scope.normalize_target(target), self._port, "/")
         discoveries: list[Discovery] = [Discovery(kind="directory_rejected", data={"path": raw, "line": line, "reason": reason}) for line, raw, reason in loaded.rejected]
         async with self._client_factory() as client:
             remaining = self._request_budget
             baseline = await self._probe(client, endpoint)
             remaining -= 1
-            baseline_fp = baseline.data.get("fingerprint") if baseline.kind == "directory_observation" else None
-            discoveries.append(Discovery(kind="directory_baseline", data={"endpoint": endpoint, "fingerprint": baseline_fp}))
+            root_fp = baseline.data.get("fingerprint") if baseline.kind == "directory_observation" else None
+
+            # The root page is the wrong thing to compare a candidate against:
+            # every genuine 404 differs from the homepage and would be reported
+            # as a candidate. Probe a path that cannot exist to learn what this
+            # server's "not found" actually looks like.
+            probe_token = secrets.token_hex(16)
+            missing = await self._probe(client, endpoint.rstrip("/") + f"/sh4q-{probe_token}")
+            remaining -= 1
+            missing_fp = missing.data.get("fingerprint") if missing.kind == "directory_observation" else None
+            missing_status = missing.data.get("status") if missing.kind == "directory_observation" else None
+            discoveries.append(Discovery(kind="directory_baseline", data={
+                "endpoint": endpoint,
+                "fingerprint": root_fp,
+                "not_found_fingerprint": missing_fp,
+                "not_found_status": missing_status,
+            }))
             for path in loaded.accepted:
                 if remaining <= 0:
                     discoveries.append(Discovery(kind="directory_budget_denied", data={"path": path, "reason": "directory request budget exhausted"}))
@@ -102,7 +122,25 @@ class DirectoryDiscoveryPlugin(Plugin):
                 remaining -= 1
                 if result.kind == "directory_observation":
                     result.data["path"] = path
-                    result.data["classification"] = "not_found_match" if result.data.get("fingerprint") == baseline_fp else "candidate_observation"
+                    fingerprint = result.data.get("fingerprint")
+                    status = result.data.get("status")
+                    # A response is uninteresting when it is byte-identical to
+                    # the server's not-found response, when it repeats the root
+                    # page (a soft 404), or when it carries the same error
+                    # status as the not-found probe.
+                    known_missing = (
+                        (missing_fp is not None and fingerprint == missing_fp)
+                        or (root_fp is not None and fingerprint == root_fp)
+                        or (
+                            missing_status is not None
+                            and status == missing_status
+                            and isinstance(status, int)
+                            and status >= 400
+                        )
+                    )
+                    result.data["classification"] = (
+                        "not_found_match" if known_missing else "candidate_observation"
+                    )
                 discoveries.append(result)
                 await asyncio.sleep(1.0)
         return discoveries
