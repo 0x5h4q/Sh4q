@@ -34,6 +34,13 @@ reconftw_README.md
 # Personal/submission documents are not part of a tester checkout
 RERE'S SUBMITTABLE PROJECT.docx
 
+# Personal planning, outreach drafts, and work from finished phases.
+# These are the maintainer's own material, not product documentation.
+docs/academic/
+docs/pitch.md
+docs/private_alpha_guide.md
+tools/build_private_alpha_pdf.py
+
 # Local agent instructions and private academic work
 AGENTS.md
 CLAUDE.md
