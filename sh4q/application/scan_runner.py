@@ -265,19 +265,6 @@ async def run_scan(
                 scope, directories_file, limiter=limiter,
                 endpoint_scheme=sweep_scheme, endpoint_port=sweep_port,
             ))
-            plugins.append(
-                ExternalAdapterPlugin(
-                    adapter,
-                    AdapterContext(scope, Path(config.output.directory)),
-                    ControlledProcessRunner(
-                        {executable}, environment={"HOME": str(adapter_home.resolve())}
-                    ),
-                    # Passive Amass is experimental and can stall inside
-                    # provider/database work even when its version probe succeeds.
-                    # Keep the opt-in stage short so it cannot dominate a scan.
-                    timeout=45.0,
-                )
-            )
         if include_url_history:
             executable = shutil.which("waybackurls")
             if executable is None:
