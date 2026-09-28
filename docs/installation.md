@@ -38,7 +38,7 @@ If you want the `sh4q` command available globally while keeping its
 dependencies isolated, `pipx` can manage the virtual environment for you:
 
 ```bash
-pipx install git+https://github.com/0x5h4q/Sh4q.git@v1.2.0
+pipx install git+https://github.com/0x5h4q/Sh4q.git@v1.3.0
 sh4q --help
 ```
 
@@ -47,7 +47,7 @@ source changes, and repeatable test runs. Installing directly into a system
 Python is possible where the operating system permits it, but is not the
 recommended deployment path.
 
-The `v1.2.0` tag is installable from the published GitHub release.
+The `v1.3.0` tag is installable from the published GitHub release.
 
 Run the offline checks:
 

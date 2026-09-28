@@ -11,6 +11,7 @@ builds and orders correctly.
 """
 
 import asyncio
+import atexit
 import shutil
 import tempfile
 from pathlib import Path
@@ -20,6 +21,7 @@ from sh4q.scheduler import Scheduler
 
 
 ROOT = Path(tempfile.mkdtemp(prefix="sh4q_wiring_"))
+atexit.register(shutil.rmtree, ROOT, True)
 (ROOT / "paths.txt").write_text("admin\n", encoding="utf-8")
 (ROOT / "vhosts.txt").write_text("admin.example.test\n", encoding="utf-8")
 (ROOT / "scope.yaml").write_text(
