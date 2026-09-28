@@ -381,10 +381,6 @@ sh4q export --latest --format html --output report-redacted.html --redact
 - [Virtual-host discovery design](docs/design/vhost_discovery.md)
 - [JavaScript extraction design](docs/design/javascript_extraction.md)
 - [URL-history policy](docs/design/url_history.md)
-- [Academic submission plan](docs/academic/submission_plan.md)
-
-The continuation handoff is an internal engineering note. The outreach pitch
-is a separate communication aid and is not required to install or use Sh4q.
 
 The default database is `./sh4q-output/sh4q.db`. It may contain sensitive target data and must not be committed or shared without review.
 
