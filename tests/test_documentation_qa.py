@@ -18,6 +18,19 @@ assert f"Published release: `v{version}`" in current_state
 assert "Current Milestone: Workflow Foundations" in roadmap
 assert "Scan templates" in roadmap
 
+# An install instruction pinning an old tag hands users the previous release.
+# This was missed once: README was checked, docs/installation.md was not, and
+# v1.3.0 shipped telling people to install v1.2.0.
+install_pin = re.compile(r"(?:Sh4q(?:\.git)?@|releases/tag/)v(\d+\.\d+\.\d+)")
+for document in sorted(root.glob("docs/**/*.md")) + [root / "README.md", root / "RELEASING.md"]:
+    if document.parent.name == "historical":
+        continue
+    for pinned in set(install_pin.findall(document.read_text(encoding="utf-8"))):
+        assert pinned == version, (
+            f"{document.relative_to(root)} pins v{pinned}, but the package is {version}. "
+            "Every install instruction and release link must name the current release."
+        )
+
 for relative in re.findall(r"\]\(([^)#]+)(?:#[^)]+)?\)", readme):
     if relative.startswith(("http://", "https://", "mailto:")):
         continue

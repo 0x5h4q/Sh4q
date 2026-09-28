@@ -115,6 +115,7 @@ def test_scan_preflight_rejects_missing_vhost_file(tmp_path: Path):
 
 
 if __name__ == "__main__":
+    import shutil
     import tempfile
 
     root = Path(tempfile.mkdtemp(prefix="sh4q_vhost_"))
@@ -124,4 +125,5 @@ if __name__ == "__main__":
     test_vhost_collects_current_scan_candidates_when_no_source_given()
     test_scan_preflight_rejects_missing_vhost_file(root)
     test_vhost_timeout_budget_scales_with_candidate_bound()
+    shutil.rmtree(root, ignore_errors=True)
     print("vhost discovery plugin test passed")
