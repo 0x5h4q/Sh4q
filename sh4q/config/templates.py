@@ -90,8 +90,8 @@ def load_template(path: str | Path) -> ScanTemplate:
         config_path = (template_path.parent / config).resolve()
         if not config_path.is_file():
             raise ValueError(f"scan template config not found: {config_path}")
-    vhosts_file = _optional_path_field(raw, "vhosts_file")
-    directories_file = _optional_path_field(raw, "directories_file")
+    vhosts_file = _optional_path_field(raw, "vhosts_file", template_path)
+    directories_file = _optional_path_field(raw, "directories_file", template_path)
     if vhosts_file and "vhosts" not in stages:
         raise ValueError("scan template sets vhosts_file but does not select the 'vhosts' stage")
     if directories_file and "directories" not in stages:
@@ -112,11 +112,20 @@ def load_template(path: str | Path) -> ScanTemplate:
     )
 
 
-def _optional_path_field(raw: dict, field: str) -> str | None:
-    """Validate an optional path-valued template field the same way as the rest."""
+def _optional_path_field(raw: dict, field: str, template_path: Path) -> str | None:
+    """Validate an optional path-valued template field.
+
+    Resolved relative to the template, exactly like ``config``. A template is
+    meant to be a portable recipe, so its candidate files must not depend on
+    the directory the operator happens to run from. Absolute paths are left
+    as given.
+    """
     value = raw.get(field)
     if value is None:
         return None
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"scan template {field} must be a non-empty path")
-    return value.strip()
+    resolved = (template_path.parent / value.strip()).resolve()
+    if not resolved.is_file():
+        raise ValueError(f"scan template {field} not found: {resolved}")
+    return str(resolved)

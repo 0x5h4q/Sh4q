@@ -75,10 +75,18 @@ rejects(
 )
 
 # --- a path field without its stage, and the directories stage without its file ---
+(root / "hosts.txt").write_text("a.example.com\n", encoding="utf-8")
 rejects(
     "orphanvhost.yaml",
     "schema_version: 1\nname: t\nstages: [sub]\nvhosts_file: hosts.txt\n",
     "does not select the 'vhosts' stage",
+)
+# A candidate file is resolved against the template, not the working directory,
+# and a missing one is refused at load time rather than mid-scan.
+rejects(
+    "missingvhost.yaml",
+    "schema_version: 1\nname: t\nstages: [vhosts]\nvhosts_file: nowhere.txt\n",
+    "vhosts_file not found",
 )
 rejects(
     "orphandirs.yaml",
@@ -97,8 +105,20 @@ complete = write(
     "schema_version: 1\nname: dirs\nstages: [directories]\ndirectories_file: paths.txt\n",
 )
 loaded = load_template(complete)
-assert loaded.directories_file == "paths.txt"
+assert loaded.directories_file == str((root / "paths.txt").resolve()), (
+    "a candidate file must resolve against the template so the recipe is portable"
+)
 assert loaded.stages == ("directories",)
+
+# Running from an unrelated working directory must not change resolution.
+import os  # noqa: E402
+
+_previous = os.getcwd()
+os.chdir("/")
+try:
+    assert load_template(complete).directories_file == str((root / "paths.txt").resolve())
+finally:
+    os.chdir(_previous)
 
 # --- the template owns stage selection: conflicts are detected, not overwritten ---
 # Every template-owned option is covered, checked against the parser's own
