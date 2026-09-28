@@ -51,7 +51,7 @@ This list describes the v1.2.0 boundary. It should be read before judging scan o
 
 ## Product Scope
 
-- Subfinder, passive Amass, and ProjectDiscovery `httpx` have opt-in live external-tool adapters.
+- Subfinder and ProjectDiscovery `httpx` have opt-in live external-tool adapters.
 - Sh4q does not perform vulnerability exploitation.
 - It does not currently crawl applications broadly or perform general port scanning.
 - It is not a direct replacement for reconFTW, Amass, Nmap, or a commercial attack-surface management platform.
@@ -59,12 +59,14 @@ This list describes the v1.2.0 boundary. It should be read before judging scan o
   native binary is not provided.
 - Technology detection uses a curated offline signature set over a bounded response sample. It is intentionally smaller than Wappalyzer and does not execute page JavaScript or make additional fingerprinting requests.
 - External adapter tools can be unavailable, misinstalled, or provider-blocked. Sh4q now fails fast when an adapter's bounded version probe hangs, but a working tool installation and provider configuration remain the operator's responsibility.
-- Passive Amass enumeration has an explicit 20-second process ceiling. A tool
+- The Amass adapter was retired after v1.2.0. Amass stopped printing
+  discovered names to stdout at v4, so the adapter observed nothing and
+  reported an empty stage. Use `--sub` instead. A tool
   that stalls during provider or local-database work may still yield no names;
   Sh4q records the timeout and continues with other stages.
 
 ## Review Status
 
-The limitations review applies to the published `v1.2.0` release. The Amass
-scheduler/provenance path is covered offline, but this does not turn
+The limitations review applies to the published `v1.2.0` release. The
+adapter scheduler/provenance path is covered offline, but this does not turn
 third-party tool output into a completeness or liveness guarantee.

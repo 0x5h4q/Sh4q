@@ -126,13 +126,13 @@ finally:
 parser = build_parser()
 for flag, attribute in [
     ("--config", "config"), ("--profile", "profile"), ("--sub", "sub"),
-    ("--httpx", "httpx"), ("--amass", "amass"), ("--url-history", "url_history"),
+    ("--httpx", "httpx"), ("--url-history", "url_history"),
     ("--js", "js"), ("--js-bundles", "js_bundles"), ("--katana", "katana"),
     ("--vhosts", "vhosts"), ("--vhosts-file", "vhosts_file"),
     ("--vhosts-from-scan", "vhosts_from_scan"), ("--directories", "directories"),
     ("--directories-file", "directories_file"),
 ]:
-    value = [] if attribute in {"sub", "httpx", "amass", "url_history", "js", "js_bundles",
+    value = [] if attribute in {"sub", "httpx", "url_history", "js", "js_bundles",
                                 "katana", "vhosts", "directories"} else ["web" if flag == "--profile" else "x"]
     parsed = parser.parse_args(["scan", "example.com", "--template", str(template_path), flag, *value])
     assert getattr(parsed, attribute), f"{flag} did not set {attribute}"

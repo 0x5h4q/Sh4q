@@ -7,7 +7,7 @@
   <a href="https://github.com/0x5h4q/Sh4q/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-167d76.svg" alt="MIT License"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.11%2B-3776ab.svg" alt="Python 3.11+"></a>
   <a href="https://github.com/0x5h4q/Sh4q"><img src="https://img.shields.io/badge/platform-Linux-lightgrey.svg" alt="Linux"></a>
-  <img src="https://img.shields.io/badge/offline%20suite-69%20checks-2ea043.svg" alt="69 offline checks">
+  <img src="https://img.shields.io/badge/offline%20suite-66%20checks-2ea043.svg" alt="66 offline checks">
 </p>
 
 <p align="center"><strong>Know what you touched. Know why. Know it was authorised.</strong></p>
@@ -208,9 +208,8 @@ sh4q scan company.example --profile web
 
 The `web` profile enables `--js` and `--js-bundles`. The `full` profile enables
 the current discovery, history, fingerprint, and web stages (`--sub`,
-`--httpx`, `--url-history`, `--js`, and `--js-bundles`). Experimental Amass
-passive discovery remains explicit via `--amass` and is not implied by a
-profile.
+`--httpx`, `--url-history`, `--js`, and `--js-bundles`). Active stages
+(`--katana`, `--vhosts`, `--directories`) are never implied by a profile.
 
 Versioned scan templates provide a named, reviewable stage selection:
 
@@ -387,7 +386,7 @@ The default database is `./sh4q-output/sh4q.db`. It may contain sensitive target
 - Gate 1 target authorisation and Gate 2 discovery validation.
 - Reserved/private address controls and redirect validation.
 - DNS, HTTP, certificate-transparency, and optional Subfinder discovery.
-- Optional passive Amass discovery and ProjectDiscovery HTTPX enrichment.
+- Optional ProjectDiscovery HTTPX enrichment.
 - Bounded discovered-host DNS and HTTP enrichment.
 - Durable events, retries, interruption handling, and evidence storage.
 - Per-scan ownership, results, scan overview, JSON/CSV export, and liveness filters.
@@ -412,6 +411,6 @@ scan profiles, SQLite large-scan indexing, machine-readable progress output,
 improved HTTP timeout handling, and interactive HTML report improvements.
 Expect variable live-provider results and the documented limitations
 around completeness, active scanning, and external-tool availability. Passive
-Amass support is experimental and optional.
+Passive subdomain discovery uses Subfinder (`--sub`).
 
 Sh4q is released under the [MIT License](LICENSE).

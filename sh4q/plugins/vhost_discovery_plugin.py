@@ -104,7 +104,7 @@ class VhostDiscoveryPlugin(Plugin):
     def accept_discoveries(self, discoveries: list[Discovery], source_plugin: str | None = None) -> None:
         if self._provided_candidates is not None or self._file != Path(""):
             return
-        if source_plugin not in {"ct", "subfinder", "amass-passive"}:
+        if source_plugin not in {"ct", "subfinder"}:
             return
         self._discovered_candidates.extend(
             item.data.get("hostname", "") for item in discoveries

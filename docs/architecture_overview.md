@@ -11,7 +11,7 @@ from tool output.
 CLI -> scan runner and scheduler
           |\
           +-> scope engine (Gate 1 and Gate 2)
-          +-> plugins and adapters (DNS, HTTP, CT, Subfinder, Amass,
+          +-> plugins and adapters (DNS, HTTP, CT, Subfinder,
           |                         Waybackurls, HTTPX, Katana, vhost,
           |                         directory discovery)
           +-> durable event bus (retries, timeouts, interruption handling)

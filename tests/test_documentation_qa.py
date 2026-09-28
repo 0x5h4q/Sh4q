@@ -35,9 +35,9 @@ _profile = next(
     a for a in _subs.choices["scan"]._actions if "--profile" in a.option_strings
 )
 assert "all current adapters" not in _profile.help, (
-    "--profile full does not enable amass or katana; do not describe it as all adapters"
+    "--profile full does not enable katana; do not describe it as all adapters"
 )
-for _stage in ("amass", "katana", "vhosts", "directories"):
+for _stage in ("katana", "vhosts", "directories"):
     assert _stage in _profile.help, f"--profile help must say it excludes {_stage}"
 
 print("profile help accuracy check passed")

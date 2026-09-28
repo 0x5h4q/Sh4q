@@ -7,6 +7,6 @@ assert "waybackurls" in message
 assert "sh4q doctor" in message
 assert "install command" in message
 
-selected = missing_dependencies(subfinder=False, amass=False, httpx=False, url_history=False, katana=False)
+selected = missing_dependencies(subfinder=False, httpx=False, url_history=False, katana=False)
 assert selected == []
 print("dependency diagnostics test passed")

@@ -40,7 +40,7 @@ class DiscoveredDNSPlugin(Plugin):
     def accept_discoveries(
         self, discoveries: list[Discovery], source_plugin: str | None = None
     ) -> None:
-        if source_plugin not in {"subfinder", "amass-passive"}:
+        if source_plugin != "subfinder":
             return
         names = set(self._names)
         names.update({

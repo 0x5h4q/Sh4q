@@ -294,7 +294,7 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument(
         "--profile",
         choices=["web", "full"],
-        help="Enable a tested bundle of passive stages. web: JavaScript extraction and bundles. full: web plus Subfinder, HTTPX, and URL history. Neither enables amass, katana, vhosts, or directories -- those stay explicit because they are experimental or active.",
+        help="Enable a tested bundle of passive stages. web: JavaScript extraction and bundles. full: web plus Subfinder, HTTPX, and URL history. Neither enables katana, vhosts, or directories -- those stay explicit because they are active.",
     )
     output_modes = scan.add_mutually_exclusive_group()
     output_modes.add_argument(
@@ -322,7 +322,7 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument(
         "--amass",
         action="store_true",
-        help="Run experimental Amass passive discovery (bounded to 20 seconds).",
+        help=argparse.SUPPRESS,  # retired; see the error raised when it is used
     )
     scan.add_argument(
         "--url-history",
@@ -534,7 +534,6 @@ def main() -> None:
             selected = set(template.stages)
             args.sub = "sub" in selected
             args.httpx = "httpx" in selected
-            args.amass = "amass" in selected
             args.url_history = "url-history" in selected
             args.js = "js" in selected
             args.js_bundles = "js-bundles" in selected
@@ -546,6 +545,13 @@ def main() -> None:
             if not args.quiet and args.progress == "human":
                 print(f"  TEMPLATE {template.name}")
                 print(f"  STAGES   {', '.join(template.stages) or 'native'}")
+        if args.amass:
+            parser.error(
+                "--amass has been retired. Amass stopped printing discovered names to "
+                "stdout at v4: enum stores them in a local database that 'amass subs "
+                "-names' reads back, so this adapter observed nothing and reported an "
+                "empty stage. Use --sub for passive subdomain discovery."
+            )
         if args.vhosts_file and not args.vhosts:
             parser.error("--vhosts-file requires --vhosts")
         if args.vhosts_file and args.vhosts_from_scan:
@@ -568,7 +574,7 @@ def main() -> None:
                     summary = asyncio.run(run_scan(
                         args.target, args.config,
                         include_subfinder=args.sub or full_profile,
-                        include_amass=args.amass, include_httpx=args.httpx or full_profile,
+                        include_httpx=args.httpx or full_profile,
                         include_url_history=args.url_history or full_profile,
                         include_javascript=args.js or web_profile,
                         include_javascript_bundles=args.js_bundles or web_profile,
@@ -581,7 +587,7 @@ def main() -> None:
                 summary = asyncio.run(run_scan(
                     args.target, args.config,
                     include_subfinder=args.sub or full_profile,
-                    include_amass=args.amass, include_httpx=args.httpx or full_profile,
+                    include_httpx=args.httpx or full_profile,
                     include_url_history=args.url_history or full_profile,
                     include_javascript=args.js or web_profile,
                     include_javascript_bundles=args.js_bundles or web_profile,

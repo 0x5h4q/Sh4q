@@ -12,7 +12,7 @@ unrelated feature branches or silently reorder the roadmap.
   HTTP destinations.
 - Durable events, evidence-first persistence, scan ownership, provenance,
   retries, interruption handling, and request/stage metrics.
-- DNS, HTTP, certificate transparency, Subfinder, passive Amass, Wayback URL
+- DNS, HTTP, certificate transparency, Subfinder, Wayback URL
   history, HTTPX enrichment, JavaScript extraction, bundle inspection, Katana,
   virtual-host discovery, and directory discovery.
 - Results, scan overview, events, JSON/CSV/HTML exports, redaction, and scan
@@ -22,7 +22,7 @@ unrelated feature branches or silently reorder the roadmap.
 - Published GitHub release and tag `v1.2.0` with verified wheel installation.
 - Versioned configuration schema with legacy v1 compatibility.
 
-Katana, virtual-host discovery, directory discovery, and experimental Amass
+Katana, virtual-host discovery, and directory discovery
 remain explicit opt-ins. Their implementation does not make them suitable for
 silent inclusion in a general profile.
 
