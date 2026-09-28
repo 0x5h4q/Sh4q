@@ -114,6 +114,40 @@ async def main() -> None:
     metrics = await limiter.metrics()
     assert metrics.admitted == 3, f"baseline plus two authorised candidates: {metrics}"
 
+    # The probe must reach the port it was authorized for. endpoint_port was
+    # previously used only in the authorize() call, never in the URL, so a
+    # non-default port authorised one service and probed another.
+    limiter = RequestLimiter(3, 100.0, 10)
+    client = FakeLimitedClient(limiter)
+    plugin = VhostDiscoveryPlugin(
+        ScopeEngine(Sh4qConfig(scope={"targets": ["example.com"], "ports": [8443]})),
+        candidates=["a.example.com"],
+        limiter=limiter,
+        client_factory=lambda: client,
+        endpoint_scheme="https",
+        endpoint_port=8443,
+        request_interval=0,
+    )
+    discoveries = await plugin.execute("example.com")
+    endpoint = discoveries[0].data["endpoint"]
+    assert endpoint == "https://example.com:8443/", (
+        f"the authorized port must appear in the probed endpoint, got {endpoint}"
+    )
+
+    # A default port stays out of the URL so recorded endpoints are canonical.
+    for scheme, port in (("https", 443), ("http", 80)):
+        plugin = VhostDiscoveryPlugin(
+            ScopeEngine(Sh4qConfig(scope={"targets": ["example.com"], "ports": [port]})),
+            candidates=["a.example.com"],
+            limiter=RequestLimiter(3, 100.0, 10),
+            client_factory=lambda: FakeLimitedClient(RequestLimiter(3, 100.0, 10)),
+            endpoint_scheme=scheme,
+            endpoint_port=port,
+            request_interval=0,
+        )
+        endpoint = (await plugin.execute("example.com"))[0].data["endpoint"]
+        assert endpoint == f"{scheme}://example.com/", f"default port should be implicit, got {endpoint}"
+
     print("vhost request accounting test passed")
 
 
