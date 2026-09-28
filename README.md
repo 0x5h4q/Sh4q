@@ -189,6 +189,13 @@ Both stages enforce scope, request limits, evidence retention, and scan-owned
 provenance. They are not enabled by `--profile full` because they perform
 active, potentially high-volume requests.
 
+Neither stage reports what exists. Each compares a response against a baseline
+and labels the difference: a virtual host that answers differently from the
+default site, or a path whose response differs from the server's own
+not-found response. Those are observations for an operator to judge, not
+findings. See
+[Reading Observations](docs/operator_reference.md#reading-observations).
+
 For scripts and scheduled jobs, select the output mode explicitly:
 
 ```bash
@@ -253,7 +260,7 @@ scope:
   excluded:
     - "internal.acme-bank.example"
     - "payments.acme-bank.example"
-  ports: [80, 443]
+  ports: [80, 443]          # authorizes, and selects which origins are probed
 rate_limit:
   requests_per_second: 2
   max_concurrent: 3

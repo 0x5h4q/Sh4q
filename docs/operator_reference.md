@@ -120,6 +120,17 @@ Use `--config path.yaml` to define scope, ports, rate limits, timeouts, output,
 and adapter bounds. Without a config file, the target and its subdomains are
 allowed on ports 80 and 443.
 
+`scope.ports` does two things: it authorizes destinations, and it decides which
+origins the HTTP stage probes. Every authorized port is probed. A port with an
+unambiguous scheme uses it -- 80 and 8080 over HTTP, 443 and 8443 over HTTPS --
+and any other port is probed over both, since guessing wrong would skip a
+service silently. An empty port list authorizes every port, in which case the
+well-known pair is probed rather than an unbounded sweep.
+
+Virtual-host and directory discovery sweep a single origin rather than every
+authorized port, so a candidate list is not multiplied by the port count. They
+prefer HTTPS when it is authorized.
+
 ```yaml
 schema_version: 1
 
@@ -199,11 +210,65 @@ sh4q diff --before BEFORE_ID --after AFTER_ID --format text
 The HTML report is self-contained and can be opened offline. The asset table
 is the verified scan-owned surface; the JavaScript, vhost, and directory
 sections contain bounded observations that still require operator review.
-`not_found_match` means a directory response matched the baseline fingerprint;
-`candidate_observation` means it differed from that baseline. Neither label is
-a security finding. Redaction removes
+Observation labels are explained under [Reading Observations](#reading-observations);
+neither label is a security finding. Redaction removes
 URL query values before sharing a report. The SQLite database and raw evidence
 may contain sensitive target data; review them before distribution.
+
+## Reading Observations
+
+Virtual-host and directory discovery do not report what exists. They report
+how a server's response to a probe **differed from a baseline**, and leave the
+judgement to the operator. Both stages label every result, and the labels mean
+specific things.
+
+### Virtual hosts
+
+A virtual-host probe sends a different `Host:` header to the *same* address.
+The baseline is the response the server gives for the scan target's own name.
+Each candidate is then compared against it.
+
+| Label | Terminal | Meaning |
+| --- | --- | --- |
+| `default_vhost_match` | `[-] vhost ... same as the default host` | The server returned the same response as the baseline. It is not configured for this name and fell through to its default site. Not interesting. |
+| `candidate_observation` | `[!] VHOST ... responds differently to this name` | The server answered this name differently, which is consistent with a separate virtual host being configured. Worth a look. |
+
+`candidate_observation` is not proof. A different response can also come from
+an error page, a redirect, a load balancer, or content that varies per request.
+Sh4q reports the difference it measured and stops there.
+
+### Directory paths
+
+A directory probe requests a path and compares the response to two baselines:
+the site root, and a **randomly generated path that cannot exist**, which
+reveals what this particular server's "not found" looks like.
+
+| Label | Terminal | Meaning |
+| --- | --- | --- |
+| `not_found_match` | `[-] path ... matches this server's not-found response` | The response matched the not-found baseline, repeated the root page (a soft 404), or carried the same error status. The path is absent. |
+| `candidate_observation` | `[!] PATH ... distinct response` | The response differed from both baselines. Something is there. |
+
+The random-path baseline matters: comparing only against the site root would
+label every ordinary 404 as a candidate, because a 404 page never looks like a
+homepage.
+
+A `not_found_match` stays in the evidence record — it is part of what was
+probed — but does not become a scan asset. That is why the evidence count and
+the asset count differ.
+
+### Output markers
+
+| Marker | Meaning |
+| --- | --- |
+| `[!]` | An observation worth review |
+| `[+]` | An authorised asset was stored |
+| `[x]` | Gate 2 refused a destination. Expected policy behaviour, not a failure |
+| `[-]` | A negative result, or an error |
+| `[~]` | Progress |
+
+Colour is used only when output is an interactive terminal. Piped or
+redirected output is plain text, and setting `NO_COLOR` disables colour
+entirely.
 
 ## Optional Dependencies
 
