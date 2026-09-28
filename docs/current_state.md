@@ -74,7 +74,6 @@ create materially more traffic:
 
 | Option | Purpose | Boundary |
 | --- | --- | --- |
-| `--amass` | Passive Amass discovery | Experimental, bounded subprocess |
 | `--katana` | Runtime URL and XHR discovery | Active crawler, same-scope and bounded |
 | `--vhosts` | Virtual-host probing | Active-low, maximum 500 candidates |
 | `--directories` | Directory/path probing | Active-low, supplied file and request budget |
@@ -162,7 +161,6 @@ Stable current capabilities:
 
 Implemented explicit or experimental capabilities:
 
-- passive Amass;
 - Katana crawling;
 - virtual-host discovery;
 - directory discovery.

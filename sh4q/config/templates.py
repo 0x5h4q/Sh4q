@@ -10,7 +10,6 @@ from .schema import CURRENT_CONFIG_SCHEMA_VERSION
 TEMPLATE_STAGES = {
     "sub": "sub",
     "httpx": "httpx",
-    "amass": "amass",
     "url-history": "url_history",
     "js": "js",
     "js-bundles": "js_bundles",
@@ -28,7 +27,6 @@ TEMPLATE_OWNED_OPTIONS = (
     ("--profile", "profile"),
     ("--sub", "sub"),
     ("--httpx", "httpx"),
-    ("--amass", "amass"),
     ("--url-history", "url_history"),
     ("--js", "js"),
     ("--js-bundles", "js_bundles"),

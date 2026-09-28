@@ -95,7 +95,7 @@ Fields:
 | --- | --- | --- |
 | `schema_version` | yes | Must be `1`. Unsupported versions fail before any network activity. |
 | `name` | yes | Shown before the scan runs. |
-| `stages` | yes | Any of `sub`, `httpx`, `amass`, `url-history`, `js`, `js-bundles`, `katana`, `vhosts`, `directories`. No duplicates, no unknown names. |
+| `stages` | yes | Any of `sub`, `httpx`, `url-history`, `js`, `js-bundles`, `katana`, `vhosts`, `directories`. No duplicates, no unknown names. |
 | `config` | no | A configuration file, resolved relative to the template. Omit it to derive a narrow scope from the target on the command line. |
 | `vhosts_file` | no | Candidate file for the `vhosts` stage. |
 | `directories_file` | no | Candidate file for the `directories` stage. Required whenever `directories` is selected. |

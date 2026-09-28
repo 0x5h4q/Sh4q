@@ -35,14 +35,12 @@ from sh4q.application.stage_metrics import persist_stage_metrics
 from sh4q.adapters import (
     AdapterContext,
     AdapterExecutionError,
-    AmassPassiveAdapter,
     ControlledProcessRunner,
     ExternalAdapterPlugin,
     HttpxFingerprintPlugin,
     SubfinderAdapter,
     URLHistoryAdapter,
     KatanaAdapter,
-    validate_amass,
     validate_projectdiscovery_httpx,
 )
 from sh4q.dependencies import format_missing, missing_dependencies
@@ -115,7 +113,6 @@ async def run_scan(
     config_path: str | None = None,
     *,
     include_subfinder: bool = False,
-    include_amass: bool = False,
     include_httpx: bool = False,
     include_url_history: bool = False,
     include_javascript: bool = False,
@@ -149,7 +146,6 @@ async def run_scan(
         raise AdapterExecutionError("--directories requires --directories-file")
     missing = missing_dependencies(
         subfinder=include_subfinder,
-        amass=include_amass,
         httpx=include_httpx,
         url_history=include_url_history,
         katana=include_katana,
@@ -269,24 +265,6 @@ async def run_scan(
                 scope, directories_file, limiter=limiter,
                 endpoint_scheme=sweep_scheme, endpoint_port=sweep_port,
             ))
-        if include_amass:
-            executable = shutil.which("amass")
-            if executable is None:
-                raise AdapterExecutionError(
-                    "Amass is not installed or is not available on PATH"
-                )
-            adapter = AmassPassiveAdapter(executable=executable)
-            adapter_home = Path(config.output.directory) / "adapters" / "amass-home"
-            adapter_home.mkdir(parents=True, exist_ok=True)
-            # Amass 4+ stopped printing names to stdout, which this adapter
-            # parses. Fail before the scan rather than report an empty stage.
-            await validate_amass(
-                executable,
-                ControlledProcessRunner(
-                    {executable}, environment={"HOME": str(adapter_home.resolve())}
-                ),
-                cwd=Path(config.output.directory),
-            )
             plugins.append(
                 ExternalAdapterPlugin(
                     adapter,
@@ -338,7 +316,7 @@ async def run_scan(
                     timeout=60.0,
                 )
             )
-        if include_subfinder or include_amass:
+        if include_subfinder:
             plugins.append(DiscoveredDNSPlugin(scope=scope))
             plugins.append(DiscoveredHTTPPlugin(
                 scope=scope,
@@ -351,7 +329,7 @@ async def run_scan(
                 evidence = await evidence_store.list_for_scan(scan_run.id, kind="http_probe")
                 return javascript_http_observations(evidence)
 
-            plugins.append(JavaScriptExtractionPlugin(http_observations, after_discovered_http=include_subfinder or include_amass))
+            plugins.append(JavaScriptExtractionPlugin(http_observations, after_discovered_http=include_subfinder))
             if include_javascript_bundles:
                 async def fetch_bundle(url: str) -> str | None:
                     parsed = httpx.URL(url)

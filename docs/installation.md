@@ -8,7 +8,6 @@
 - Internet access during dependency installation.
 - Subfinder only if `--sub` will be used.
 - ProjectDiscovery httpx only if `--httpx` will be used.
-- OWASP Amass only if `--amass` will be used (it is not included in profiles).
 - Waybackurls only if `--url-history` will be used.
 - Katana only if `--katana` will be used.
 
@@ -103,17 +102,21 @@ sh4q scan your-domain.example --sub --httpx
 
 The adapter receives only approved HTTP endpoints from the current scan and is bounded by `adapters.httpx` configuration. Its network activity is reported separately from native request metrics.
 
-## Optional Amass Passive Discovery
+## Amass Has Been Retired
 
-`--amass` runs a fixed passive-only Amass enumeration command. It is an
-experimental, best-effort adapter with a 20-second process ceiling; provider
-or local-database stalls are recorded and the scan continues. Results remain
-untrusted until Sh4q applies Gate 2 and subsequent DNS/HTTP verification.
+The Amass adapter was removed after `v1.2.0`. Amass stopped printing
+discovered names to standard output at v4: `amass enum` renders a progress
+bar to standard error and stores findings in a local database that
+`amass subs -names` reads back. The adapter parsed standard output, so
+against a current Amass it observed nothing and reported a stage that had
+succeeded with no discoveries -- indistinguishable from a domain with no
+passive records.
+
+Use Subfinder for passive subdomain discovery:
 
 ```bash
-amass -version
-sh4q scan your-domain.example --amass
-sh4q scan your-domain.example --sub --amass --httpx
+sh4q scan your-domain.example --sub
+sh4q scan your-domain.example --sub --httpx
 ```
 
 ## Output Location

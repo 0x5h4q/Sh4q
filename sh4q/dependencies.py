@@ -13,7 +13,6 @@ class Dependency:
 
 OPTIONAL_DEPENDENCIES = (
     Dependency("subfinder", "subfinder", "go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest"),
-    Dependency("amass", "amass", "go install -v github.com/owasp-amass/amass/v4/...@master"),
     Dependency("httpx", "httpx", "go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest"),
     Dependency("waybackurls", "waybackurls", "go install github.com/tomnomnom/waybackurls@latest"),
     Dependency("katana", "katana", "go install -v github.com/projectdiscovery/katana/cmd/katana@latest"),
@@ -24,8 +23,8 @@ def dependency_status() -> dict[str, str | None]:
     return {item.name: shutil.which(item.executable) for item in OPTIONAL_DEPENDENCIES}
 
 
-def required_dependencies(*, subfinder=False, amass=False, httpx=False, url_history=False, katana=False) -> list[Dependency]:
-    requested = {"subfinder": subfinder, "amass": amass, "httpx": httpx, "waybackurls": url_history, "katana": katana}
+def required_dependencies(*, subfinder=False, httpx=False, url_history=False, katana=False) -> list[Dependency]:
+    requested = {"subfinder": subfinder, "httpx": httpx, "waybackurls": url_history, "katana": katana}
     return [item for item in OPTIONAL_DEPENDENCIES if requested[item.name]]
 
 

@@ -94,7 +94,7 @@ sh4q scan your-domain.example --profile web
 The `web` profile enables `--js` and `--js-bundles`. The `full` profile enables
 all currently available discovery, history, fingerprint, and JavaScript stages;
 it requires the optional external tools used by those stages. Experimental
-Amass passive discovery is not included; request it explicitly with `--amass`.
+Passive subdomain discovery is not included; request it explicitly with `--sub`.
 
 Virtual-host discovery is a separate active opt-in. Supply a reviewed
 candidate file and both flags; candidates are bounded and scope-checked before
