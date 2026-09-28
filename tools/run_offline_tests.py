@@ -21,6 +21,7 @@ OFFLINE_TESTS = (
     "test_config_schema_version.py",
     "test_scan_template.py",
     "test_cli_formatting.py",
+    "test_output_hierarchy.py",
     "test_ct_reporting.py",
     "test_discovered_dns_plugin.py",
     "test_discovered_http_plugin.py",
