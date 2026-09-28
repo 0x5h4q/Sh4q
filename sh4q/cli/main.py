@@ -294,7 +294,7 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument(
         "--profile",
         choices=["web", "full"],
-        help="Enable a tested bundle of optional stages: web=JavaScript extraction and bundles; full=all current adapters and web stages.",
+        help="Enable a tested bundle of passive stages. web: JavaScript extraction and bundles. full: web plus Subfinder, HTTPX, and URL history. Neither enables amass, katana, vhosts, or directories -- those stay explicit because they are experimental or active.",
     )
     output_modes = scan.add_mutually_exclusive_group()
     output_modes.add_argument(
