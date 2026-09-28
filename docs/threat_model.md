@@ -14,12 +14,56 @@ Sh4q aims to keep authorised reconnaissance inside a central policy and evidence
 
 ## Main Trust Boundaries
 
-```text
-User input -> Scope Engine -> Scheduler/Plugins -> Network or Adapter
-                                      |
-                                      v
-                              Evidence and Asset Graph
+```mermaid
+flowchart TB
+    subgraph OPERATOR["Operator"]
+        IN["Target, configuration or template, stage flags"]
+    end
+
+    subgraph SH4Q["Sh4q — trusted"]
+        G1{"Gate 1<br>authorize the target"}
+        SCHED["Scheduler<br><small>ordered, bounded stages</small>"]
+        CLIENT["Scoped HTTP client<br><small>pinned IP, redirects reauthorized</small>"]
+        RUNNER["Controlled process runner<br><small>argv only, executable allow-list,<br>private HOME, output ceiling, timeout</small>"]
+        PARSE["Adapter parser"]
+        G2{"Gate 2<br>authorize each discovered destination"}
+        EV[("Evidence<br><small>every observation</small>")]
+        GRAPH[("Asset graph<br><small>authorized only</small>")]
+    end
+
+    subgraph OUTSIDE["Outside the boundary — untrusted"]
+        NET(["Target network"])
+        TOOL(["External tool process"])
+        PROV(["Third-party providers<br><small>CT logs, archives, tool APIs</small>"])
+    end
+
+    IN --> G1
+    G1 -- denied --> STOP["Nothing runs"]
+    G1 -- allowed --> SCHED
+    SCHED --> CLIENT --> NET
+    SCHED --> RUNNER --> TOOL
+    TOOL -.-> PROV
+    NET -- response --> G2
+    TOOL -- stdout --> PARSE --> G2
+    G2 --> EV
+    G2 -- authorized --> GRAPH
+    G2 -- refused --> EV
+
+    classDef untrusted stroke-dasharray: 4 4
+    class NET,TOOL,PROV untrusted
 ```
+
+Two things the diagram is meant to make obvious. Everything leaving Sh4q passes
+a gate first, and everything returning passes Gate 2 before it can become an
+asset — including output from a tool Sh4q itself launched. And evidence is
+written on **both** Gate 2 paths: a refusal is recorded, not discarded, which is
+what makes the boundary auditable rather than merely enforced.
+
+The dashed nodes are outside the boundary. Sh4q controls how an external tool
+is launched and how its output is read, but not what that tool does on the
+network: packets a tool generates internally do not pass through Sh4q's
+transport. `httpx` input is restricted to scan-owned, reauthorized endpoints for
+this reason.
 
 Native HTTP requests pass through the scoped HTTP client. External-tool output passes through the adapter parser and Gate 2 before asset persistence.
 External `httpx` inputs are restricted to scan-owned, reauthorised HTTP endpoints, but packets generated inside the tool are not routed through Sh4q's native network transport.
