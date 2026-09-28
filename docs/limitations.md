@@ -33,6 +33,38 @@ This list describes the v1.2.0 boundary. It should be read before judging scan o
 - Technology confidence is evidence quality, not certainty.
 - Optional ProjectDiscovery `httpx` enrichment is endpoint-filtered and bounded, but its internal DNS and HTTP requests do not pass through Sh4q's native pinned-IP transport or request limiter.
 
+## Virtual-Host and Directory Discovery
+
+- Neither stage verifies anything. Each compares a response against a baseline
+  and reports the difference; `candidate_observation` is a measured difference,
+  not a confirmed virtual host or file.
+- A differing response can come from an error page, a redirect, a load
+  balancer, or content that varies between requests.
+- A server that answers every name identically yields no candidates even when
+  virtual hosts exist. A server that answers every path with a distinct page
+  yields candidates for all of them.
+- Candidate lists are operator-supplied and bounded: at most 500 virtual-host
+  candidates and 200 directory paths, one request per second, drawn from the
+  same shared request budget as every other stage. Exhausting that budget stops
+  further probes and records the refusal.
+- Both stages sweep a single origin, preferring HTTPS when authorized, rather
+  than every authorized port. A service on a second port is not swept.
+- Directory candidates are relative paths. Absolute URLs, traversal, query
+  strings, fragments, credentials, and control characters are rejected before
+  any request.
+- A `not_found_match` is kept as evidence but is not an asset, so the evidence
+  and asset counts for these stages differ by design.
+
+## Ports
+
+- `scope.ports` both authorizes destinations and selects which origins the HTTP
+  stage probes. A port that is not authorized is never probed.
+- Ports with an unambiguous scheme are probed over it; any other port is probed
+  over both HTTP and HTTPS, which costs two requests rather than one.
+- An empty port list authorizes every port. Sh4q does not sweep every port in
+  that case: it probes 80 and 443 only. A non-standard service reachable under
+  such a configuration will not be found unless its port is listed.
+
 ## Metrics and Reporting
 
 - Native request metrics cover Sh4q's HTTP and CT traffic, not opaque provider traffic inside Subfinder or `httpx`.
@@ -60,10 +92,10 @@ This list describes the v1.2.0 boundary. It should be read before judging scan o
 - Technology detection uses a curated offline signature set over a bounded response sample. It is intentionally smaller than Wappalyzer and does not execute page JavaScript or make additional fingerprinting requests.
 - External adapter tools can be unavailable, misinstalled, or provider-blocked. Sh4q now fails fast when an adapter's bounded version probe hangs, but a working tool installation and provider configuration remain the operator's responsibility.
 - The Amass adapter was retired after v1.2.0. Amass stopped printing
-  discovered names to stdout at v4, so the adapter observed nothing and
-  reported an empty stage. Use `--sub` instead. A tool
-  that stalls during provider or local-database work may still yield no names;
-  Sh4q records the timeout and continues with other stages.
+  discovered names to standard output at v4, so the adapter observed nothing
+  and reported an empty stage. Use `--sub` instead.
+- Any external tool that stalls in provider or local-database work may yield no
+  names. Sh4q records the timeout and continues with the remaining stages.
 
 ## Review Status
 

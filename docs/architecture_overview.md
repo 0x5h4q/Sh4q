@@ -7,25 +7,40 @@ from tool output.
 
 ## System Flow
 
-```text
-CLI -> scan runner and scheduler
-          |\
-          +-> scope engine (Gate 1 and Gate 2)
-          +-> plugins and adapters (DNS, HTTP, CT, Subfinder,
-          |                         Waybackurls, HTTPX, Katana, vhost,
-          |                         directory discovery)
-          +-> durable event bus (retries, timeouts, interruption handling)
-          +-> SQLite storage (assets, relationships, evidence, failures,
-                              technologies, provenance, scan ownership)
-                                   |
-                                   v
-                         terminal results and reports
+```mermaid
+flowchart TD
+    CLI["CLI<br><small>target, config or template, stage flags</small>"]
+    RUNNER["Scan runner and scheduler<br><small>builds the plugin chain, orders it by dependency</small>"]
+    GATE1{"Gate 1<br>authorize the target"}
+    STAGES["Stages<br><small>DNS, HTTP, CT, discovered DNS/HTTP, JavaScript,<br>Subfinder, Waybackurls, HTTPX, Katana,<br>virtual host, directory</small>"]
+    BUS["Durable event bus<br><small>at-least-once delivery, retries, crash recovery</small>"]
+    EVIDENCE[("Evidence<br><small>every observation, always</small>")]
+    GATE2{"Gate 2<br>authorize each discovered destination"}
+    GRAPH[("Asset graph<br><small>the authorized subset</small>")]
+    OUT["Terminal results, JSON/CSV/HTML export, scan diff"]
+
+    CLI --> RUNNER --> GATE1
+    GATE1 -- denied --> STOP["Nothing runs"]
+    GATE1 -- allowed --> STAGES --> BUS --> EVIDENCE --> GATE2
+    GATE2 -- denied --> KEPT["Recorded as a refusal<br><small>expected, not an error</small>"]
+    GATE2 -- allowed --> GRAPH --> OUT
+    EVIDENCE --> OUT
 ```
+
+Evidence is written **before** Gate 2 decides, unconditionally. That ordering is
+the point: evidence is the audit trail of everything observed, and the graph is
+only the subset that policy allowed. A Gate 2 refusal is a recorded outcome, not
+a failure.
 
 The central data path is:
 
-```text
-tool output -> scope validation -> evidence and asset graph -> report
+```mermaid
+flowchart LR
+    TOOL["Tool output<br><small>untrusted</small>"] --> CHECK{"Scope<br>validation"}
+    CHECK --> EV[("Evidence")]
+    CHECK -- authorized only --> AG[("Asset graph")]
+    EV --> REP["Report"]
+    AG --> REP
 ```
 
 An external tool may return anything. Sh4q retains the raw observation, but a
