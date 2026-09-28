@@ -55,6 +55,7 @@ OFFLINE_TESTS = (
     "test_scan_runs.py",
     "test_schema_version.py",
     "test_scope_engine.py",
+    "test_scan_runner_wiring.py",
     "test_probe_ports.py",
     "test_directory_discovery_plugin.py",
     "test_directory_candidate_loading.py",
