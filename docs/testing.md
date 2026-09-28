@@ -20,6 +20,18 @@ venv/bin/python tools/run_offline_tests.py --include-integration
 
 The default suite uses fakes, temporary SQLite databases, controlled subprocesses, and mock transports. It does not require Subfinder or access to public DNS, HTTP, or certificate-transparency providers.
 
+Two of its checks exist because a green suite once hid a real defect, and are
+worth keeping in mind when adding stages:
+
+- `test_scope_engine.py` asserts the authorization perimeter itself -- both
+  gates, address policy, and normalization. Before it existed, nothing in the
+  suite failed if scope enforcement regressed.
+- `test_scan_runner_wiring.py` builds the plugin chain for every stage
+  combination against a scope that denies at Gate 1, so no packet is sent. It
+  exists because stages were tested individually while the `if include_x:`
+  chain that assembles them was not, and a stage wired into the wrong branch
+  passed every test while crashing the CLI.
+
 ## Optional Integration Checks
 
 `--include-integration` adds local integration checks that may require operating-system facilities such as OpenSSL and loopback socket binding. These checks still do not contact a public target.

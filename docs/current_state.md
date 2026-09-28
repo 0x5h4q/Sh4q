@@ -157,13 +157,20 @@ Stable current capabilities:
 - Subfinder, Waybackurls, HTTPX, JavaScript extraction, and bundle inspection;
 - terminal results, scan overview, JSON/CSV/HTML export, redaction, and diff;
 - quiet, verbose, and JSONL progress modes;
-- versioned configuration schema.
+- versioned configuration schema and named scan templates;
+- every authorized port probed, not only the well-known pair.
 
-Implemented explicit or experimental capabilities:
+Implemented explicit capabilities, never enabled by a profile:
 
 - Katana crawling;
 - virtual-host discovery;
 - directory discovery.
+
+Retired:
+
+- the Amass adapter, removed after `v1.2.0`. Amass stopped printing discovered
+  names to standard output at v4, so the adapter observed nothing and reported
+  an empty stage. `--sub` covers passive subdomain discovery.
 
 Not implemented yet:
 
