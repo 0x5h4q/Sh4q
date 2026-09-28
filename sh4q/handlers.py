@@ -4,7 +4,7 @@ from sh4q.events import Event
 from sh4q.scope import ScopeEngine
 from sh4q.storage import Node, Relationship, StorageRepository
 from sh4q.storage.evidence import Evidence, EvidenceStore
-from sh4q.cli.branding import status_line
+from sh4q.cli.branding import gate_line, observation_line, status_line
 from sh4q.fingerprints.normalize import normalize_external_technology
 from sh4q.network import probe_url
 
@@ -93,10 +93,7 @@ def make_discovery_handler(
             decision = scope.authorize_resolved_address(ip)
 
             if not decision.allowed:
-                print(
-                    f"  GATE 2 DENY: {ip} -> {decision.reason} "
-                    f"(not persisted as an asset)"
-                )
+                print(gate_line(ip, decision.reason, "not persisted"))
                 return
 
             ip_node = Node(type="ip", value=ip)
@@ -116,13 +113,13 @@ def make_discovery_handler(
             if not decision.allowed:
                 if stats is not None:
                     stats["resolved_discovered_failures"] = stats.get("resolved_discovered_failures", 0) + 1
-                print(f"  GATE 2 DENY: {domain} -> {decision.reason} (not persisted as an asset)")
+                print(gate_line(domain, decision.reason, "not persisted"))
                 return
             address_decision = scope.authorize_resolved_address(ip)
             if not address_decision.allowed:
                 if stats is not None:
                     stats["resolved_discovered_failures"] = stats.get("resolved_discovered_failures", 0) + 1
-                print(f"  GATE 2 DENY: {ip} -> {address_decision.reason} (not persisted as an asset)")
+                print(gate_line(ip, address_decision.reason, "not persisted"))
                 return
             domain_node = Node(type="domain", value=domain)
             ip_node = Node(type="ip", value=ip)
@@ -153,10 +150,7 @@ def make_discovery_handler(
             decision = scope.authorize(host)
 
             if not decision.allowed:
-                print(
-                    f"  GATE 2 DENY: {host} -> {decision.reason} "
-                    f"({final_url} not persisted)"
-                )
+                print(gate_line(host, decision.reason, f"{final_url} not persisted"))
                 return
 
             domain_node = Node(type="domain", value=host)
@@ -260,10 +254,7 @@ def make_discovery_handler(
                     content={"domain": host, "url": historical_url, "reason": decision.reason},
                     scan_run_id=event_scan_run_id,
                 ))
-                print(
-                    f"  GATE 2 DENY: {host} -> {decision.reason} "
-                    f"({historical_url} not persisted)"
-                )
+                print(gate_line(host, decision.reason, f"{historical_url} not persisted"))
                 return
             domain_node = Node(type="domain", value=host)
             await storage.save_node(domain_node)
@@ -325,7 +316,7 @@ def make_discovery_handler(
             if not decision.allowed:
                 display_bounded(
                     "JavaScript scope denials",
-                    f"  GATE 2 DENY: {host} -> {decision.reason} ({reference_url} not persisted)",
+                    gate_line(host, decision.reason, f"{reference_url} not persisted"),
                 )
                 return
             domain_node = Node(type="domain", value=host)
@@ -352,10 +343,7 @@ def make_discovery_handler(
             host = HttpURL(endpoint).host
             decision = scope.authorize(host)
             if not decision.allowed:
-                print(
-                    f"  GATE 2 DENY: {host} -> {decision.reason} "
-                    f"(fingerprint not persisted)"
-                )
+                print(gate_line(host, decision.reason, "fingerprint not persisted"))
                 return
 
             url_node = Node(type="url", value=endpoint)
@@ -400,10 +388,10 @@ def make_discovery_handler(
                 )
 
         elif kind == "vhost_baseline":
-            display_bounded("vhost notices", f"  VHOST baseline recorded for {data.get('endpoint', '-')}", limit=1)
+            display_bounded("vhost notices", status_line(f"baseline recorded for {data.get('endpoint', '-')}", "info"), limit=1)
 
         elif kind == "vhost_rejected":
-            display_bounded("vhost rejections", f"  GATE 2 DENY: {data.get('candidate', '-')} -> {data.get('reason', 'out of scope')}")
+            display_bounded("vhost rejections", gate_line(data.get("candidate", "-"), data.get("reason", "out of scope")))
 
         elif kind == "vhost_observation":
             candidate = data.get("candidate", "")
@@ -433,20 +421,33 @@ def make_discovery_handler(
                 )
                 await storage.save_relationship(relationship)
                 await record_asset("vhost_observations", url_node.id, relationship.id, source_plugin, event_scan_run_id)
-            display_bounded("vhost observations", f"  OBSERVED vhost {data.get('candidate', '-')} [{data.get('status', '-')}] ({data.get('classification', 'candidate_observation')})")
+            notable = data.get("classification", "candidate_observation") == "candidate_observation"
+            display_bounded(
+                "vhost observations",
+                observation_line(
+                    "VHOST" if notable else "vhost",
+                    data.get("candidate", "-"),
+                    data.get("status"),
+                    "responds differently to this name" if notable else "same as the default host",
+                    notable=notable,
+                ),
+            )
 
         elif kind == "vhost_error":
-            display_bounded("vhost failures", f"  FAILED vhost {data.get('candidate', '-')}: {data.get('error', 'unknown error')}",)
+            display_bounded("vhost failures", status_line(f"FAILED vhost {data.get('candidate', '-')}: {data.get('error', 'unknown error')}", "error"))
 
         elif kind == "vhost_budget_denied":
             display_bounded(
                 "vhost budget denials",
-                f"  BUDGET DENY vhost {data.get('candidate', '-')} -> "
-                f"{data.get('reason', 'request budget exhausted')}",
+                status_line(
+                    f"BUDGET DENY vhost {data.get('candidate', '-')} -> "
+                    f"{data.get('reason', 'request budget exhausted')}",
+                    "deny",
+                ),
             )
 
         elif kind == "vhost_partial":
-            display_bounded("vhost notices", f"  VHOST stage retained {data.get('captured', 0)} partial observations", limit=1)
+            display_bounded("vhost notices", status_line(f"vhost stage retained {data.get('captured', 0)} partial observations", "info"), limit=1)
 
         elif kind == "directory_observation":
             url = data.get("url", "")
@@ -461,7 +462,13 @@ def make_discovery_handler(
             if data.get("classification") == "not_found_match":
                 display_bounded(
                     "directory not-found results",
-                    f"  NOT FOUND {data.get('path', url)} [{data.get('status', '-')}]",
+                    observation_line(
+                        "path",
+                        data.get("path", url),
+                        data.get("status"),
+                        "matches this server's not-found response",
+                        notable=False,
+                    ),
                 )
                 return
             node = Node(type="url", value=url, attributes={"status": data.get("status"), "classification": data.get("classification", "candidate_observation")})
@@ -471,19 +478,28 @@ def make_discovery_handler(
             relationship = Relationship(root.id, node.id, "DIRECTORY_OBSERVATION")
             await storage.save_relationship(relationship)
             await record_asset("directory_observations", node.id, relationship.id, source_plugin, event_scan_run_id)
-            display_bounded("directory observations", f"  OBSERVED path {data.get('path', url)} [{data.get('status', '-')}] ({data.get('classification', 'candidate_observation')})")
+            display_bounded(
+                "directory observations",
+                observation_line(
+                    "PATH",
+                    data.get("path", url),
+                    data.get("status"),
+                    "distinct response",
+                    notable=True,
+                ),
+            )
 
         elif kind == "directory_error":
-            display_bounded("directory failures", f"  FAILED path {data.get('url', '-')} : {data.get('error', 'unknown error')}")
+            display_bounded("directory failures", status_line(f"FAILED path {data.get('url', '-')}: {data.get('error', 'unknown error')}", "error"))
 
         elif kind == "directory_rejected":
-            display_bounded("directory rejections", f"  GATE 2 DENY path {data.get('path', '-')} -> {data.get('reason', 'rejected')}")
+            display_bounded("directory rejections", gate_line(data.get("path", "-"), data.get("reason", "rejected")))
 
         elif kind == "directory_budget_denied":
-            display_bounded("directory budget denials", f"  BUDGET DENY path {data.get('path', '-')} -> {data.get('reason', 'budget exhausted')}")
+            display_bounded("directory budget denials", status_line(f"BUDGET DENY path {data.get('path', '-')} -> {data.get('reason', 'budget exhausted')}", "deny"))
 
         elif kind == "directory_baseline":
-            display_bounded("directory notices", f"  DIRECTORY baseline recorded for {data.get('endpoint', '-')}", limit=1)
+            display_bounded("directory notices", status_line(f"baseline recorded for {data.get('endpoint', '-')}", "info"), limit=1)
 
         elif kind == "subdomain_found":
             hostname = data["hostname"]
@@ -494,10 +510,7 @@ def make_discovery_handler(
             # unauthorized root must never enter the graph, nor anchor an edge.
             root_decision = scope.authorize(root_domain)
             if not root_decision.allowed:
-                print(
-                    f"  GATE 2 DENY: {root_domain} -> {root_decision.reason} "
-                    f"(parent of {hostname}; not persisted as an asset)"
-                )
+                print(gate_line(root_domain, root_decision.reason, f"parent of {hostname}; not persisted"))
                 return
 
             root_node = Node(type="domain", value=root_domain)
@@ -506,10 +519,7 @@ def make_discovery_handler(
             decision = scope.authorize(hostname)
 
             if not decision.allowed:
-                print(
-                    f"  GATE 2 DENY: {hostname} -> {decision.reason} "
-                    f"(not persisted as an asset)"
-                )
+                print(gate_line(hostname, decision.reason, "not persisted"))
                 return
 
             sub_node = Node(
