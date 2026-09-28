@@ -46,3 +46,6 @@ architecture.md
 tools/build_project_docs.py
 tools/collect_sources.py
 tools/update_architecture_review.py
+
+# Local lab target and its scan output
+local/
