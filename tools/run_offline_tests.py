@@ -56,6 +56,15 @@ OFFLINE_TESTS = (
     "test_scan_runs.py",
     "test_schema_version.py",
     "test_scope_engine.py",
+    "test_storage_manual.py",
+    "test_output_permissions.py",
+    "test_dependency_bounds.py",
+    "test_fingerprint_normalization.py",
+    "test_httpx_fingerprint_plugin.py",
+    "test_httpx_identity.py",
+    "test_javascript_observation_sources.py",
+    "test_vhost_discovery_plugin.py",
+    "test_packaged_configs.py",
     "test_scan_runner_wiring.py",
     "test_probe_ports.py",
     "test_directory_discovery_plugin.py",
@@ -83,6 +92,20 @@ OFFLINE_TESTS = (
 
 OPTIONAL_INTEGRATION_TESTS = (
     "test_scoped_https_integration.py",
+)
+
+# Tests that contact real DNS resolvers, certificate-transparency providers,
+# or live HTTP. They are excluded by design, not by oversight: the offline
+# suite must stay deterministic and must not reach out to anyone. Run them
+# deliberately with --network, and only against targets you are authorised to
+# contact.
+NETWORK_TESTS = (
+    "test1.py",
+    "test_crash.py",
+    "test_dns.py",
+    "test_dns_timing.py",
+    "test_evidence.py",
+    "test_integration.py",
 )
 
 
@@ -120,9 +143,25 @@ def run_test(name: str, timeout: float) -> TestResult:
     return TestResult(name, status, time.monotonic() - started, output)
 
 
+def unlisted_tests() -> list[str]:
+    """Test files in tests/ that no tuple above claims.
+
+    A file that is in neither tuple never runs and nobody notices, which is
+    how the suite once drifted to twenty unlisted files.
+    """
+    known = set(OFFLINE_TESTS) | set(OPTIONAL_INTEGRATION_TESTS) | set(NETWORK_TESTS)
+    present = {path.name for path in (ROOT / "tests").glob("test*.py")}
+    return sorted(present - known)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run Sh4q's deterministic offline test suite")
     parser.add_argument("--include-integration", action="store_true")
+    parser.add_argument(
+        "--network",
+        action="store_true",
+        help="Also run tests that contact real DNS, CT providers, and live HTTP",
+    )
     parser.add_argument("--match", help="Run tests whose filename contains this text")
     parser.add_argument("--timeout", type=float, default=90.0, help="Per-test timeout in seconds")
     parser.add_argument("--list", action="store_true", help="List selected tests without running them")
@@ -131,6 +170,10 @@ def main() -> int:
     selected = list(OFFLINE_TESTS)
     if args.include_integration:
         selected.extend(OPTIONAL_INTEGRATION_TESTS)
+    if args.network:
+        print("\n  Including network tests: these contact real DNS, CT providers,")
+        print("  and live HTTP. Use only against targets you are authorised to reach.")
+        selected.extend(NETWORK_TESTS)
     if args.match:
         selected = [name for name in selected if args.match.lower() in name.lower()]
     if args.list:
@@ -141,6 +184,12 @@ def main() -> int:
 
     print("\n  SH4Q OFFLINE TESTS")
     print("  ==================")
+    unlisted = unlisted_tests()
+    if unlisted:
+        print("  WARNING: these test files are in no list and will never run:")
+        for name in unlisted:
+            print(f"    {name}")
+        print()
     results = []
     for name in selected:
         result = run_test(name, max(1.0, args.timeout))
@@ -154,7 +203,10 @@ def main() -> int:
     failed = len(results) - passed
     duration = sum(result.duration for result in results)
     print("  " + "-" * 64)
-    print(f"  Passed {passed}/{len(results)}   Failed {failed}   Duration {duration:.2f}s\n")
+    print(f"  Passed {passed}/{len(results)}   Failed {failed}   Duration {duration:.2f}s")
+    if not args.network:
+        print(f"  Skipped {len(NETWORK_TESTS)} network tests; run with --network to include them.")
+    print()
     return 0 if failed == 0 else 1
 
 

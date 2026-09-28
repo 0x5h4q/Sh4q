@@ -1,0 +1,50 @@
+# A realistic scope file. Copy it, replace the targets, and keep the shape.
+#
+#   sh4q scan acme-bank.example --config config/example-scope.yaml
+#
+# Scope is the whole safety boundary. Everything Sh4q will contact has to
+# match `targets` and must not match `excluded`.
+schema_version: 1
+
+scope:
+  # Each entry matches itself and its subdomains, so "acme-bank.example"
+  # also authorizes "api.acme-bank.example". CIDR ranges are matched as
+  # networks. Never widen this to a supernet such as 0.0.0.0/0: that
+  # authorizes every address on the internet and disables the boundary.
+  targets:
+    - "acme-bank.example"
+    - "203.0.113.0/24"
+
+  # Exclusions always win, and they inherit downward: excluding
+  # "internal.acme-bank.example" also excludes anything beneath it. Use this
+  # for systems inside an authorized domain that are out of engagement scope.
+  excluded:
+    - "internal.acme-bank.example"
+    - "payments.acme-bank.example"
+
+  # Ports both authorize destinations and select which origins are probed.
+  # A port with an unambiguous scheme uses it; any other port is probed over
+  # both HTTP and HTTPS.
+  ports: [80, 443]
+
+  # Private, loopback, link-local, multicast, reserved, and unspecified
+  # addresses are denied even when the hostname is in scope. Enable this only
+  # for a lab you control; Sh4q prints a warning when it is on.
+  allow_private_addresses: false
+
+rate_limit:
+  requests_per_second: 2.0
+  max_concurrent: 3
+  budget: 1000          # total native requests for the whole run
+
+timeout:
+  dns_seconds: 5.0
+  http_seconds: 10.0
+
+output:
+  directory: "./sh4q-output"
+
+adapters:
+  httpx:
+    max_endpoints: 200
+    timeout_seconds: 120.0

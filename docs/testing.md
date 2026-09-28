@@ -16,7 +16,18 @@ Useful options:
 venv/bin/python tools/run_offline_tests.py --list
 venv/bin/python tools/run_offline_tests.py --match fingerprint
 venv/bin/python tools/run_offline_tests.py --include-integration
+venv/bin/python tools/run_offline_tests.py --network
 ```
+
+Every file in `tests/` belongs to exactly one list in the runner:
+`OFFLINE_TESTS` runs by default, `OPTIONAL_INTEGRATION_TESTS` runs under
+`--include-integration`, and `NETWORK_TESTS` runs under `--network`. Those six
+contact real DNS resolvers, certificate-transparency providers, and live HTTP,
+so run them deliberately and only against targets you are authorised to reach.
+
+A file in none of the three lists never runs. The runner now prints a warning
+naming any such file, because the suite once drifted to twenty unlisted tests
+without anything noticing.
 
 The default suite uses fakes, temporary SQLite databases, controlled subprocesses, and mock transports. It does not require Subfinder or access to public DNS, HTTP, or certificate-transparency providers.
 
