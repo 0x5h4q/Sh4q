@@ -77,3 +77,35 @@ async def main() -> None:
 
 
 asyncio.run(main())
+
+
+# --- an export is never shortened -----------------------------------------
+# list_technology_observations clamped to 1000 even when asked for more, and
+# the exporter asked for exactly 1000. A terminal listing caps because it is
+# read on screen; an export is handed to someone else, and a silently
+# shortened one is worse than none.
+import inspect  # noqa: E402
+
+from sh4q.application import exporter  # noqa: E402
+from sh4q.application.results import list_technology_observations  # noqa: E402
+
+_source = inspect.getsource(exporter)
+assert "limit=1000" not in _source, "the export must not carry a row cap"
+assert "list_technology_observations(database, scan_id=run.id, limit=None)" in _source
+
+_listing = inspect.getsource(list_technology_observations)
+assert "min(limit, 1000)" not in _listing, (
+    "an explicit limit must be honoured rather than silently clamped"
+)
+
+
+# --- the same label must not mean two different things --------------------
+# "DNS addresses" counted the scan target's addresses in the summary and
+# every host's in the overview: 6 against 11 for one scan, with the five
+# hidden by the smaller figure being the origins outside the CDN.
+from sh4q.cli import main as cli  # noqa: E402
+
+_cli = inspect.getsource(cli)
+assert '("Target addresses"' in _cli, "the summary figure must say it is the target's"
+assert "Addresses, all hosts" in _cli, "the overview figure must say it covers every host"
+assert _cli.count('"DNS addresses"') == 0, "the ambiguous label must not remain"

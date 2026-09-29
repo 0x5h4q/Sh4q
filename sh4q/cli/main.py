@@ -211,8 +211,8 @@ def render_scan_report(report) -> None:
         print(f"  Duration     {duration:.2f}s")
 
     print("\n  Verified Surface")
-    print(f"    DNS hostnames          {report.dns_hostnames:>6}")
-    print(f"    DNS addresses          {report.dns_addresses:>6}")
+    print(f"    Hostnames resolved     {report.dns_hostnames:>6}")
+    print(f"    Addresses, all hosts   {report.dns_addresses:>6}")
     print(f"    HTTP hosts             {report.http_hosts:>6}")
     print(f"    HTTP endpoints         {report.http_endpoints:>6}")
     print(f"    Historical URLs        {getattr(report, 'historical_urls', 0):>6}")
@@ -520,7 +520,7 @@ def render_summary(summary, *, resolved_stage_ran: bool = True) -> None:
         print("           a previous interrupted scan was replayed into this one;")
         print("           stored evidence therefore exceeds this scan's own")
     asset_rows = [
-        ("DNS addresses", summary.dns_addresses),
+        ("Target addresses", summary.dns_addresses),
         ("HTTP endpoints", summary.http_endpoints),
         ("CT names", summary.ct_names),
         ("Adapter names", summary.adapter_names),
