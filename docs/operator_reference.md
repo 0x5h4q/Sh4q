@@ -73,6 +73,13 @@ sh4q scan example.com --profile full
 JavaScript from everything that answered. It needs no external tools, which
 makes it the widest result available from a clean installation.
 
+It is not a quick scan. Resolution is bounded to 500 names and probing to 200,
+and those run at `rate_limit.requests_per_second`, so on a target with many
+certificate-transparency names a profile scan runs for minutes. A real run
+against a target with 907 names took twelve at one request per second. The
+scan states the bounds and the rate before it reaches those stages, so the
+cost is visible before it is paid.
+
 `full` additionally enables Subfinder, HTTPX enrichment, and URL history, and
 requires those tools on `PATH`.
 
@@ -194,6 +201,12 @@ adapters:
     max_endpoints: 200
     timeout_seconds: 120.0
 ```
+
+`requests_per_second` is the main control over how long a scan takes. The
+default of 2.0 is deliberately conservative. Raising it shortens a scan
+proportionally and increases the load placed on the target, which is the
+operator's decision to make and to have authorised.
+
 
 Private or reserved address access is denied by default. Enabling
 `allow_private_addresses` is an explicit policy decision and should be limited

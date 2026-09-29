@@ -9,6 +9,7 @@ from collections.abc import Awaitable, Callable, Iterable
 from .discovery import Discovery
 from .interface import Plugin, PluginMetadata
 from sh4q.scope import ScopeEngine
+from sh4q.cli.branding import status_line
 from sh4q.network import AsyncDNSResolver, DNSResolutionError
 
 
@@ -140,6 +141,8 @@ class DiscoveredDNSPlugin(Plugin):
         )
 
     async def execute(self, target: str) -> list[Discovery]:
+        if self._names:
+            print(status_line(f"resolving {len(self._names)} discovered name(s)"))
         tasks = [asyncio.create_task(self._resolve_name(name)) for name in self._names]
         try:
             batches = await asyncio.gather(*tasks)

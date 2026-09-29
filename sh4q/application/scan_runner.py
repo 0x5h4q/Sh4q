@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from sh4q.cli.branding import status_line
 from sh4q.config import Sh4qConfig, load_config
 from sh4q.events import EventBus
 from sh4q.events.event_log import DurableEventLog
@@ -322,6 +323,13 @@ async def run_scan(
         # transparency running by default. --sub implies it, since a subdomain
         # list nobody resolves is not what that flag is for.
         if include_subfinder or include_resolve or supplied_hosts:
+            # State the work these stages may do before the scan reaches them.
+            # These are configured bounds, not a prediction of how long a
+            # provider will take, so no completion estimate is implied.
+            print(status_line(
+                f"ENRICH   up to 500 name(s) to resolve and 200 to probe, "
+                f"at {config.rate_limit.requests_per_second:g} request(s)/second"
+            ))
             plugins.append(DiscoveredDNSPlugin(scope=scope, names=supplied_hosts))
             plugins.append(DiscoveredHTTPPlugin(
                 scope=scope,
