@@ -430,6 +430,17 @@ def make_discovery_handler(
             ),
         )
 
+    async def _discovered_http_truncated(kind, data, source_plugin, scan_target, event_scan_run_id, event) -> None:
+        not_reached = data.get("not_reached", 0)
+        if stats is not None:
+            stats["http_not_reached"] = not_reached
+        print(status_line(
+            f"INCOMPLETE discovered-http reached {data.get('reached', 0)} of "
+            f"{data.get('total', 0)} host(s) before its deadline; "
+            f"{not_reached} were not contacted",
+            "error",
+        ))
+
     async def _vhost_partial(kind, data, source_plugin, scan_target, event_scan_run_id, event) -> None:
         display_bounded("vhost notices", status_line(f"vhost stage retained {data.get('captured', 0)} partial observations", "info"), limit=1)
 
@@ -591,6 +602,7 @@ def make_discovery_handler(
         "vhost_observation": _vhost_observation,
         "vhost_error": _vhost_error,
         "vhost_budget_denied": _vhost_budget_denied,
+        "discovered_http_truncated": _discovered_http_truncated,
         "vhost_partial": _vhost_partial,
         "directory_observation": _directory_observation,
         "directory_error": _directory_error,
