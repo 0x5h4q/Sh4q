@@ -69,8 +69,16 @@ sh4q scan example.com --profile web
 sh4q scan example.com --profile full
 ```
 
-`web` enables JavaScript extraction and bounded JavaScript bundle inspection.
-`full` additionally enables Subfinder, HTTPX enrichment, and URL history.
+`web` resolves and probes the names the scan discovers, then extracts
+JavaScript from everything that answered. It needs no external tools, which
+makes it the widest result available from a clean installation.
+
+`full` additionally enables Subfinder, HTTPX enrichment, and URL history, and
+requires those tools on `PATH`.
+
+Before `v1.4.0`, `web` extracted JavaScript from the scan target alone: it did
+not resolve discovered names, so on a target with many subdomains it examined
+one host.
 
 The following stages remain explicit opt-ins because they can be high-volume or
 active:
