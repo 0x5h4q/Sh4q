@@ -60,6 +60,19 @@ class DiscoveredHTTPPlugin(Plugin):
             name for name in names if self._scope.authorize(name).allowed
         )[: self._max_names]
         self._addresses = {name: addresses[name] for name in self._names}
+        # A fixed deadline cannot cover a rate-limited sweep: 118 hosts at one
+        # request per second needs longer than the 300 seconds this stage
+        # allowed, and the overrun silently dropped 23 of them. Size the
+        # deadline from the work and the configured rate instead.
+        rate = self._limiter.requests_per_second if self._limiter is not None else 2.0
+        probes = max(1, len(self._names)) * 2
+        self.metadata = PluginMetadata(
+            name="discovered-http",
+            dependencies=["discovered-dns"],
+            timeout=max(300.0, (probes / max(rate, 0.1)) * 1.5 + 60.0),
+            risk_level="active-low",
+            retry_on_timeout=False,
+        )
 
     async def execute(self, target: str) -> list[Discovery]:
         tasks = [asyncio.create_task(self._probe(name)) for name in self._names]

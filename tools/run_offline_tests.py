@@ -27,6 +27,7 @@ OFFLINE_TESTS = (
     "test_ct_reporting.py",
     "test_discovered_dns_plugin.py",
     "test_discovered_name_sources.py",
+    "test_name_selection.py",
     "test_host_list_mode.py",
     "test_name_composition.py",
     "test_discovered_http_plugin.py",

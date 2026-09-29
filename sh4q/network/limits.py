@@ -22,6 +22,11 @@ class RequestLimiter:
         self._next_slot = 0.0
         self._admitted = self._denied = self._completed = self._failed = self._active = self._peak = 0
 
+    @property
+    def requests_per_second(self) -> float:
+        """The configured rate. Stages size their own deadlines from it."""
+        return 1.0 / self._interval if self._interval else float("inf")
+
     async def acquire(self):
         async with self._lock:
             if self._budget <= 0:

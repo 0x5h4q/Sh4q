@@ -269,7 +269,7 @@ class Scheduler:
 
         return []
 
-    async def run(self, target: str):
+    async def run(self, target: str, *, before_stages: str | None = None):
         # ---------------------------------------------------------
         #                           Gate 1
         # ---------------------------------------------------------
@@ -284,6 +284,11 @@ class Scheduler:
 
         if not decision.allowed:
             return decision
+
+        # Announced after Gate 1, not before: a denied scan should not be told
+        # what enrichment it was going to do.
+        if before_stages:
+            print(before_stages)
 
         # ---------------------------------------------------------
         #                        Plugin execution
