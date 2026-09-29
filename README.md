@@ -9,7 +9,7 @@
   <a href="https://github.com/0x5h4q/Sh4q/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-167d76.svg" alt="MIT License"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.11%2B-3776ab.svg" alt="Python 3.11+"></a>
   <a href="https://github.com/0x5h4q/Sh4q"><img src="https://img.shields.io/badge/platform-Linux-lightgrey.svg" alt="Linux"></a>
-  <img src="https://img.shields.io/badge/offline%20suite-78%20checks-2ea043.svg" alt="78 offline checks">
+  <img src="https://img.shields.io/badge/offline%20suite-79%20checks-2ea043.svg" alt="79 offline checks">
 </p>
 
 <p align="center"><strong>Know what you touched. Know why. Know it was authorised.</strong></p>
@@ -229,6 +229,13 @@ sh4q scan company.example --template config/example-template.yaml
 Templates declare `schema_version`, a name, an optional configuration file,
 and explicit stages. Sh4q prints the selected template and stages before the
 scan starts. A template cannot be combined with `--profile` or `--config`.
+
+Certificate transparency finds names; `--resolve` turns them into verified
+assets by resolving them and probing the ones that answer:
+
+```bash
+sh4q scan company.example --resolve
+```
 
 Check optional dependencies before a profile or adapter scan:
 

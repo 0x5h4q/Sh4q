@@ -35,6 +35,19 @@ Directory/content discovery is not enabled by any profile. It is available as
 a separately bounded, operator-supplied wordlist stage and requires explicit
 opt-in with `--directories --directories-file`.
 
+Certificate transparency runs by default and often returns the largest set of
+names a scan finds, but those names are only names. Resolving them and probing
+the ones that answer is a large traffic increase, so it is opt-in:
+
+```bash
+sh4q scan example.com --resolve
+```
+
+`--resolve` takes the subdomain names found during the scan, from certificate
+transparency or Subfinder, resolves up to 500 of them, and probes up to 200
+that answer. `--sub` implies it. Both stages draw on the same shared request
+budget, so a large name list may exhaust it; the refusals are recorded.
+
 Profiles enable tested passive bundles:
 
 ```bash
@@ -95,7 +108,7 @@ Fields:
 | --- | --- | --- |
 | `schema_version` | yes | Must be `1`. Unsupported versions fail before any network activity. |
 | `name` | yes | Shown before the scan runs. |
-| `stages` | yes | Any of `sub`, `httpx`, `url-history`, `js`, `js-bundles`, `katana`, `vhosts`, `directories`. No duplicates, no unknown names. |
+| `stages` | yes | Any of `sub`, `resolve`, `httpx`, `url-history`, `js`, `js-bundles`, `katana`, `vhosts`, `directories`. No duplicates, no unknown names. |
 | `config` | no | A configuration file, resolved relative to the template. Omit it to derive a narrow scope from the target on the command line. |
 | `vhosts_file` | no | Candidate file for the `vhosts` stage. |
 | `directories_file` | no | Candidate file for the `directories` stage. Required whenever `directories` is selected. |

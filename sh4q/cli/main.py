@@ -315,6 +315,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run the optional passive Subfinder adapter.",
     )
     scan.add_argument(
+        "--resolve",
+        action="store_true",
+        help="Resolve subdomain names found during the scan and probe the ones that answer. Implied by --sub.",
+    )
+    scan.add_argument(
         "--httpx",
         action="store_true",
         help="Run optional httpx technology enrichment on approved HTTP endpoints.",
@@ -574,6 +579,7 @@ def main() -> None:
                     summary = asyncio.run(run_scan(
                         args.target, args.config,
                         include_subfinder=args.sub or full_profile,
+                        include_resolve=args.resolve,
                         include_httpx=args.httpx or full_profile,
                         include_url_history=args.url_history or full_profile,
                         include_javascript=args.js or web_profile,
@@ -587,6 +593,7 @@ def main() -> None:
                 summary = asyncio.run(run_scan(
                     args.target, args.config,
                     include_subfinder=args.sub or full_profile,
+                    include_resolve=args.resolve,
                     include_httpx=args.httpx or full_profile,
                     include_url_history=args.url_history or full_profile,
                     include_javascript=args.js or web_profile,

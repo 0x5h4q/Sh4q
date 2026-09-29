@@ -113,6 +113,7 @@ async def run_scan(
     config_path: str | None = None,
     *,
     include_subfinder: bool = False,
+    include_resolve: bool = False,
     include_httpx: bool = False,
     include_url_history: bool = False,
     include_javascript: bool = False,
@@ -303,7 +304,11 @@ async def run_scan(
                     timeout=60.0,
                 )
             )
-        if include_subfinder:
+        # Resolving discovered names is a large traffic increase, so it stays
+        # opt-in rather than following automatically from certificate
+        # transparency running by default. --sub implies it, since a subdomain
+        # list nobody resolves is not what that flag is for.
+        if include_subfinder or include_resolve:
             plugins.append(DiscoveredDNSPlugin(scope=scope))
             plugins.append(DiscoveredHTTPPlugin(
                 scope=scope,
@@ -316,7 +321,7 @@ async def run_scan(
                 evidence = await evidence_store.list_for_scan(scan_run.id, kind="http_probe")
                 return javascript_http_observations(evidence)
 
-            plugins.append(JavaScriptExtractionPlugin(http_observations, after_discovered_http=include_subfinder))
+            plugins.append(JavaScriptExtractionPlugin(http_observations, after_discovered_http=include_subfinder or include_resolve))
             if include_javascript_bundles:
                 async def fetch_bundle(url: str) -> str | None:
                     parsed = httpx.URL(url)
