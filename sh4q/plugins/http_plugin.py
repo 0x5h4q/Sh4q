@@ -77,6 +77,8 @@ class HTTPPlugin(Plugin):
                         "title": metadata["title"],
                         "content_type": metadata["content_type"],
                         "cookie_names": metadata["cookie_names"],
+                        "cookies": metadata.get("cookies", []),
+                        "security_headers": metadata.get("security_headers", {}),
                         "sample_bytes": metadata["sample_bytes"],
                         "sample_truncated": metadata["sample_truncated"],
                         "duration_seconds": round(time.monotonic() - started, 3),

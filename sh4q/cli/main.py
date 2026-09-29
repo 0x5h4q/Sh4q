@@ -16,7 +16,7 @@ from sh4q.application import run_scan
 from sh4q.adapters import AdapterExecutionError
 from sh4q.events.event_log import DurableEventLog
 from sh4q.storage.scan_runs import get_scan, latest_scan, list_scans, scan_asset_count
-from sh4q.application.results import friendly_technology_source, list_assets, list_failures, list_javascript_observations, list_technology_observations, summarize_technology_observations
+from sh4q.application.results import friendly_technology_source, list_assets, list_response_attributes, list_failures, list_javascript_observations, list_technology_observations, summarize_technology_observations
 from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
 from sh4q.application.scan_report import build_scan_report
 from sh4q.application.diff import build_scan_diff, diff_document
@@ -392,6 +392,11 @@ def build_parser() -> argparse.ArgumentParser:
     results.add_argument("--category", help="Filter technology observations by category")
     results.add_argument("--status", type=int, help="Filter technology observations by HTTP status")
     results.add_argument("--details", action="store_true", help="Show endpoint-level technology observations")
+    results.add_argument(
+        "--response-attributes",
+        action="store_true",
+        help="Show cookie flags and review headers recorded for each endpoint.",
+    )
     results.add_argument("--js-kind", choices=["script_url", "style_url", "page_url", "xhr_endpoint", "endpoint_reference", "secret_like_pattern"], help="Filter JavaScript observations by kind")
     results.add_argument("--source-endpoint", help="Filter JavaScript observations by source endpoint")
     scan_selection = results.add_mutually_exclusive_group()
@@ -705,6 +710,42 @@ def main() -> None:
         print()
         print("  SH4Q RESULTS")
         print("  ============")
+        if args.response_attributes:
+            scan_id = args.scan
+            if args.latest:
+                latest = latest_scan(str(database), args.target)
+                if latest is None:
+                    print("  No recorded scan run matches this query.\n")
+                    return
+                scan_id = latest.id
+                print(f"  Scan     {latest.id} ({latest.target})")
+            rows = list_response_attributes(
+                str(database), target=args.target, scan_id=scan_id, limit=args.limit
+            )
+            if not rows:
+                print("  No endpoint recorded cookies or review headers.\n")
+                return
+            for row in rows:
+                print()
+                print(f"  {row.url}")
+                for cookie in row.cookies:
+                    flags = []
+                    flags.append("Secure" if cookie.get("secure") else "no Secure")
+                    flags.append("HttpOnly" if cookie.get("http_only") else "no HttpOnly")
+                    same_site = cookie.get("same_site") or ""
+                    flags.append(f"SameSite={same_site}" if same_site else "no SameSite")
+                    print(f"    cookie  {cookie.get('name', '-'):<34} {', '.join(flags)}")
+                missing = row.missing_headers
+                if missing:
+                    print(f"    headers not sent: {', '.join(missing)}")
+                present = [n for n, v in sorted(row.security_headers.items()) if v]
+                if present:
+                    print(f"    headers sent:     {', '.join(present)}")
+            print()
+            print("  Sh4q records what the server sent. Whether a missing flag or header")
+            print("  matters depends on the application; review these rather than treating")
+            print(f"  them as findings. Showing {len(rows)} endpoint(s).\n")
+            return
         if args.failures:
             scan_id = args.scan
             if args.latest:

@@ -54,6 +54,7 @@ OFFLINE_TESTS = (
     "test_request_limiter.py",
     "test_request_metrics_evidence.py",
     "test_results_query.py",
+    "test_response_attributes.py",
     "test_scan_report.py",
     "test_scan_runs.py",
     "test_schema_version.py",

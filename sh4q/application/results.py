@@ -306,3 +306,40 @@ def list_failures(
         if len(failures) >= max(1, min(limit, 1000)):
             break
     return failures
+
+
+@dataclass(frozen=True)
+class ResponseAttributes:
+    """Cookie flags and review headers recorded for one endpoint."""
+
+    url: str
+    cookies: tuple[dict, ...]
+    security_headers: dict[str, str]
+
+    @property
+    def missing_headers(self) -> tuple[str, ...]:
+        return tuple(name for name, value in sorted(self.security_headers.items()) if not value)
+
+
+def list_response_attributes(
+    database: str,
+    *,
+    target: str | None = None,
+    scan_id: str | None = None,
+    limit: int = 100,
+) -> list[ResponseAttributes]:
+    """Endpoints that set a cookie or were checked for review headers.
+
+    Sh4q records what the server sent. It does not decide whether a missing
+    flag matters, because that depends on the application.
+    """
+    rows = list_assets(database, asset_type="url", target=target, scan_id=scan_id, limit=limit)
+    found: list[ResponseAttributes] = []
+    for row in rows:
+        attributes = row.attributes or {}
+        cookies = attributes.get("cookies") or []
+        headers = attributes.get("security_headers") or {}
+        if not cookies and not headers:
+            continue
+        found.append(ResponseAttributes(row.value, tuple(cookies), dict(headers)))
+    return found

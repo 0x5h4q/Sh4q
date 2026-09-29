@@ -165,6 +165,8 @@ def make_discovery_handler(
                     "title": data.get("title", ""),
                     "content_type": data.get("content_type", ""),
                     "cookie_names": data.get("cookie_names", []),
+                    "cookies": data.get("cookies", []),
+                    "security_headers": data.get("security_headers", {}),
                     "sample_bytes": data.get("sample_bytes", 0),
                     "sample_truncated": data.get("sample_truncated", False),
                 },
