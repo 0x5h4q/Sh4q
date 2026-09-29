@@ -5,8 +5,6 @@ import contextlib
 import io
 import json
 import csv
-import json
-import csv
 import shutil
 import sys
 from importlib.metadata import PackageNotFoundError, version

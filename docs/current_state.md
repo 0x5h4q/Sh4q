@@ -229,7 +229,9 @@ Acceptance means:
 The `v1.3.0` release was validated locally on Python 3.14.4: 77/77 offline
 tests, documentation and configuration-schema checks, a fresh-wheel
 installation, and an end-to-end scan against a local lab target exercising the
-virtual-host, directory, JavaScript, and template paths. An earlier note here
+virtual-host, directory, JavaScript, and template paths. Work merged since that
+release has taken the suite to 85 offline tests, with 1 opt-in integration test
+and 6 network tests run separately under `--network`. An earlier note here
 warned that Python 3.14 reproduced timeouts in the async event and SQLite
 tests; that has not recurred in repeated runs during this cycle. Report a
 full-suite pass only when the runner actually completes.
