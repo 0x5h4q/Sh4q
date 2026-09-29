@@ -326,14 +326,24 @@ def list_response_attributes(
     *,
     target: str | None = None,
     scan_id: str | None = None,
-    limit: int = 100,
+    limit: int | None = None,
 ) -> list[ResponseAttributes]:
     """Endpoints that set a cookie or were checked for review headers.
 
     Sh4q records what the server sent. It does not decide whether a missing
     flag matters, because that depends on the application.
     """
-    rows = list_assets(database, asset_type="url", target=target, scan_id=scan_id, limit=limit)
+    # Every endpoint, not a page of them: this view groups and counts, and a
+    # count that stopped at the display limit reported 87 of 228.
+    values = _all_asset_values(database, "url", target=target, scan_id=scan_id)
+    with open_sync_database(database) as db:
+        attribute_rows = dict(db.execute("SELECT value, attributes FROM nodes WHERE type = 'url'").fetchall())
+    rows = [
+        ResultRow("url", value, json.loads(attribute_rows.get(value) or "{}"))
+        for value in values
+    ]
+    if limit is not None:
+        rows = rows[: max(1, limit)]
     found: list[ResponseAttributes] = []
     for row in rows:
         attributes = row.attributes or {}
@@ -371,6 +381,37 @@ class NameComposition:
         return round(self.auto_issued * 100 / self.total) if self.total else 0
 
 
+def _all_asset_values(database: str, asset_type: str, *, target: str | None, scan_id: str | None) -> list[str]:
+    """Every asset of a type, with no display cap.
+
+    list_assets caps at 1000 because it feeds a terminal listing. A summary
+    counts rather than lists, and a count that silently stops at 1000 is
+    worse than no count: a scan of 1209 names reported 1000 and looked
+    complete.
+    """
+    with open_sync_database(database) as db:
+        if scan_id:
+            rows = db.execute(
+                """SELECT DISTINCT n.value FROM nodes n
+                   JOIN scan_assets s ON s.asset_id = n.id
+                   WHERE s.scan_run_id = ? AND n.type = ?""",
+                (scan_id, asset_type),
+            ).fetchall()
+        else:
+            rows = db.execute(
+                "SELECT DISTINCT value FROM nodes WHERE type = ?", (asset_type,)
+            ).fetchall()
+    values = [row[0] for row in rows]
+    if target:
+        normalized = target.lower().rstrip(".")
+        values = [
+            value
+            for value in values
+            if _matches_target(ResultRow(asset_type, value, {}), normalized)
+        ]
+    return sorted(values)
+
+
 def summarize_names(
     database: str,
     *,
@@ -385,10 +426,7 @@ def summarize_names(
     deployed. Crossing the label against whether the name resolved is what
     separates the two, and doing it by hand is tedious enough to be skipped.
     """
-    domains = [
-        row.value
-        for row in list_assets(database, asset_type="domain", target=target, scan_id=scan_id, limit=100000)
-    ]
+    domains = _all_asset_values(database, "domain", target=target, scan_id=scan_id)
     resolved: set[str] = set()
     failed: set[str] = set()
     with open_sync_database(database) as db:

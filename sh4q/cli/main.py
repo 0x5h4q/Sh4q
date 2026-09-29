@@ -844,9 +844,9 @@ def main() -> None:
                     return
                 scan_id = latest.id
                 print(f"  Scan     {latest.id} ({latest.target})")
-            rows = list_response_attributes(
-                str(database), target=args.target, scan_id=scan_id, limit=args.limit
-            )
+            # No display limit: this view groups endpoints by pattern and
+            # names at most five per group, so it stays readable regardless.
+            rows = list_response_attributes(str(database), target=args.target, scan_id=scan_id)
             if not rows:
                 print("  No endpoint recorded cookies or review headers.\n")
                 return
