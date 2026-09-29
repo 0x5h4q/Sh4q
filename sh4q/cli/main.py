@@ -16,7 +16,7 @@ from sh4q.application import run_scan
 from sh4q.adapters import AdapterExecutionError
 from sh4q.events.event_log import DurableEventLog
 from sh4q.storage.scan_runs import get_scan, latest_scan, list_scans, scan_asset_count
-from sh4q.application.results import friendly_technology_source, list_assets, list_response_attributes, list_failures, list_javascript_observations, list_technology_observations, summarize_technology_observations
+from sh4q.application.results import friendly_technology_source, list_assets, list_response_attributes, summarize_names, list_failures, list_javascript_observations, list_technology_observations, summarize_technology_observations
 from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
 from sh4q.application.scan_report import build_scan_report
 from sh4q.application.diff import build_scan_diff, diff_document
@@ -397,6 +397,11 @@ def build_parser() -> argparse.ArgumentParser:
     results.add_argument("--status", type=int, help="Filter technology observations by HTTP status")
     results.add_argument("--details", action="store_true", help="Show endpoint-level technology observations")
     results.add_argument(
+        "--names",
+        action="store_true",
+        help="Summarise hostnames by resolution outcome and leftmost label.",
+    )
+    results.add_argument(
         "--response-attributes",
         action="store_true",
         help="Show cookie flags and review headers recorded for each endpoint.",
@@ -715,6 +720,40 @@ def main() -> None:
         print()
         print("  SH4Q RESULTS")
         print("  ============")
+        if args.names:
+            scan_id = args.scan
+            if args.latest:
+                latest = latest_scan(str(database), args.target)
+                if latest is None:
+                    print("  No recorded scan run matches this query.\n")
+                    return
+                scan_id = latest.id
+                print(f"  Scan     {latest.id} ({latest.target})")
+            c = summarize_names(str(database), target=args.target, scan_id=scan_id)
+            if not c.total:
+                print("  No hostnames recorded.\n")
+                return
+            print()
+            print(f"  Hostnames                  {c.total}")
+            print(f"    resolved                 {c.resolved}")
+            print(f"    did not resolve          {c.unresolved}")
+            if c.unchecked:
+                print(f"    not checked              {c.unchecked}   (run with --resolve)")
+            print()
+            if c.auto_issued:
+                print(f"  Service-prefix names       {c.auto_issued} ({c.auto_issued_share}% of the total)")
+                print(f"    of those, resolved       {c.auto_issued_resolved}")
+                print()
+                print("  Hosting panels request certificates for service subdomains on every")
+                print("  hosted domain, so these often appear in certificate transparency")
+                print("  without ever having been deployed. A prefix is a hint, not a verdict:")
+                print("  check whether the name resolved before drawing a conclusion.")
+                print()
+            print("  Most common leftmost labels")
+            for label, count in c.label_counts:
+                print(f"    {label:<24} {count}")
+            print()
+            return
         if args.response_attributes:
             scan_id = args.scan
             if args.latest:

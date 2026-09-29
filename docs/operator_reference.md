@@ -226,6 +226,33 @@ sh4q events --status FAILED --details
 sh4q events --target example.com
 ```
 
+### Name composition
+
+Certificate transparency returns every name a certificate was issued for, and
+hosting panels request certificates for service subdomains on every hosted
+domain. A large share of a CT result can therefore be names that were never
+deployed.
+
+```bash
+sh4q results --latest --target example.com --names
+```
+
+```text
+  Hostnames                  908
+    resolved                 172
+    did not resolve          329
+    not checked              407   (run with --resolve)
+
+  Service-prefix names       524 (58% of the total)
+    of those, resolved       0
+```
+
+A prefix is a hint, not a verdict -- an organisation may genuinely run
+`mail.example.com`, and a service-prefix name that resolves is counted as
+resolved rather than dismissed. The figure that settles it is how many of them
+answered, which requires `--resolve` or `--hosts-file`; names nothing tried are
+reported as not checked rather than as failures.
+
 ### Response attributes
 
 Every HTTP probe records the cookie attributes and review headers the server
