@@ -9,6 +9,12 @@ from sh4q.scope import ScopeEngine
 from sh4q.network import AsyncDNSResolver, DNSResolutionError
 
 
+# Stages that produce subdomain names worth resolving. Certificate
+# transparency is one of them and was previously excluded, so its names --
+# often the largest set a scan finds -- were never resolved or probed.
+SUBDOMAIN_SOURCES = frozenset({"ct", "subfinder"})
+
+
 class DiscoveredDNSPlugin(Plugin):
     """Resolve names emitted by an earlier discovery plugin."""
 
@@ -40,7 +46,7 @@ class DiscoveredDNSPlugin(Plugin):
     def accept_discoveries(
         self, discoveries: list[Discovery], source_plugin: str | None = None
     ) -> None:
-        if source_plugin != "subfinder":
+        if source_plugin not in SUBDOMAIN_SOURCES:
             return
         names = set(self._names)
         names.update({
