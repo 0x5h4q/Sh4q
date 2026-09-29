@@ -138,9 +138,17 @@ def _report_metadata(database: str, run: ScanRun) -> dict:
                         "reason": content.get("reason", "unknown reason"),
                     })
                 elif kind in {"http_error", "dns_error", "discovered_dns_error", "ct_error"}:
-                    failures.append(record | {"detail": content.get("error") or content.get("reason") or "unknown error"})
+                    # Without the subject a failure says "no A answer" and
+                    # nothing else, which is the same row a thousand times.
+                    failures.append(record | {
+                        "subject": _failure_subject(content),
+                        "detail": content.get("error") or content.get("reason") or "unknown error",
+                    })
                 elif kind == "vhost_error":
-                    failures.append(record | {"detail": content.get("error") or "unknown error"})
+                    failures.append(record | {
+                        "subject": _failure_subject(content),
+                        "detail": content.get("error") or "unknown error",
+                    })
                 elif kind in {"directory_baseline", "directory_observation"}:
                     directories.append(record | {
                         "path": content.get("path", "baseline" if kind == "directory_baseline" else ""),
@@ -165,10 +173,45 @@ def _report_metadata(database: str, run: ScanRun) -> dict:
             "historical_urls_truncated": historical_urls_truncated}
 
 
+def _failure_subject(content: dict) -> str:
+    """What the failure was about: the host, URL, or candidate that failed."""
+    for key in ("domain", "url", "hostname", "candidate", "endpoint", "path", "source"):
+        value = content.get(key)
+        if value:
+            return str(value)
+    return "-"
+
+
+def _grouped_failures(failures: list[dict]) -> list[dict]:
+    """Collapse identical failures into one row with a count and examples.
+
+    A scan of a large estate produced 1025 DNS failures that rendered as
+    1025 rows reading "no A answer". The reason repeats; the subjects do
+    not, and they are what an operator needs.
+    """
+    groups: dict[tuple[str, str, str], list[str]] = {}
+    for item in failures:
+        key = (item.get("plugin", ""), item.get("kind", ""), item.get("detail", ""))
+        groups.setdefault(key, []).append(item.get("subject") or "-")
+    rows = [
+        {
+            "plugin": plugin,
+            "kind": kind,
+            "detail": detail,
+            "count": len(subjects),
+            "examples": sorted(set(subjects))[:4],
+            "more": max(0, len(set(subjects)) - 4),
+        }
+        for (plugin, kind, detail), subjects in groups.items()
+    ]
+    return sorted(rows, key=lambda row: (-row["count"], row["plugin"], row["detail"]))
+
+
 def render_html_report(database: str, run: ScanRun, *, redact: bool = False) -> str:
     assets = _owned_rows(database, run, redact=redact)
     metadata = _report_metadata(database, run)
     banner_uri = _banner_data_uri()
+    grouped_failures = _grouped_failures(metadata["failures"])
     payload = {
         "scan": {
             "id": run.id,
@@ -365,7 +408,7 @@ pre {{ overflow-x: auto; margin: 0; padding: 14px; background: var(--surface-2);
 <div class="table-wrap"><table><thead><tr><th><button class="sort" data-sort="type" type="button">Type</button></th><th><button class="sort" data-sort="value" type="button">Value</button></th><th><button class="sort" data-sort="host" type="button">Host / target</button></th><th><button class="sort" data-sort="status" type="button">Status</button></th><th><button class="sort" data-sort="technology" type="button">Technology</button></th><th><button class="sort" data-sort="category" type="button">Category</button></th><th><button class="sort" data-sort="source" type="button">Source</button></th></tr></thead>
 <tbody id="rows"></tbody></table></div>
 <div class="pagination"><button id="prev" type="button">Previous</button><span id="page"></span><button id="next" type="button">Next</button></div>
-<details open><summary>Failures</summary><section><div class="table-wrap"><table><thead><tr><th>Plugin</th><th>Kind</th><th>Detail</th><th>Captured</th></tr></thead><tbody>{''.join(f'<tr><td>{html.escape(item["plugin"])}</td><td>{html.escape(item["kind"])}</td><td>{html.escape(item["detail"])}</td><td>{html.escape(item["captured_at"])}</td></tr>' for item in metadata["failures"]) or '<tr><td colspan="4">No recorded failures.</td></tr>'}</tbody></table></div></section></details>
+<details open><summary>Failures</summary><section><div class="table-wrap"><table><thead><tr><th>Count</th><th>Stage</th><th>Reason</th><th>Affected</th></tr></thead><tbody>{''.join(f'<tr><td><strong>{item["count"]}</strong></td><td>{html.escape(item["plugin"])}<br><small>{html.escape(item["kind"])}</small></td><td>{html.escape(item["detail"])}</td><td>{"<br>".join(f"<code>{html.escape(example)}</code>" for example in item["examples"])}{f"<br><small>and {item[chr(34)+chr(34)] if False else item["more"]} more</small>" if item["more"] else ""}</td></tr>' for item in grouped_failures) or '<tr><td colspan="4">No recorded failures.</td></tr>'}</tbody></table></div><p>Identical failures are grouped. Every individual record is retained in evidence.</p></section></details>
 <details open><summary>JavaScript observations</summary><section><div class="table-wrap"><table><thead><tr><th>Type</th><th>Reference or pattern</th><th>Source endpoint</th><th>Captured</th></tr></thead><tbody>{''.join(f'<tr><td>{html.escape(item["kind"].removeprefix("javascript_"))}</td><td><code>{html.escape(str(item["value"]))}</code></td><td><code>{html.escape(str(item["source_endpoint"] or "-"))}</code></td><td>{html.escape(item["captured_at"])}</td></tr>' for item in metadata["javascript"]) or '<tr><td colspan="4">No JavaScript observations.</td></tr>'}</tbody></table></div><p>These are passive, unverified observations. They are not automatically requested or treated as confirmed secrets.</p></section></details>
 <details open><summary>Virtual-host observations</summary><section><div class="table-wrap"><table><thead><tr><th>Candidate</th><th>Endpoint</th><th>Status</th><th>Classification</th><th>Redirect</th><th>Captured</th></tr></thead><tbody>{''.join(f'<tr><td><code>{html.escape(str(item["candidate"] or "baseline"))}</code></td><td><code>{html.escape(str(item["endpoint"] or "-"))}</code></td><td>{html.escape(str(item["status"] or "-"))}</td><td>{html.escape(str(item["classification"]))}</td><td>{html.escape(str(item["location"] or "-"))}</td><td>{html.escape(item["captured_at"])}</td></tr>' for item in metadata["vhosts"]) or '<tr><td colspan="6">No virtual-host observations.</td></tr>'}</tbody></table></div><h3>Rejected candidates</h3><ul>{''.join(f'<li><code>{html.escape(str(item["candidate"]))}</code>: {html.escape(str(item["reason"]))}</li>' for item in metadata["vhost_rejections"]) or '<li>No rejected candidates.</li>'}</ul><p>Virtual-host observations are bounded, scope-checked candidates and are not security findings.</p></section></details>
 <details open><summary>Directory observations</summary><section><div class="table-wrap"><table><thead><tr><th>Path</th><th>URL</th><th>Status</th><th>Classification</th><th>Redirect</th><th>Captured</th></tr></thead><tbody>{''.join(f'<tr><td><code>{html.escape(str(item["path"] or "baseline"))}</code></td><td><code>{html.escape(str(item["url"] or "-"))}</code></td><td>{html.escape(str(item["status"] or "-"))}</td><td>{html.escape(str(item["classification"]))}</td><td>{html.escape(str(item["location"] or "-"))}</td><td>{html.escape(item["captured_at"])}</td></tr>' for item in metadata["directories"]) or '<tr><td colspan="6">No directory observations.</td></tr>'}</tbody></table></div><h3>Rejected or budget-denied paths</h3><ul>{''.join(f'<li><code>{html.escape(str(item["path"]))}</code>: {html.escape(str(item["reason"]))}</li>' for item in metadata["directory_rejections"]) or '<li>No rejected paths.</li>'}</ul><p>Directory observations are bounded, scope-checked responses and are not security findings.</p></section></details>

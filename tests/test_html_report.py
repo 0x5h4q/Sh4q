@@ -99,3 +99,36 @@ assert "prefers-reduced-motion" in report
 # 340px tall before, pushing the findings below the fold.
 assert "max-height: 96px" in report, "the banner must stay a header, not a hero"
 print("html report design test passed")
+
+
+# --- failures must say what failed, and not repeat themselves -------------
+# A real scan produced 1025 DNS failures. The report rendered 1025 rows, each
+# reading "no A answer" with no hostname: the reason repeats, the subjects do
+# not, and the subjects are the part an operator needs.
+from sh4q.application.html_report import _failure_subject, _grouped_failures  # noqa: E402
+
+assert _failure_subject({"domain": "a.example.com", "error": "no A answer"}) == "a.example.com"
+assert _failure_subject({"url": "https://b.example.com/"}) == "https://b.example.com/"
+assert _failure_subject({"candidate": "c.example.com"}) == "c.example.com"
+assert _failure_subject({"error": "nothing identifying"}) == "-", "never invent a subject"
+
+_many = (
+    [{"plugin": "discovered-dns", "kind": "discovered_dns_error", "detail": "no A answer",
+      "subject": f"h{i}.example.com"} for i in range(909)]
+    + [{"plugin": "discovered-dns", "kind": "discovered_dns_error", "detail": "resolution timed out",
+        "subject": f"t{i}.example.com"} for i in range(115)]
+    + [{"plugin": "discovered-http", "kind": "http_error", "detail": "ReadError",
+        "subject": "https://one.example.com"}]
+)
+_grouped = _grouped_failures(_many)
+assert len(_grouped) == 3, f"identical failures collapse into one row each: {len(_grouped)}"
+assert [row["count"] for row in _grouped] == [909, 115, 1], "ordered by how many, most first"
+assert _grouped[0]["detail"] == "no A answer"
+assert len(_grouped[0]["examples"]) == 4, "a few subjects are named"
+assert _grouped[0]["more"] == 905, _grouped[0]["more"]
+assert _grouped[2]["more"] == 0, "a single failure has nothing further to mention"
+assert _grouped_failures([]) == []
+
+# The rendered table carries the subject, which is what was missing.
+assert "Affected" in report, "the failures table must have a column for what failed"
+print("html report failure grouping test passed")
