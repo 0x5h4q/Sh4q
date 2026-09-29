@@ -56,6 +56,61 @@ class _MetadataParser(HTMLParser):
             self.parts.append(data)
 
 
+# Response attributes an operator is expected to review. Sh4q records what the
+# server sent and does not grade it: whether a missing flag matters depends on
+# the application, and that judgement belongs to the reader.
+SECURITY_HEADERS = (
+    "strict-transport-security",
+    "content-security-policy",
+    "x-frame-options",
+    "x-content-type-options",
+    "referrer-policy",
+    "permissions-policy",
+)
+
+
+def parse_set_cookie(value: str) -> dict | None:
+    """Extract a cookie's name and its security attributes, not its value.
+
+    The value itself is deliberately discarded: it is frequently a live
+    session token, and evidence is written to disk and shared in reports.
+    """
+    head, _, rest = value.partition(";")
+    name = head.split("=", 1)[0].strip()
+    if "=" not in head or not name:
+        return None
+    attributes = [part.strip().lower() for part in rest.split(";") if part.strip()]
+    same_site = next(
+        (part.split("=", 1)[1].strip() for part in attributes if part.startswith("samesite=")),
+        "",
+    )
+    return {
+        "name": name,
+        "secure": any(part == "secure" for part in attributes),
+        "http_only": any(part == "httponly" for part in attributes),
+        "same_site": same_site,
+    }
+
+
+def extract_cookies(response) -> list[dict]:
+    if not hasattr(response.headers, "get_list"):
+        return []
+    seen: dict[str, dict] = {}
+    for value in response.headers.get_list("set-cookie"):
+        parsed = parse_set_cookie(value)
+        if parsed is not None:
+            seen.setdefault(parsed["name"], parsed)
+    return [seen[name] for name in sorted(seen)]
+
+
+def extract_security_headers(response) -> dict[str, str]:
+    """Record which review headers were sent, and what they said."""
+    return {
+        header: response.headers.get(header, "")
+        for header in SECURITY_HEADERS
+    }
+
+
 def extract_http_metadata(response) -> dict:
     content = bytes(getattr(response, "content", b"") or b"")
     sample = content[:MAX_HTML_SAMPLE_BYTES]
@@ -72,15 +127,13 @@ def extract_http_metadata(response) -> dict:
         meta = {key: sorted(set(values)) for key, values in parser.meta.items()}
         scripts = sorted(set(parser.scripts))
         stylesheets = sorted(set(parser.stylesheets))
-    cookie_names = sorted({
-        value.split("=", 1)[0].strip()
-        for value in response.headers.get_list("set-cookie")
-        if "=" in value and value.split("=", 1)[0].strip()
-    }) if hasattr(response.headers, "get_list") else []
+    cookies = extract_cookies(response)
     return {
         "title": title,
         "content_type": content_type,
-        "cookie_names": cookie_names,
+        "cookie_names": [cookie["name"] for cookie in cookies],
+        "cookies": cookies,
+        "security_headers": extract_security_headers(response),
         "html_sample": text,
         "meta": meta,
         "scripts": scripts,

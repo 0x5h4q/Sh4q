@@ -211,6 +211,32 @@ sh4q events --status FAILED --details
 sh4q events --target example.com
 ```
 
+### Response attributes
+
+Every HTTP probe records the cookie attributes and review headers the server
+sent. No extra request is made; these come from responses the scan already
+fetched.
+
+```bash
+sh4q results --latest --target example.com --response-attributes
+```
+
+```text
+  https://example.com/
+    cookie  PHPSESSID    no Secure, no HttpOnly, no SameSite
+    headers not sent: content-security-policy, strict-transport-security, x-frame-options
+```
+
+Cookie **values are never recorded** -- only the name and its attributes --
+because a value is frequently a live session token and evidence is written to
+disk and included in exports.
+
+Sh4q does not grade these. A missing `Secure` flag on a host that redirects to
+HTTPS and sets no cookie over plaintext is a different matter from the same
+flag missing on a host that serves both; a missing `Content-Security-Policy`
+on a static page is not the same as one on an application. The record is
+factual and the judgement is the reader's.
+
 ## Export and Comparison
 
 ```bash
