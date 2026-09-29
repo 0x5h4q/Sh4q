@@ -110,7 +110,10 @@ Install the built wheel into a **fresh** environment, not the development one.
 The banner check is not superstition: package data has been dropped from a wheel
 before (see `0.1.0-alpha.52`), and a source checkout will not reveal it.
 
-**4. Tag and publish.**
+**4. Tag and publish.** Attach both artifacts. `v1.1.0`, `v1.1.1`, and `v1.2.0`
+were published without a wheel or sdist, so the documented `pipx` instruction
+was the only way to install them even though the guide claimed artifacts were
+built and verified. Building is not publishing.
 
 ```bash
 git tag -a vX.Y.Z -m "Sh4q vX.Y.Z"

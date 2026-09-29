@@ -99,8 +99,17 @@ remains unavailable while GitHub Actions access is disabled.
 
 ## 1.1.1 - 2026-09-06
 
-Patch release correcting package and release metadata after the `v1.1.0`
-feature release. No functional scan behavior changes are introduced.
+Patch release following `v1.1.0`. Scan behaviour is unchanged; the HTML
+report is not.
+
+- Corrected the package version and release metadata, which `v1.1.0` shipped
+  inconsistently.
+- Fixed dark-theme contrast in the HTML report.
+- Improved report filtering and interaction.
+- Replaced the banner assets.
+
+An earlier version of this entry described the release as a metadata
+correction alone. It also changed the HTML report.
 
 ## 1.1.0 - 2026-09-06
 
