@@ -66,16 +66,27 @@ class DiscoveredHTTPPlugin(Plugin):
         try:
             batches = await asyncio.gather(*tasks)
         except asyncio.CancelledError:
+            # The stage deadline fired. Keep what was gathered rather than
+            # discarding it, but say so: returning partial results silently
+            # reports an incomplete scan as a complete one, which is the
+            # failure this tool exists to prevent.
             for task in tasks:
                 if not task.done():
                     task.cancel()
             batches = await asyncio.gather(*tasks, return_exceptions=True)
-            return [
+            discoveries = [
                 item
                 for batch in batches
                 if isinstance(batch, list)
                 for item in batch
             ]
+            reached = sum(1 for batch in batches if isinstance(batch, list))
+            discoveries.append(Discovery(kind="discovered_http_truncated", data={
+                "reached": reached,
+                "not_reached": max(0, len(self._names) - reached),
+                "total": len(self._names),
+            }))
+            return discoveries
         return [item for batch in batches for item in batch]
 
     async def _probe(self, name: str) -> list[Discovery]:
