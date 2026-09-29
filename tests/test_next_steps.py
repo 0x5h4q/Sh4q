@@ -101,3 +101,42 @@ assert bound_limited.resolved + bound_limited.unresolved > 0, (
     "advice the operator has already taken"
 )
 assert bound_limited.resolved + bound_limited.unresolved + bound_limited.unchecked == bound_limited.total
+
+
+# --- a recovered run explains its own arithmetic ---------------------------
+# A scan that replayed 207 events from an interrupted predecessor reported
+# 5488 stored evidence against 2651 from this scan, which reads as a counting
+# error unless the replay is stated.
+import contextlib  # noqa: E402
+import io  # noqa: E402
+
+from sh4q.cli.main import render_summary  # noqa: E402
+
+
+def rendered(**overrides) -> str:
+    base = dict(
+        target="example.com", scan_run_id="a" * 32, scope_allowed=True, scope_reason="ok",
+        recovered_events=0, discoveries=1, dns_addresses=1, http_endpoints=0, ct_names=0,
+        adapter_names=0, resolved_discovered_addresses=0, resolved_discovered_attempted=0,
+        resolved_discovered_failures=0, technologies=0, dns_failure_reasons={}, relationships=1,
+        evidence=1, evidence_this_scan=1, duration_seconds=1.0,
+        database_path="./sh4q-output/sh4q.db", requests_admitted=1, requests_denied=0,
+        requests_completed=1, requests_failed=0, peak_request_concurrency=1, stage_durations={},
+        historical_urls=0, historical_urls_rejected=0, historical_urls_truncated=0,
+    )
+    base.update(overrides)
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        render_summary(SimpleNamespace(**base), resolved_stage_ran=True)
+    return out.getvalue()
+
+
+recovered = rendered(recovered_events=207, evidence=5488, evidence_this_scan=2651)
+assert "recovered 207 event(s)" in recovered
+assert "previous interrupted scan was replayed" in recovered, (
+    "the count difference must be explained where it appears"
+)
+
+# A clean run says nothing about recovery.
+clean = rendered()
+assert "recovered" not in clean and "replayed" not in clean, clean

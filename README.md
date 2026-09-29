@@ -225,6 +225,12 @@ resolves and probes the names the scan finds, then extracts JavaScript from
 whatever answered. No external tools required. `--profile full` adds the
 external-tool stages on top.
 
+Expect minutes, not seconds. Both profiles resolve up to 500 discovered names
+and probe up to 200 of them, one request at a time at the configured rate, so
+a target with hundreds of certificate-transparency names takes a while.
+`rate_limit.requests_per_second` is the control; the scan prints the bounds
+before it reaches those stages.
+
 Versioned scan templates provide a named, reviewable stage selection:
 
 ```bash

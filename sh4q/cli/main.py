@@ -517,6 +517,10 @@ def render_summary(summary, *, resolved_stage_ran: bool = True) -> None:
     print("  Scope    AUTHORIZED")
     if summary.recovered_events:
         print(f"  Resume   recovered {summary.recovered_events} event(s)")
+        # Without this, "evidence stored" exceeding "evidence from this scan"
+        # looks like a counting error rather than a previous run resuming.
+        print("           a previous interrupted scan was replayed into this one;")
+        print("           stored evidence therefore exceeds this scan's own")
     asset_rows = [
         ("DNS addresses", summary.dns_addresses),
         ("HTTP endpoints", summary.http_endpoints),
