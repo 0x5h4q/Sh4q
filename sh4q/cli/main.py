@@ -20,7 +20,7 @@ from sh4q.application.scan_report import build_scan_report
 from sh4q.application.diff import build_scan_diff, diff_document
 from sh4q.config import ConfigFileError, conflicting_template_options, load_template
 from sh4q.storage.db import SchemaVersionError, ensure_schema_version
-from sh4q.cli.branding import render_scan_banner
+from sh4q.cli.branding import accent, figure, muted, note, render_scan_banner
 from sh4q.dependencies import dependency_reports
 
 
@@ -799,40 +799,38 @@ def main() -> None:
                 print("  No hostnames recorded.\n")
                 return
             print()
-            print(f"  Hostnames                  {c.total}")
-            print(f"    resolved                 {c.resolved}")
-            print(f"    did not resolve          {c.unresolved}")
+            print(f"  {accent('Hostnames')}                  {figure(str(c.total))}")
+            print(f"    {muted('resolved')}                 {figure(str(c.resolved))}")
+            print(f"    {muted('did not resolve')}          {c.unresolved}")
             if c.unchecked:
                 if c.resolved or c.unresolved:
-                    # Resolution ran; these were past its per-scan bound.
-                    print(f"    beyond the bound         {c.unchecked}")
+                    print(f"    {muted('beyond the bound')}         {c.unchecked}")
                 else:
-                    print(f"    not checked              {c.unchecked}   (run with --resolve)")
+                    print(f"    {muted('not checked')}              {c.unchecked}   {note('(run with --resolve)')}")
             if c.unchecked and (c.resolved or c.unresolved):
                 print()
-                print(f"  {c.unchecked} name(s) were past the per-scan resolution bound, which")
-                print("  defaults to 500. Narrow the scope, or run the remainder explicitly:")
-                print("    sh4q results ... --type domain   then feed them to --hosts-file")
+                print(note(f"  {c.unchecked} name(s) were past the per-scan resolution bound, which"))
+                print(note("  defaults to 500. Narrow the scope, or run the remainder explicitly:"))
+                print(note("    sh4q results ... --type domain   then feed them to --hosts-file"))
                 print()
             if c.auto_issued:
-                print(f"  Service-prefix names       {c.auto_issued} ({c.auto_issued_share}% of the total)")
-                print(f"    of those, resolved       {c.auto_issued_resolved}")
                 print()
-                print("  Hosting panels request certificates for service subdomains on every")
-                print("  hosted domain, so these often appear in certificate transparency")
-                print("  without ever having been deployed. A prefix is a hint, not a verdict:")
-                print("  check whether the name resolved before drawing a conclusion.")
+                print(f"  {accent('Service-prefix names')}       {figure(str(c.auto_issued))} {muted(f'({c.auto_issued_share}% of the total)')}")
+                print(f"    {muted('of those, resolved')}       {figure(str(c.auto_issued_resolved))}")
                 print()
-            # A label list where every count is 1 says nothing. Repetition is
-            # the signal: it is what exposes an automatically issued set.
+                print(note("  Hosting panels request certificates for service subdomains on every"))
+                print(note("  hosted domain, so these often appear in certificate transparency"))
+                print(note("  without ever having been deployed. A prefix is a hint, not a verdict:"))
+                print(note("  check whether the name resolved before drawing a conclusion."))
+                print()
             repeated = [(label, n) for label, n in c.label_counts if n > 1]
             if repeated:
-                print("  Repeated leftmost labels")
+                print(f"  {accent('Repeated leftmost labels')}")
                 for label, count in repeated:
-                    print(f"    {label:<24} {count}")
+                    print(f"    {label:<24} {figure(str(count))}")
                 print()
             elif c.total > 1:
-                print("  No leftmost label repeats; these look individually named.")
+                print(note("  No leftmost label repeats; these look individually named."))
                 print()
             return
         if args.response_attributes:
@@ -857,7 +855,7 @@ def main() -> None:
             with_cookies = [row for row in rows if row.cookies]
             print()
             if with_cookies:
-                print("  Cookies")
+                print(f"  {accent('Cookies')}")
                 for row in with_cookies:
                     print(f"    {row.url}")
                     for cookie in row.cookies:
@@ -874,7 +872,7 @@ def main() -> None:
             groups: dict[tuple, list[str]] = {}
             for row in rows:
                 groups.setdefault(row.missing_headers, []).append(row.url)
-            print("  Review headers")
+            print(f"  {accent('Review headers')}")
             for missing, urls in sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0])):
                 label = f"{len(urls)} endpoint(s)"
                 if not missing:
@@ -886,9 +884,9 @@ def main() -> None:
                 if len(urls) > 5:
                     print(f"      ... and {len(urls) - 5} more")
             print()
-            print("  Sh4q records what the server sent. Whether a missing flag or header")
-            print("  matters depends on the application; review these rather than treating")
-            print(f"  them as findings. {len(rows)} endpoint(s).\n")
+            print(note("  Sh4q records what the server sent. Whether a missing flag or header"))
+            print(note("  matters depends on the application; review these rather than treating"))
+            print(note(f"  them as findings. {len(rows)} endpoint(s).") + "\n")
             return
         if args.failures:
             scan_id = args.scan

@@ -87,3 +87,23 @@ def gate_line(subject: str, reason: str, note: str = "") -> str:
     """A Gate 2 refusal. Expected policy behaviour, styled apart from failures."""
     suffix = f" ({note})" if note else ""
     return status_line(f"GATE 2 DENY {subject} -> {reason}{suffix}", "deny")
+
+
+def muted(text: str) -> str:
+    """Secondary text: present, but not competing with the figures."""
+    return f"\033[2m{text}{_RESET}" if colour_enabled() else text
+
+
+def note(text: str) -> str:
+    """Explanatory prose. Dimmed and italic so it reads as guidance."""
+    return f"\033[2;3m{text}{_RESET}" if colour_enabled() else text
+
+
+def figure(text: str) -> str:
+    """A number the reader is meant to take away."""
+    return f"\033[1m{text}{_RESET}" if colour_enabled() else text
+
+
+def accent(text: str) -> str:
+    """A heading inside a result view."""
+    return f"\033[1;36m{text}{_RESET}" if colour_enabled() else text
