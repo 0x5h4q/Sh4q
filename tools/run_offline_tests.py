@@ -48,6 +48,7 @@ OFFLINE_TESTS = (
     "test_dependency_identity.py",
     "test_httpx_fingerprint_adapter.py",
     "test_handler_presentation.py",
+    "test_handler_registry.py",
     "test_idempotency.py",
     "test_native_fingerprints.py",
     "test_plugins.py",
