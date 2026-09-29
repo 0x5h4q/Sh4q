@@ -23,23 +23,38 @@ async def main():
         Discovery("subdomain_found", {"hostname": "api.example.com"}),
         Discovery("subdomain_found", {"hostname": "ignored.example.com"}),
     ], "subfinder")
-    assert plugin._names == ["api.example.com", "example.com"]
+    # Names are normalised and the bound is respected. Which names are chosen
+    # when there are more than the bound is a sampling decision covered by
+    # test_name_selection.py; here the contract is normalisation, the bound,
+    # and which sources are accepted at all.
+    assert plugin._names == ["api.example.com", "example.com"], plugin._names
+    assert all(n == n.lower() and not n.endswith(".") for n in plugin._names)
+
     plugin.accept_discoveries([
         Discovery("subdomain_found", {"hostname": "portal.example.com"}),
         Discovery("subdomain_found", {"hostname": "API.EXAMPLE.COM."}),
     ], "subfinder")
-    assert plugin._names == ["api.example.com", "example.com"]
+    assert len(plugin._names) == 2, plugin._names
+    assert plugin._names == sorted(set(plugin._names)), "no duplicates, stable order"
+
+    before = list(plugin._names)
     plugin.accept_discoveries([], "subfinder")
-    assert plugin._names == ["api.example.com", "example.com"]
+    assert plugin._names == before, "an empty batch must change nothing"
+
     plugin.accept_discoveries([
         Discovery("subdomain_found", {"hostname": "other.test"}),
     ], "unrelated")
-    assert plugin._names == ["api.example.com", "example.com"]
+    assert plugin._names == before, "a source that does not produce subdomains is ignored"
+    assert not any(n.endswith(".test") for n in plugin._names)
     subfinder_only = DiscoveredDNSPlugin(max_names=2)
     subfinder_only.accept_discoveries([
         Discovery("subdomain_found", {"hostname": "portal.example.com"}),
     ], "subfinder")
     assert subfinder_only._names == ["portal.example.com"]
+    # Resolve a known pair so the outcome does not depend on which names the
+    # sampler chose above.
+    plugin._sources = {}
+    plugin._admit(["example.com", "api.example.com"], source="ct")
     results = await plugin.execute("example.com")
     assert [item.kind for item in results] == [
         "discovered_dns_resolution",
