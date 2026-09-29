@@ -14,7 +14,7 @@ from sh4q.events.event_log import DurableEventLog
 from sh4q.handlers import make_discovery_handler
 from sh4q.network import RequestLimiter, ScopedHTTPClient, primary_probe_target
 from sh4q.plugins.ct_plugin import CTPlugin
-from sh4q.plugins.discovered_dns_plugin import DiscoveredDNSPlugin
+from sh4q.plugins.discovered_dns_plugin import DiscoveredDNSPlugin, load_host_names
 from sh4q.plugins.discovered_http_plugin import DiscoveredHTTPPlugin
 from sh4q.plugins.dns_plugin import DNSPlugin
 from sh4q.plugins.http_plugin import HTTPPlugin
@@ -114,6 +114,7 @@ async def run_scan(
     *,
     include_subfinder: bool = False,
     include_resolve: bool = False,
+    hosts_file: str | None = None,
     include_httpx: bool = False,
     include_url_history: bool = False,
     include_javascript: bool = False,
@@ -145,6 +146,18 @@ async def run_scan(
             vhosts_file = str(candidate_path)
     if include_directories and not directories_file:
         raise AdapterExecutionError("--directories requires --directories-file")
+    supplied_hosts: tuple[str, ...] = ()
+    if hosts_file:
+        try:
+            loaded_hosts = load_host_names(hosts_file)
+        except ValueError as error:
+            raise AdapterExecutionError(str(error)) from error
+        supplied_hosts = loaded_hosts.accepted
+        print(
+            f"  HOSTS    {len(supplied_hosts)} name(s) from {hosts_file}"
+            + (f"; {len(loaded_hosts.rejected)} rejected" if loaded_hosts.rejected else "")
+            + (f"; {loaded_hosts.duplicates} duplicate(s)" if loaded_hosts.duplicates else "")
+        )
     missing = missing_dependencies(
         subfinder=include_subfinder,
         httpx=include_httpx,
@@ -308,8 +321,8 @@ async def run_scan(
         # opt-in rather than following automatically from certificate
         # transparency running by default. --sub implies it, since a subdomain
         # list nobody resolves is not what that flag is for.
-        if include_subfinder or include_resolve:
-            plugins.append(DiscoveredDNSPlugin(scope=scope))
+        if include_subfinder or include_resolve or supplied_hosts:
+            plugins.append(DiscoveredDNSPlugin(scope=scope, names=supplied_hosts))
             plugins.append(DiscoveredHTTPPlugin(
                 scope=scope,
                 limiter=limiter,
@@ -321,7 +334,7 @@ async def run_scan(
                 evidence = await evidence_store.list_for_scan(scan_run.id, kind="http_probe")
                 return javascript_http_observations(evidence)
 
-            plugins.append(JavaScriptExtractionPlugin(http_observations, after_discovered_http=include_subfinder or include_resolve))
+            plugins.append(JavaScriptExtractionPlugin(http_observations, after_discovered_http=include_subfinder or include_resolve or bool(supplied_hosts)))
             if include_javascript_bundles:
                 async def fetch_bundle(url: str) -> str | None:
                     parsed = httpx.URL(url)

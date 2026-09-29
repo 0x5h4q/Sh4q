@@ -315,6 +315,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run the optional passive Subfinder adapter.",
     )
     scan.add_argument(
+        "--hosts-file",
+        help="Resolve and probe a supplied list of hostnames, in addition to anything the scan discovers. Each is authorised before contact.",
+    )
+    scan.add_argument(
         "--resolve",
         action="store_true",
         help="Resolve subdomain names found during the scan and probe the ones that answer. Implied by --sub.",
@@ -550,6 +554,7 @@ def main() -> None:
             args.katana = "katana" in selected
             args.vhosts = "vhosts" in selected
             args.directories = "directories" in selected
+            args.hosts_file = template.hosts_file
             args.vhosts_file = template.vhosts_file
             args.directories_file = template.directories_file
             if not args.quiet and args.progress == "human":
@@ -584,7 +589,7 @@ def main() -> None:
                     summary = asyncio.run(run_scan(
                         args.target, args.config,
                         include_subfinder=args.sub or full_profile,
-                        include_resolve=args.resolve,
+                        include_resolve=args.resolve, hosts_file=args.hosts_file,
                         include_httpx=args.httpx or full_profile,
                         include_url_history=args.url_history or full_profile,
                         include_javascript=args.js or web_profile,
@@ -598,7 +603,7 @@ def main() -> None:
                 summary = asyncio.run(run_scan(
                     args.target, args.config,
                     include_subfinder=args.sub or full_profile,
-                    include_resolve=args.resolve,
+                    include_resolve=args.resolve, hosts_file=args.hosts_file,
                     include_httpx=args.httpx or full_profile,
                     include_url_history=args.url_history or full_profile,
                     include_javascript=args.js or web_profile,
