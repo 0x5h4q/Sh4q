@@ -57,3 +57,16 @@ async def main() -> None:
 
 
 asyncio.run(main())
+
+
+# An empty transport error message reached the operator as "ReadError without
+# detail", which names the class and explains nothing.
+import httpx as _httpx  # noqa: E402
+
+from sh4q.plugins.http_plugin import _explain  # noqa: E402
+
+assert _explain(_httpx.ReadError("")) == "ReadError: connection closed by the peer while reading the response"
+assert "could not establish" in _explain(_httpx.ConnectError(""))
+assert "malformed HTTP response" in _explain(_httpx.RemoteProtocolError(""))
+# An error class with no entry still says which class it was.
+assert _explain(ValueError("")) == "ValueError without detail"

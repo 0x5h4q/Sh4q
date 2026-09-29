@@ -12,6 +12,26 @@ from sh4q.network import RequestLimiter, ScopedHTTPClient, ScopedHTTPError, prob
 from sh4q.fingerprints import extract_http_metadata, fingerprint_response
 
 
+# httpx raises several transport errors with an empty message, which reached
+# the operator as "ReadError without detail" and said nothing about what
+# happened. Name the condition instead.
+_TRANSPORT_EXPLANATIONS = {
+    "ReadError": "connection closed by the peer while reading the response",
+    "WriteError": "connection closed by the peer while sending the request",
+    "ConnectError": "could not establish a connection",
+    "ConnectTimeout": "timed out establishing a connection",
+    "ReadTimeout": "timed out waiting for the response",
+    "PoolTimeout": "timed out waiting for a free connection",
+    "RemoteProtocolError": "the peer sent a malformed HTTP response",
+}
+
+
+def _explain(error: Exception) -> str:
+    name = error.__class__.__name__
+    described = _TRANSPORT_EXPLANATIONS.get(name)
+    return f"{name}: {described}" if described else f"{name} without detail"
+
+
 class HTTPPlugin(Plugin):
     metadata = PluginMetadata(
         name="http",
@@ -98,7 +118,7 @@ class HTTPPlugin(Plugin):
                         data={"url": url, "error": "request timed out", "phase": "overall", "timeout": probe_timeout, "duration_seconds": round(time.monotonic() - started, 3), "retryable": True},
                     )]
                 except (httpx.HTTPError, ScopedHTTPError, ssl.SSLError) as e:
-                    detail = str(e).strip() or f"{e.__class__.__name__} without detail"
+                    detail = str(e).strip() or _explain(e)
                     return [Discovery(
                         kind="http_error",
                         data={
