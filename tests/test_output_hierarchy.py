@@ -77,3 +77,35 @@ long_subject = "/" + "a" * 80
 assert long_subject in observation_line("PATH", long_subject, 200, "d", notable=True)
 
 print("output hierarchy test passed")
+
+
+# --- result views separate figures, labels, and guidance -------------------
+# The explanation under a summary is guidance, not data, and was competing
+# with the numbers it explains. Four roles, four treatments.
+from sh4q.cli.branding import accent, figure, muted, note  # noqa: E402
+
+for render in (accent, figure, muted, note):
+    plain = render("text")
+    assert plain == "text", (
+        f"{render.__name__} must emit nothing extra when output is not a terminal: {plain!r}"
+    )
+
+_previous = os.environ.pop("NO_COLOR", None)
+try:
+    import sh4q.cli.branding as _branding
+
+    _real = _branding.colour_enabled
+    _branding.colour_enabled = lambda *a, **k: True
+    try:
+        assert _branding.note("g") == "\033[2;3mg\033[0m", "guidance is dimmed and italic"
+        assert _branding.figure("184") == "\033[1m184\033[0m", "a figure is emphasised"
+        assert _branding.muted("label") == "\033[2mlabel\033[0m", "a label recedes"
+        assert _branding.accent("Head") == "\033[1;36mHead\033[0m", "a heading stands out"
+        # Every style must close itself, or the rest of the terminal inherits it.
+        for render in (_branding.accent, _branding.figure, _branding.muted, _branding.note):
+            assert render("x").endswith("\033[0m"), render.__name__
+    finally:
+        _branding.colour_enabled = _real
+finally:
+    if _previous is not None:
+        os.environ["NO_COLOR"] = _previous
