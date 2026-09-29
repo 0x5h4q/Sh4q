@@ -149,7 +149,11 @@ Stable current capabilities:
 - terminal results, scan overview, JSON/CSV/HTML export, redaction, and diff;
 - quiet, verbose, and JSONL progress modes;
 - versioned configuration schema and named scan templates;
-- every authorized port probed, not only the well-known pair.
+- every authorized port probed, not only the well-known pair;
+- resolution and probing of discovered names (`--resolve`) and of an
+  operator-supplied host list (`--hosts-file`);
+- hostname composition and response-attribute reporting (`results --names`,
+  `results --response-attributes`).
 
 Implemented explicit capabilities, never enabled by a profile:
 

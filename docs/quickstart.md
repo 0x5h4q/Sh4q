@@ -45,6 +45,31 @@ List technology observations and their supporting signals:
 sh4q results --latest --target your-domain.example --type technology
 ```
 
+Certificate transparency returns names, not verified hosts. Resolve them and
+probe the ones that answer:
+
+```bash
+sh4q scan your-domain.example --resolve
+```
+
+Then see what those names actually were:
+
+```bash
+sh4q results --latest --target your-domain.example --names
+```
+
+A large share of a certificate-transparency result is often service
+subdomains that hosting panels request certificates for automatically and
+which were never deployed. The summary shows how many resolved, which is what
+tells the two apart.
+
+Check what each endpoint sent back:
+
+```bash
+sh4q results --latest --target your-domain.example --response-attributes
+```
+
+
 Technology matching is performed locally against responses already admitted by Sh4q. It does not create a second fingerprinting request. Exact versions appear only when an inspected header, meta value, script path, stylesheet path, cookie, or HTML marker explicitly exposes one.
 
 A `403` or `404` still means an HTTP server responded. It does not mean access was granted or the application is healthy.
