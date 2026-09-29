@@ -31,6 +31,7 @@ OFFLINE_TESTS = (
     "test_name_selection.py",
     "test_host_list_mode.py",
     "test_name_composition.py",
+    "test_summary_completeness.py",
     "test_discovered_http_plugin.py",
     "test_discovered_http_timeout.py",
     "test_event_bus.py",
