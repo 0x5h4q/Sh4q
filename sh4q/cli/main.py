@@ -282,26 +282,37 @@ def build_parser() -> argparse.ArgumentParser:
 
     scan = subparsers.add_parser("scan", help="Scan a target")
     scan.add_argument("target", help="Hostname to scan, e.g. example.com")
-    scan.add_argument(
+    # Twenty-one options read as a wall. Grouping them puts the safety-relevant
+    # distinction -- passive versus active -- in front of the operator.
+    scan_setup = scan.add_argument_group("scope and configuration")
+    scan_output = scan.add_argument_group("output")
+    scan_passive = scan.add_argument_group(
+        "passive stages", "Observe without contacting anything beyond the authorised target."
+    )
+    scan_active = scan.add_argument_group(
+        "active stages",
+        "Generate additional traffic against the target. Never enabled by a profile.",
+    )
+    scan_setup.add_argument(
         "--config",
         default=None,
         help="Path to a YAML config file. If omitted, scope defaults to just the target itself (and its subdomains) on ports 80/443.",
     )
-    scan.add_argument(
+    scan_setup.add_argument(
         "--template",
         help="Path to a versioned YAML scan template that selects stages and configuration.",
     )
-    scan.add_argument(
+    scan_setup.add_argument(
         "--profile",
         choices=["web", "full"],
         help="Enable a tested bundle of passive stages. web: JavaScript extraction and bundles. full: web plus Subfinder, HTTPX, and URL history. Neither enables katana, vhosts, or directories -- those stay explicit because they are active.",
     )
-    output_modes = scan.add_mutually_exclusive_group()
+    output_modes = scan_output.add_mutually_exclusive_group()
     output_modes.add_argument(
         "-q", "--quiet", action="store_true",
         help="Suppress live scan progress and print only the final summary.",
     )
-    scan.add_argument(
+    scan_output.add_argument(
         "--progress", choices=["human", "jsonl"], default="human",
         help="Select human-readable or JSON Lines progress output.",
     )
@@ -309,67 +320,67 @@ def build_parser() -> argparse.ArgumentParser:
         "-v", "--verbose", action="store_true",
         help="Show detailed live scan progress (the default).",
     )
-    scan.add_argument(
+    scan_passive.add_argument(
         "--sub",
         action="store_true",
         help="Run the optional passive Subfinder adapter.",
     )
-    scan.add_argument(
+    scan_passive.add_argument(
         "--hosts-file",
         help="Resolve and probe a supplied list of hostnames, in addition to anything the scan discovers. Each is authorised before contact.",
     )
-    scan.add_argument(
+    scan_passive.add_argument(
         "--resolve",
         action="store_true",
         help="Resolve subdomain names found during the scan and probe the ones that answer. Implied by --sub.",
     )
-    scan.add_argument(
+    scan_passive.add_argument(
         "--httpx",
         action="store_true",
         help="Run optional httpx technology enrichment on approved HTTP endpoints.",
     )
-    scan.add_argument(
+    scan_passive.add_argument(
         "--amass",
         action="store_true",
         help=argparse.SUPPRESS,  # retired; see the error raised when it is used
     )
-    scan.add_argument(
+    scan_passive.add_argument(
         "--url-history",
         action="store_true",
         help="Run the opt-in passive Wayback URL-history adapter.",
     )
-    scan.add_argument(
+    scan_passive.add_argument(
         "--js",
         action="store_true",
         help="Run bounded passive extraction on authorised HTTP response samples.",
     )
-    scan.add_argument(
+    scan_passive.add_argument(
         "--js-bundles",
         action="store_true",
         help="Fetch and passively parse a bounded set of same-scope JavaScript bundles.",
     )
-    scan.add_argument(
+    scan_active.add_argument(
         "--katana",
         action="store_true",
         help="Run the opt-in bounded Katana crawler for same-scope runtime URLs and XHR references.",
     )
-    scan.add_argument(
+    scan_active.add_argument(
         "-vh",
         "--vhosts",
         action="store_true",
         help="Explicitly enable bounded virtual-host discovery.",
     )
-    scan.add_argument(
+    scan_active.add_argument(
         "--vhosts-file",
         help="Candidate hostname file for --vhosts (maximum 500 unique candidates).",
     )
-    scan.add_argument(
+    scan_active.add_argument(
         "--vhosts-from-scan",
         metavar="SCAN_ID",
         help="Use domain assets from a prior scan as bounded vhost candidates.",
     )
-    scan.add_argument("--directories", action="store_true", help="Enable bounded directory discovery.")
-    scan.add_argument("--directories-file", help="Relative path wordlist for --directories (maximum 200 paths).")
+    scan_active.add_argument("--directories", action="store_true", help="Enable bounded directory discovery.")
+    scan_active.add_argument("--directories-file", help="Relative path wordlist for --directories (maximum 200 paths).")
 
     events = subparsers.add_parser("events", help="Inspect durable event state")
     events.add_argument(
@@ -749,10 +760,17 @@ def main() -> None:
                 print("  without ever having been deployed. A prefix is a hint, not a verdict:")
                 print("  check whether the name resolved before drawing a conclusion.")
                 print()
-            print("  Most common leftmost labels")
-            for label, count in c.label_counts:
-                print(f"    {label:<24} {count}")
-            print()
+            # A label list where every count is 1 says nothing. Repetition is
+            # the signal: it is what exposes an automatically issued set.
+            repeated = [(label, n) for label, n in c.label_counts if n > 1]
+            if repeated:
+                print("  Repeated leftmost labels")
+                for label, count in repeated:
+                    print(f"    {label:<24} {count}")
+                print()
+            elif c.total > 1:
+                print("  No leftmost label repeats; these look individually named.")
+                print()
             return
         if args.response_attributes:
             scan_id = args.scan
@@ -769,26 +787,45 @@ def main() -> None:
             if not rows:
                 print("  No endpoint recorded cookies or review headers.\n")
                 return
-            for row in rows:
+
+            # Cookies are per-endpoint and always worth showing. Missing
+            # headers are usually identical across a whole host, so repeating
+            # a six-item list per endpoint buries the part that differs.
+            with_cookies = [row for row in rows if row.cookies]
+            print()
+            if with_cookies:
+                print("  Cookies")
+                for row in with_cookies:
+                    print(f"    {row.url}")
+                    for cookie in row.cookies:
+                        flags = [
+                            "Secure" if cookie.get("secure") else "no Secure",
+                            "HttpOnly" if cookie.get("http_only") else "no HttpOnly",
+                            f"SameSite={cookie['same_site']}" if cookie.get("same_site") else "no SameSite",
+                        ]
+                        print(f"      {cookie.get('name', '-'):<30} {', '.join(flags)}")
                 print()
-                print(f"  {row.url}")
-                for cookie in row.cookies:
-                    flags = []
-                    flags.append("Secure" if cookie.get("secure") else "no Secure")
-                    flags.append("HttpOnly" if cookie.get("http_only") else "no HttpOnly")
-                    same_site = cookie.get("same_site") or ""
-                    flags.append(f"SameSite={same_site}" if same_site else "no SameSite")
-                    print(f"    cookie  {cookie.get('name', '-'):<34} {', '.join(flags)}")
-                missing = row.missing_headers
-                if missing:
-                    print(f"    headers not sent: {', '.join(missing)}")
-                present = [n for n, v in sorted(row.security_headers.items()) if v]
-                if present:
-                    print(f"    headers sent:     {', '.join(present)}")
+            else:
+                print("  No endpoint set a cookie.\n")
+
+            groups: dict[tuple, list[str]] = {}
+            for row in rows:
+                groups.setdefault(row.missing_headers, []).append(row.url)
+            print("  Review headers")
+            for missing, urls in sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+                label = f"{len(urls)} endpoint(s)"
+                if not missing:
+                    print(f"    {label}: all present")
+                else:
+                    print(f"    {label}: not sent - {', '.join(missing)}")
+                for url in urls[:5]:
+                    print(f"      {url}")
+                if len(urls) > 5:
+                    print(f"      ... and {len(urls) - 5} more")
             print()
             print("  Sh4q records what the server sent. Whether a missing flag or header")
             print("  matters depends on the application; review these rather than treating")
-            print(f"  them as findings. Showing {len(rows)} endpoint(s).\n")
+            print(f"  them as findings. {len(rows)} endpoint(s).\n")
             return
         if args.failures:
             scan_id = args.scan

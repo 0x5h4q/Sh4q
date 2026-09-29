@@ -9,7 +9,7 @@
   <a href="https://github.com/0x5h4q/Sh4q/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-167d76.svg" alt="MIT License"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.11%2B-3776ab.svg" alt="Python 3.11+"></a>
   <a href="https://github.com/0x5h4q/Sh4q"><img src="https://img.shields.io/badge/platform-Linux-lightgrey.svg" alt="Linux"></a>
-  <img src="https://img.shields.io/badge/offline%20suite-83%20checks-2ea043.svg" alt="83 offline checks">
+  <img src="https://img.shields.io/badge/offline%20suite-84%20checks-2ea043.svg" alt="84 offline checks">
 </p>
 
 <p align="center"><strong>Know what you touched. Know why. Know it was authorised.</strong></p>
@@ -236,6 +236,27 @@ assets by resolving them and probing the ones that answer:
 ```bash
 sh4q scan company.example --resolve
 ```
+
+Check a list of hosts you already hold, from a prior scan or a client
+inventory. Each is authorised before it is contacted:
+
+```bash
+sh4q scan company.example --hosts-file candidates.txt
+```
+
+Then read the result:
+
+```bash
+sh4q results --latest --target company.example --names
+sh4q results --latest --target company.example --response-attributes
+```
+
+`--names` breaks the hostnames down by whether they resolved and by their
+leftmost label, which separates real infrastructure from the service
+subdomains hosting panels request certificates for automatically.
+`--response-attributes` reports the cookie flags and review headers each
+endpoint sent. Neither is graded: Sh4q records what it observed and leaves
+the judgement to you.
 
 Check optional dependencies before a profile or adapter scan:
 
