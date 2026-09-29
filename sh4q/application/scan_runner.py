@@ -323,10 +323,14 @@ async def run_scan(
         # transparency running by default. --sub implies it, since a subdomain
         # list nobody resolves is not what that flag is for.
         if include_subfinder or include_resolve or supplied_hosts:
-            plugins.append(DiscoveredDNSPlugin(scope=scope, names=supplied_hosts))
+            plugins.append(DiscoveredDNSPlugin(
+                scope=scope, names=supplied_hosts,
+                max_names=config.enrichment.max_names_resolved,
+            ))
             plugins.append(DiscoveredHTTPPlugin(
                 scope=scope,
                 limiter=limiter,
+                max_names=config.enrichment.max_hosts_probed,
                 include_html_sample=include_html_sample,
                 http_timeout=config.timeout.http_seconds,
             ))
@@ -420,7 +424,8 @@ async def run_scan(
         )
         if include_subfinder or include_resolve or supplied_hosts:
             enrichment_notice = status_line(
-                f"ENRICH   up to 500 name(s) to resolve and 200 to probe, "
+                f"ENRICH   up to {config.enrichment.max_names_resolved} name(s) to resolve "
+                f"and {config.enrichment.max_hosts_probed} to probe, "
                 f"at {config.rate_limit.requests_per_second:g} request(s)/second"
             )
         else:

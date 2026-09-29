@@ -202,6 +202,26 @@ adapters:
     timeout_seconds: 120.0
 ```
 
+### Coverage
+
+Two bounds decide how much of what a scan finds it goes on to check:
+
+```yaml
+enrichment:
+  max_names_resolved: 500   # discovered names to resolve
+  max_hosts_probed: 200     # of those that resolved, how many to contact
+```
+
+**The request budget is usually not the limit.** A real scan of a large estate
+used 316 of its 900 requests while leaving 711 discovered names unexamined:
+raising the budget would have changed nothing, because the bound that bit was
+`max_names_resolved`. Check which one is actually binding before adjusting
+either — `results --names` reports how many names were left past the bound.
+
+Raising `max_names_resolved` costs DNS lookups, which are fast and not drawn
+from the request budget. Raising `max_hosts_probed` costs HTTP requests, which
+are, and which are rate limited.
+
 `requests_per_second` is the main control over how long a scan takes. The
 default of 2.0 is deliberately conservative. Raising it shortens a scan
 proportionally and increases the load placed on the target, which is the

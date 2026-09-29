@@ -41,6 +41,19 @@ class HttpxAdapterConfig(BaseModel):
     timeout_seconds: float = Field(default=120.0, gt=0, le=600)
 
 
+class EnrichmentConfig(BaseModel):
+    """How much of what a scan discovers it goes on to check.
+
+    These are the bounds that decide coverage. The request budget usually is
+    not: a real scan of a large estate used 316 of its 900 requests while
+    leaving 711 discovered names unexamined, because the limit that bit was
+    the number of names resolved, and that was not adjustable.
+    """
+
+    max_names_resolved: int = Field(default=500, ge=1, le=20000)
+    max_hosts_probed: int = Field(default=200, ge=1, le=5000)
+
+
 class AdaptersConfig(BaseModel):
     httpx: HttpxAdapterConfig = Field(default_factory=HttpxAdapterConfig)
 
@@ -55,3 +68,4 @@ class Sh4qConfig(BaseModel):
     output: OutputConfig = Field(default_factory=OutputConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     adapters: AdaptersConfig = Field(default_factory=AdaptersConfig)
+    enrichment: EnrichmentConfig = Field(default_factory=EnrichmentConfig)
