@@ -49,7 +49,10 @@ def load_candidates(path: str | Path, *, max_paths: int = 200, max_length: int =
     seen: set[str] = set()
     duplicates = 0
     for line_number, raw in enumerate(lines, 1):
-        if not raw.strip():
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            # Wordlists conventionally carry comments. Treating one as a
+            # candidate produced a "fragments are not allowed" rejection,
+            # which describes the '#' rather than the actual reason.
             continue
         normalized = normalize_candidate(raw, max_length=max_length)
         if normalized.rejected:
