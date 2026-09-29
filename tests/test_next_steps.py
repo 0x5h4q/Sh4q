@@ -77,3 +77,27 @@ for line in custom.splitlines():
         assert "--latest" in stripped and "--target example.com" in stripped, stripped
 
 print("next steps test passed")
+
+
+# --- the unchecked count means two different things ------------------------
+# A real scan resolved names up to its bound and still reported 407 as "not
+# checked (run with --resolve)" to an operator who had just run resolution.
+from sh4q.application.results import NameComposition  # noqa: E402
+
+nothing_tried = NameComposition(
+    total=907, resolved=0, unresolved=0, unchecked=907,
+    auto_issued=0, auto_issued_resolved=0, label_counts=(),
+)
+assert nothing_tried.resolved == 0 and nothing_tried.unresolved == 0, (
+    "with nothing attempted, suggesting --resolve is the correct advice"
+)
+
+bound_limited = NameComposition(
+    total=907, resolved=171, unresolved=329, unchecked=407,
+    auto_issued=524, auto_issued_resolved=0, label_counts=(("www", 133),),
+)
+assert bound_limited.resolved + bound_limited.unresolved > 0, (
+    "resolution ran, so the remainder is past the bound and --resolve is "
+    "advice the operator has already taken"
+)
+assert bound_limited.resolved + bound_limited.unresolved + bound_limited.unchecked == bound_limited.total

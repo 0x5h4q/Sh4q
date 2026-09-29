@@ -801,8 +801,17 @@ def main() -> None:
             print(f"    resolved                 {c.resolved}")
             print(f"    did not resolve          {c.unresolved}")
             if c.unchecked:
-                print(f"    not checked              {c.unchecked}   (run with --resolve)")
-            print()
+                if c.resolved or c.unresolved:
+                    # Resolution ran; these were past its per-scan bound.
+                    print(f"    beyond the bound         {c.unchecked}")
+                else:
+                    print(f"    not checked              {c.unchecked}   (run with --resolve)")
+            if c.unchecked and (c.resolved or c.unresolved):
+                print()
+                print(f"  {c.unchecked} name(s) were past the per-scan resolution bound, which")
+                print("  defaults to 500. Narrow the scope, or run the remainder explicitly:")
+                print("    sh4q results ... --type domain   then feed them to --hosts-file")
+                print()
             if c.auto_issued:
                 print(f"  Service-prefix names       {c.auto_issued} ({c.auto_issued_share}% of the total)")
                 print(f"    of those, resolved       {c.auto_issued_resolved}")

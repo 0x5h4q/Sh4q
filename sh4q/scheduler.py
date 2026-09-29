@@ -153,14 +153,21 @@ class Scheduler:
             async def report_progress() -> None:
                 # External providers often cannot expose a meaningful percent;
                 # report elapsed time without inventing completion estimates.
+                #
+                # The interval widens as a stage runs. A bounded sweep can take
+                # five minutes, and a fixed five-second heartbeat buried the
+                # rest of the scan under sixty identical lines.
+                interval = 5.0
                 while not progress_stop.is_set():
                     try:
-                        await asyncio.wait_for(progress_stop.wait(), timeout=5.0)
+                        await asyncio.wait_for(progress_stop.wait(), timeout=interval)
                     except asyncio.TimeoutError:
+                        elapsed = time.monotonic() - progress_started
                         print(status_line(
                             f"IN PROGRESS {plugin.metadata.name} on {target} "
-                            f"(elapsed {time.monotonic() - progress_started:.0f}s)"
+                            f"(elapsed {elapsed:.0f}s)"
                         ))
+                        interval = 10.0 if elapsed < 30 else (30.0 if elapsed < 120 else 60.0)
 
             progress_task = asyncio.create_task(report_progress())
             try:
