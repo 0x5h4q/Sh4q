@@ -305,7 +305,7 @@ def build_parser() -> argparse.ArgumentParser:
     scan_setup.add_argument(
         "--profile",
         choices=["web", "full"],
-        help="Enable a tested bundle of passive stages. web: JavaScript extraction and bundles. full: web plus Subfinder, HTTPX, and URL history. Neither enables katana, vhosts, or directories -- those stay explicit because they are active.",
+        help="Enable a tested bundle of passive stages. web: resolve and probe discovered names, then extract JavaScript -- needs no external tools. full: web plus Subfinder, HTTPX, and URL history. Neither enables katana, vhosts, or directories -- those stay explicit because they are active.",
     )
     output_modes = scan_output.add_mutually_exclusive_group()
     output_modes.add_argument(
@@ -462,7 +462,45 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def render_summary(summary) -> None:
+def next_steps(summary, *, resolved_stage_ran: bool) -> list[str]:
+    """Commands worth running against what this scan actually found.
+
+    Suggested at the moment the data lands, because an operator who has to
+    read `--help` to discover a view will usually not read it.
+    """
+    target = summary.target
+    # The default database needs no flag, and repeating a long path in every
+    # suggested command makes them harder to read than to retype.
+    database = summary.database_path
+    location = "" if database in ("./sh4q-output/sh4q.db", "sh4q-output/sh4q.db") else f"--database {database} "
+    common = f"{location}--latest --target {target}"
+    steps: list[str] = []
+
+    names = summary.ct_names + summary.adapter_names
+    if names and not resolved_stage_ran:
+        steps.append(
+            f"{names} hostname(s) were found but not checked. Resolve and probe them:\n"
+            f"    sh4q scan {target} --resolve"
+        )
+    if names:
+        steps.append(
+            "See what those names are made of, and how many proved real:\n"
+            f"    sh4q results {common} --names"
+        )
+    if summary.http_endpoints:
+        steps.append(
+            "Review the cookie flags and headers each endpoint sent:\n"
+            f"    sh4q results {common} --response-attributes"
+        )
+    if summary.discoveries:
+        steps.append(
+            "Read or share the whole result:\n"
+            f"    sh4q export {common} --format html --output report.html"
+        )
+    return steps
+
+
+def render_summary(summary, *, resolved_stage_ran: bool = True) -> None:
     print()
     print("  SH4Q SCAN SUMMARY")
     print("  =================")
@@ -519,6 +557,15 @@ def render_summary(summary) -> None:
     print(f"  Database  {database}")
     print()
     print("  Scan complete.")
+    steps = [] if _terminal_is_narrow(80) else next_steps(
+        summary, resolved_stage_ran=resolved_stage_ran
+    )
+    if steps:
+        print()
+        print("  Next")
+        print("  ----")
+        for step in steps:
+            print(f"  {step}")
     print()
 
 
@@ -605,7 +652,7 @@ def main() -> None:
                     summary = asyncio.run(run_scan(
                         args.target, args.config,
                         include_subfinder=args.sub or full_profile,
-                        include_resolve=args.resolve, hosts_file=args.hosts_file,
+                        include_resolve=args.resolve or web_profile, hosts_file=args.hosts_file,
                         include_httpx=args.httpx or full_profile,
                         include_url_history=args.url_history or full_profile,
                         include_javascript=args.js or web_profile,
@@ -619,7 +666,7 @@ def main() -> None:
                 summary = asyncio.run(run_scan(
                     args.target, args.config,
                     include_subfinder=args.sub or full_profile,
-                    include_resolve=args.resolve, hosts_file=args.hosts_file,
+                    include_resolve=args.resolve or web_profile, hosts_file=args.hosts_file,
                     include_httpx=args.httpx or full_profile,
                     include_url_history=args.url_history or full_profile,
                     include_javascript=args.js or web_profile,
@@ -642,7 +689,12 @@ def main() -> None:
                               "target": summary.target, "scope_allowed": summary.scope_allowed,
                               "duration_seconds": summary.duration_seconds}, sort_keys=True))
         else:
-            render_summary(summary)
+            render_summary(
+                summary,
+                resolved_stage_ran=bool(
+                    args.resolve or web_profile or args.sub or full_profile or args.hosts_file
+                ),
+            )
         sys.exit(0 if summary.scope_allowed else 1)
 
     if args.command == "doctor":

@@ -9,7 +9,7 @@
   <a href="https://github.com/0x5h4q/Sh4q/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-167d76.svg" alt="MIT License"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.11%2B-3776ab.svg" alt="Python 3.11+"></a>
   <a href="https://github.com/0x5h4q/Sh4q"><img src="https://img.shields.io/badge/platform-Linux-lightgrey.svg" alt="Linux"></a>
-  <img src="https://img.shields.io/badge/offline%20suite-84%20checks-2ea043.svg" alt="84 offline checks">
+  <img src="https://img.shields.io/badge/offline%20suite-85%20checks-2ea043.svg" alt="85 offline checks">
 </p>
 
 <p align="center"><strong>Know what you touched. Know why. Know it was authorised.</strong></p>
@@ -219,6 +219,11 @@ The `web` profile enables `--js` and `--js-bundles`. The `full` profile enables
 the current discovery, history, fingerprint, and web stages (`--sub`,
 `--httpx`, `--url-history`, `--js`, and `--js-bundles`). Active stages
 (`--katana`, `--vhosts`, `--directories`) are never implied by a profile.
+
+`--profile web` is the widest result available from a clean installation: it
+resolves and probes the names the scan finds, then extracts JavaScript from
+whatever answered. No external tools required. `--profile full` adds the
+external-tool stages on top.
 
 Versioned scan templates provide a named, reviewable stage selection:
 
