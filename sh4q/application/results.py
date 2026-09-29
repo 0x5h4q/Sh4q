@@ -343,3 +343,85 @@ def list_response_attributes(
             continue
         found.append(ResponseAttributes(row.value, tuple(cookies), dict(headers)))
     return found
+
+
+# Leftmost labels that hosting panels and mail providers commonly request
+# certificates for automatically. Their presence is a hint, not a verdict:
+# an organisation may genuinely run mail.example.com.
+AUTO_ISSUED_LABELS = frozenset({
+    "cpanel", "webmail", "webdisk", "mail", "autodiscover",
+    "cpcalendars", "cpcontacts", "autoconfig", "mta-sts",
+})
+
+
+@dataclass(frozen=True)
+class NameComposition:
+    """What a scan's hostnames are made of, and how many proved real."""
+
+    total: int
+    resolved: int
+    unresolved: int
+    unchecked: int
+    auto_issued: int
+    auto_issued_resolved: int
+    label_counts: tuple[tuple[str, int], ...]
+
+    @property
+    def auto_issued_share(self) -> int:
+        return round(self.auto_issued * 100 / self.total) if self.total else 0
+
+
+def summarize_names(
+    database: str,
+    *,
+    target: str | None = None,
+    scan_id: str | None = None,
+) -> NameComposition:
+    """Break a scan's hostnames down by resolution outcome and leftmost label.
+
+    Certificate transparency returns every name a certificate was issued for.
+    Hosting panels request certificates for service subdomains on every hosted
+    domain, so a large share of a CT result can be names that were never
+    deployed. Crossing the label against whether the name resolved is what
+    separates the two, and doing it by hand is tedious enough to be skipped.
+    """
+    domains = [
+        row.value
+        for row in list_assets(database, asset_type="domain", target=target, scan_id=scan_id, limit=100000)
+    ]
+    resolved: set[str] = set()
+    failed: set[str] = set()
+    with open_sync_database(database) as db:
+        for kind, content in db.execute(
+            "SELECT kind, content FROM evidence WHERE kind IN "
+            "('dns_resolution', 'discovered_dns_resolution', 'discovered_dns_error')"
+        ):
+            try:
+                name = json.loads(content).get("domain", "")
+            except (TypeError, ValueError):
+                continue
+            if not name:
+                continue
+            (failed if kind == "discovered_dns_error" else resolved).add(name.lower())
+    failed -= resolved
+
+    labels: dict[str, int] = {}
+    auto = auto_resolved = 0
+    for name in domains:
+        label = name.split(".", 1)[0].lower()
+        labels[label] = labels.get(label, 0) + 1
+        if label in AUTO_ISSUED_LABELS:
+            auto += 1
+            if name.lower() in resolved:
+                auto_resolved += 1
+
+    checked = {name for name in domains if name.lower() in resolved or name.lower() in failed}
+    return NameComposition(
+        total=len(domains),
+        resolved=sum(1 for n in domains if n.lower() in resolved),
+        unresolved=sum(1 for n in domains if n.lower() in failed),
+        unchecked=len(domains) - len(checked),
+        auto_issued=auto,
+        auto_issued_resolved=auto_resolved,
+        label_counts=tuple(sorted(labels.items(), key=lambda kv: (-kv[1], kv[0]))[:8]),
+    )
