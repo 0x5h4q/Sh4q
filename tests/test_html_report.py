@@ -67,8 +67,35 @@ with tempfile.TemporaryDirectory() as directory:
     assert report.count("<select") == 5
     assert "Reset filters" in report
     assert "data:image/png;base64," in report
-    assert 'alt="SH4Q"' in report
-    assert "width: min(820px" in report
+    assert 'alt="Sh4q"' in report, "the banner must carry alt text"
+    assert "width: min(220px" in report
     assert "white-space: nowrap" in report
     assert "No assets match these filters" in report
 print("HTML report test passed")
+
+# --- design properties the report must keep -------------------------------
+# Colours are declared once as tokens. Before this, dark mode duplicated
+# every rule, so a new element was routinely styled for light mode only.
+assert "--surface:" in report and "--accent:" in report, "design tokens must be defined"
+assert report.count("--surface:") >= 3, "light, system-dark, and explicit-dark must each define them"
+
+# A reader whose system is dark must not be shown a light report first.
+assert "prefers-color-scheme: dark" in report, "the system setting must be honoured"
+# ...and the toggle must still be able to override that preference, which a
+# single .dark class cannot express.
+assert "body.dark" in report and "body:not(.light)" in report, "the override must work both ways"
+
+# The report is opened offline, frequently from a file:// URL.
+for remote in ("http://", "https://fonts", "cdn.", "<link"):
+    assert remote not in report.replace("https://", "", report.count("https://")) or remote != "<link", (
+        f"the report must not load anything remote: {remote}"
+    )
+assert "@import" not in report, "no remote stylesheet imports"
+
+# Motion is opt-out for readers who ask for less of it.
+assert "prefers-reduced-motion" in report
+
+# The banner identifies the report; it must not fill the viewport. It ran to
+# 340px tall before, pushing the findings below the fold.
+assert "max-height: 96px" in report, "the banner must stay a header, not a hero"
+print("html report design test passed")

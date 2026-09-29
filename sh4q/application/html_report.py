@@ -185,58 +185,164 @@ def render_html_report(database: str, run: ScanRun, *, redact: bool = False) -> 
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{title}</title>
 <style>
-:root {{ color-scheme: light; font: 15px system-ui, sans-serif; }}
-body {{ margin: 0; color: #17202a; background: #eef2f5; }}
-body.dark {{ color: #dbe7ef; background: #111820; }}
-header {{ padding: 24px 5vw 30px; background: #f5f7f9; color: #17202a; border-bottom: 4px solid #2c9c94; text-align: center; }}
-.brand {{ max-width: 1400px; margin: 0 auto; }}
-.brand img {{ display: block; width: min(820px, 92vw); max-height: 340px; object-fit: contain; margin: 0 auto 18px; }}
+/* Design tokens. Every colour is declared once here and referenced by name,
+   so dark mode redefines eight values rather than duplicating every rule. */
+:root {{
+  --bg: #eff2f5;           --surface: #ffffff;      --surface-2: #f6f8fa;
+  --border: #d9e0e7;       --border-soft: #e9eef2;
+  --text: #16202b;         --muted: #5b6b7a;
+  --accent: #157f78;       --accent-soft: #d9f2ef;  --accent-line: #2c9c94;
+  --shadow: 0 1px 2px rgba(16,32,48,.05), 0 4px 14px rgba(16,32,48,.05);
+  --radius: 10px;          --radius-sm: 6px;
+  --ok-fg: #0f6b41; --ok-bg: #d7f2e3;
+  --warn-fg: #7a5200; --warn-bg: #ffeebc;
+  --alert-fg: #8a3b12; --alert-bg: #ffe2ca;
+  --bad-fg: #961f1f; --bad-bg: #ffd8d8;
+  color-scheme: light;
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}}
+/* Follow the reader's system setting unless they have chosen otherwise. The
+   previous report defaulted to light regardless, so a dark-mode reader got a
+   full-page flash before finding the toggle. */
+@media (prefers-color-scheme: dark) {{
+  body:not(.light) {{
+    --bg: #0f151b;         --surface: #18212a;      --surface-2: #1e2932;
+    --border: #2d3c49;     --border-soft: #26333e;
+    --text: #dde7ef;       --muted: #93a6b5;
+    --accent: #5ed3c7;     --accent-soft: #1b3f3e;  --accent-line: #2c9c94;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
+    --ok-fg: #7ee0aa; --ok-bg: #123a28;
+    --warn-fg: #ffd66b; --warn-bg: #3d3113;
+    --alert-fg: #ffb987; --alert-bg: #422516;
+    --bad-fg: #ff9d9d; --bad-bg: #431c1c;
+    color-scheme: dark;
+  }}
+}}
+body.dark {{
+  --bg: #0f151b;           --surface: #18212a;      --surface-2: #1e2932;
+  --border: #2d3c49;       --border-soft: #26333e;
+  --text: #dde7ef;         --muted: #93a6b5;
+  --accent: #5ed3c7;       --accent-soft: #1b3f3e;  --accent-line: #2c9c94;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
+  --ok-fg: #7ee0aa; --ok-bg: #123a28;
+  --warn-fg: #ffd66b; --warn-bg: #3d3113;
+  --alert-fg: #ffb987; --alert-bg: #422516;
+  --bad-fg: #ff9d9d; --bad-bg: #431c1c;
+  color-scheme: dark;
+}}
+
+* {{ box-sizing: border-box; }}
+body {{ margin: 0; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; }}
+code {{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em; }}
+
+header {{ position: relative; padding: 22px 5vw 20px; background: var(--surface);
+  border-bottom: 3px solid var(--accent-line); }}
+.brand {{ display: flex; align-items: center; gap: 20px; max-width: 1400px; margin: 0 auto; }}
+/* The banner previously ran to 340px tall and pushed the actual report below
+   the fold. It is identification, not content. */
+.brand img {{ flex: 0 0 auto; width: min(220px, 40vw); max-height: 96px; object-fit: contain; }}
 .brand-copy {{ min-width: 0; }}
-header strong {{ display: block; color: #167d76; font-size: 1.35rem; letter-spacing: .12em; }}
-header div {{ margin-top: 7px; font-size: 1.2rem; }}
-header small {{ display: block; margin-top: 10px; color: #52606d; }}
-main {{ max-width: 1400px; margin: 0 auto; padding: 26px 5vw 40px; }}
-.stats {{ display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 12px; margin: 0 0 22px; }}
-.stat {{ padding: 16px; background: #fff; border: 1px solid #d5dee6; border-radius: 6px; box-shadow: 0 2px 8px rgba(23,32,42,.05); }}
-.stat strong {{ display: block; color: #17202a; font-size: 1.55rem; line-height: 1.2; }}
-.filters {{ display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 12px; align-items: end; padding: 16px; margin-bottom: 14px; background: #fff; border: 1px solid #d5dee6; border-radius: 6px; }}
-label {{ display: grid; min-width: 0; gap: 5px; color: #344454; font-size: 12px; font-weight: 700; }}
-input, select {{ box-sizing: border-box; width: 100%; min-width: 0; min-height: 38px; border: 1px solid #bdc9d3; border-radius: 4px; padding: 7px 9px; color: #17202a; background: #fff; font: inherit; }}
-input:focus, select:focus {{ outline: 2px solid #7de0d5; outline-offset: 1px; border-color: #2c9c94; }}
+header strong {{ display: block; color: var(--accent); font-size: 1.1rem; letter-spacing: .14em; }}
+header .subject {{ margin-top: 2px; font-size: 1.3rem; font-weight: 650; overflow-wrap: anywhere; }}
+header small {{ display: block; margin-top: 6px; color: var(--muted); overflow-wrap: anywhere; }}
+
+main {{ max-width: 1400px; margin: 0 auto; padding: 26px 5vw 56px; }}
+
+.stats {{ display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 12px; margin-bottom: 24px; }}
+.stat {{ padding: 14px 16px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow); color: var(--muted); font-size: 12.5px;
+  transition: transform .14s ease, box-shadow .14s ease; }}
+.stat:hover {{ transform: translateY(-1px); box-shadow: 0 2px 4px rgba(16,32,48,.07), 0 8px 22px rgba(16,32,48,.08); }}
+.stat strong {{ display: block; margin-bottom: 2px; color: var(--text);
+  font-size: 1.7rem; font-weight: 640; line-height: 1.15; font-variant-numeric: tabular-nums; }}
+
+.filters {{ position: relative; display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr));
+  gap: 12px; align-items: end; padding: 16px; margin-bottom: 14px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }}
+label {{ display: grid; min-width: 0; gap: 5px; color: var(--muted);
+  font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }}
+input, select {{ width: 100%; min-width: 0; min-height: 38px; padding: 7px 10px; color: var(--text);
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font: inherit; transition: border-color .14s ease, box-shadow .14s ease; }}
+input:focus, select:focus {{ outline: none; border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px var(--accent-soft); }}
 .filter-actions {{ display: flex; align-items: end; }}
-button {{ min-height: 38px; border: 1px solid #8797a5; border-radius: 4px; padding: 7px 12px; color: #17202a; background: #f4f7f9; font: inherit; font-weight: 650; cursor: pointer; }}
-button:hover {{ background: #e6edf1; }}
-.theme-toggle {{ position: absolute; top: 16px; right: 5vw; }}
-.filters {{ position: relative; }}
+
+button {{ min-height: 38px; padding: 7px 13px; color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); font: inherit; font-weight: 600;
+  cursor: pointer; transition: background .14s ease, border-color .14s ease, transform .1s ease; }}
+button:hover {{ background: var(--accent-soft); border-color: var(--accent-line); }}
+button:active {{ transform: translateY(1px); }}
+button:focus-visible {{ outline: 2px solid var(--accent-line); outline-offset: 2px; }}
+.theme-toggle {{ position: absolute; top: 18px; right: 5vw; }}
+
 .chips {{ display: flex; flex-wrap: wrap; gap: 6px; grid-column: 1 / -1; }}
-.chip {{ border-radius: 12px; padding: 3px 9px; color: #155e59; background: #d9f4f0; font-size: 12px; }}
-.sort {{ min-height: auto; padding: 2px 4px; border: 0; background: transparent; color: inherit; font-size: inherit; text-transform: inherit; }}
-.sort:hover {{ background: #d7e3e8; }}
-.status {{ display: inline-block; min-width: 2.5em; padding: 2px 6px; border-radius: 10px; text-align: center; font-size: 12px; font-weight: 700; }}
-.status-2 {{ color: #146c43; background: #d1f0df; }} .status-3 {{ color: #725400; background: #fff0bd; }} .status-4 {{ color: #8a3b12; background: #ffe1c7; }} .status-5 {{ color: #9a2020; background: #ffd6d6; }}
-.copy {{ min-height: auto; padding: 2px 6px; margin-left: 6px; font-size: 12px; }}
-.pagination {{ display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: 10px 0; }}
-.pagination button:disabled {{ cursor: not-allowed; opacity: .45; }}
-body.dark header, body.dark .stat, body.dark .filters, body.dark .table-wrap {{ background: #18232d; color: #dbe7ef; border-color: #344756; }}
-body.dark .brand img {{ padding: 12px; border-radius: 6px; background: #f5f7f9; }}
-body.dark .stat strong, body.dark section h2, body.dark label, body.dark .count {{ color: #dbe7ef; }}
-body.dark header small {{ color: #9fb2bf; }} body.dark .chip {{ color: #bff4eb; background: #214b4a; }}
-body.dark input, body.dark select, body.dark button {{ color: #dbe7ef; background: #202f3b; border-color: #4a6170; }}
-body.dark th {{ color: #dbe7ef; background: #263845; }} body.dark td {{ border-color: #2e414e; }} body.dark tbody tr:hover {{ background: #203a3d; }}
-.count {{ margin: 12px 0; color: #52606d; font-weight: 600; }}
-section {{ margin-top: 28px; }}
-section h2 {{ margin: 0 0 10px; color: #253647; font-size: 1.1rem; }}
-.table-wrap {{ overflow-x: auto; background: #fff; border: 1px solid #d5dee6; border-radius: 6px; box-shadow: 0 2px 8px rgba(23,32,42,.04); }}
+.chip {{ min-height: auto; padding: 3px 10px; border-radius: 999px; color: var(--accent);
+  background: var(--accent-soft); border-color: transparent; font-size: 12px; font-weight: 600; }}
+
+.count {{ margin: 12px 0; color: var(--muted); font-weight: 600; font-size: 13px; }}
+
+.table-wrap {{ overflow-x: auto; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow); }}
 table {{ width: 100%; border-collapse: collapse; }}
-th, td {{ padding: 10px 11px; border-bottom: 1px solid #e8edf1; text-align: left; vertical-align: top; }}
-th {{ color: #344454; background: #e8eef2; position: sticky; top: 0; font-size: 12px; text-transform: uppercase; }}
-tbody tr:hover {{ background: #f3faf9; }}
+th, td {{ padding: 10px 13px; border-bottom: 1px solid var(--border-soft); text-align: left; vertical-align: top; }}
+th {{ position: sticky; top: 0; z-index: 1; color: var(--muted); background: var(--surface-2);
+  border-bottom: 1px solid var(--border); font-size: 11.5px; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase; }}
+tbody tr {{ transition: background .1s ease; }}
+tbody tr:hover {{ background: var(--accent-soft); }}
 tbody tr:last-child td {{ border-bottom: 0; }}
-td code {{ white-space: nowrap; overflow-wrap: normal; }}
-pre {{ overflow-x: auto; padding: 14px; border: 1px solid #d5dee6; border-radius: 6px; background: #17202a; color: #dbe7ef; }}
-@media (max-width: 600px) {{ header, main {{ padding-left: 14px; padding-right: 14px; }} .brand img {{ width: min(540px, 94vw); max-height: 220px; }} header div {{ font-size: 1.05rem; }} th, td {{ padding: 8px; }} .stats {{ grid-template-columns: repeat(2,minmax(0,1fr)); }} }}
+td code {{ white-space: nowrap; }}
+.sort {{ min-height: auto; padding: 2px 5px; border: 0; background: transparent; color: inherit;
+  font: inherit; letter-spacing: inherit; text-transform: inherit; }}
+.sort:hover {{ background: var(--accent-soft); }}
+
+.status {{ display: inline-block; min-width: 2.7em; padding: 2px 7px; border-radius: 999px;
+  text-align: center; font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; }}
+.status-2 {{ color: var(--ok-fg); background: var(--ok-bg); }}
+.status-3 {{ color: var(--warn-fg); background: var(--warn-bg); }}
+.status-4 {{ color: var(--alert-fg); background: var(--alert-bg); }}
+.status-5 {{ color: var(--bad-fg); background: var(--bad-bg); }}
+.copy {{ min-height: auto; padding: 1px 7px; margin-left: 6px; font-size: 11.5px; }}
+
+.pagination {{ display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin: 12px 0; }}
+.pagination button:disabled {{ cursor: not-allowed; opacity: .4; }}
+.pagination button:disabled:hover {{ background: var(--surface-2); border-color: var(--border); }}
+#page {{ color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }}
+
+details {{ margin-top: 16px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }}
+summary {{ padding: 13px 16px; font-weight: 650; cursor: pointer; list-style: none;
+  transition: background .12s ease; }}
+summary::-webkit-details-marker {{ display: none; }}
+summary::before {{ display: inline-block; width: 1.1em; content: "\25B8";
+  color: var(--muted); transition: transform .15s ease; }}
+details[open] > summary::before {{ transform: rotate(90deg); }}
+summary:hover {{ background: var(--surface-2); }}
+details > section {{ margin: 0; padding: 0 16px 16px; }}
+details .table-wrap {{ box-shadow: none; }}
+details h3 {{ margin: 18px 0 8px; color: var(--muted); font-size: 12px;
+  letter-spacing: .04em; text-transform: uppercase; }}
+details ul {{ margin: 0; padding-left: 20px; color: var(--muted); font-size: 13.5px; }}
+details p {{ color: var(--muted); font-size: 13px; }}
+
+section {{ margin-top: 24px; }}
+section h2 {{ margin: 0 0 10px; font-size: 1.05rem; }}
+pre {{ overflow-x: auto; margin: 0; padding: 14px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 13px; }}
+
+@media (prefers-reduced-motion: reduce) {{ * {{ transition: none !important; }} }}
+@media (max-width: 760px) {{
+  header, main {{ padding-left: 16px; padding-right: 16px; }}
+  .theme-toggle {{ right: 16px; }}
+  .brand {{ flex-direction: column; align-items: flex-start; gap: 12px; }}
+  .brand img {{ width: min(180px, 48vw); max-height: 72px; }}
+  header .subject {{ font-size: 1.1rem; }}
+  .stats {{ grid-template-columns: repeat(2,minmax(0,1fr)); }}
+  th, td {{ padding: 8px 10px; }}
+}}
 </style></head><body>
-<header><button id="theme" class="theme-toggle" type="button" title="Toggle theme">Theme</button><div class="brand">{f'<img src="{banner_uri}" alt="SH4Q" />' if banner_uri else ''}<div class="brand-copy">{'' if banner_uri else '<strong>SH4Q</strong>'}<div>Scan report for <code>{html.escape(run.target)}</code></div><small>{html.escape(run.id)} · {html.escape(run.status)}</small></div></div></header>
+<header><button id="theme" class="theme-toggle" type="button" title="Switch between light and dark">Theme</button><div class="brand">{f'<img src="{banner_uri}" alt="Sh4q" />' if banner_uri else ''}<div class="brand-copy">{'' if banner_uri else '<strong>SH4Q</strong>'}<div class="subject">{html.escape(run.target)}</div><small>scan {html.escape(run.id)} · {html.escape(run.status)}</small></div></div></header>
 <main><div class="stats">
 <div class="stat"><strong>{len(assets)}</strong>scan-owned assets</div>
 <div class="stat"><strong>{len(metadata["evidence"])}</strong>evidence records</div>
@@ -297,7 +403,16 @@ document.querySelectorAll('.sort').forEach(button => button.addEventListener('cl
 document.querySelector('#prev').addEventListener('click', () => {{ pageNumber -= 1; render(); }}); document.querySelector('#next').addEventListener('click', () => {{ pageNumber += 1; render(); }});
 document.querySelector('#chips').addEventListener('click', event => {{ const key = event.target.dataset.clear; if (key) {{ fields[key].value = ''; pageNumber = 1; render(); }} }});
 document.querySelector('#rows').addEventListener('click', event => {{ const value = event.target.dataset.copy; if (value) navigator.clipboard?.writeText(value).then(() => {{ event.target.textContent = 'Copied'; setTimeout(() => event.target.textContent = 'Copy', 1000); }}); }});
-document.querySelector('#theme').addEventListener('click', () => {{ document.body.classList.toggle('dark'); localStorage.setItem('sh4q-theme', document.body.classList.contains('dark') ? 'dark' : 'light'); }}); if (localStorage.getItem('sh4q-theme') === 'dark') document.body.classList.add('dark'); render();
+const prefersDark = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+const applyTheme = choice => {{ document.body.classList.toggle('dark', choice === 'dark'); document.body.classList.toggle('light', choice === 'light'); }};
+const stored = localStorage.getItem('sh4q-theme');
+if (stored) applyTheme(stored);
+document.querySelector('#theme').addEventListener('click', () => {{
+  const dark = document.body.classList.contains('dark') || (!document.body.classList.contains('light') && prefersDark());
+  const next = dark ? 'light' : 'dark';
+  applyTheme(next); localStorage.setItem('sh4q-theme', next);
+}});
+render();
 document.querySelector('#reset').addEventListener('click', () => {{
  Object.values(fields).forEach(input => input.value = ''); pageNumber = 1; render();
 }});
