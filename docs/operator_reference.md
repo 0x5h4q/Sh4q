@@ -43,6 +43,20 @@ the ones that answer is a large traffic increase, so it is opt-in:
 sh4q scan example.com --resolve
 ```
 
+A list you already hold -- from a prior scan, a client inventory, or a
+certificate dump -- can be checked the same way:
+
+```bash
+sh4q scan example.com --hosts-file candidates.txt
+```
+
+The file takes one hostname per line. URLs, `host:port` pairs, mixed case,
+trailing dots, and `#` comments are all accepted and normalised; at most 500
+names are allowed and an oversized file is refused rather than truncated.
+Every name is authorised before it is contacted, so a list may safely contain
+out-of-scope entries -- they are refused at Gate 2 and recorded. Supplying a
+list enables resolution on its own; `--resolve` is not also required.
+
 `--resolve` takes the subdomain names found during the scan, from certificate
 transparency or Subfinder, resolves up to 500 of them, and probes up to 200
 that answer. `--sub` implies it. Both stages draw on the same shared request
@@ -110,6 +124,7 @@ Fields:
 | `name` | yes | Shown before the scan runs. |
 | `stages` | yes | Any of `sub`, `resolve`, `httpx`, `url-history`, `js`, `js-bundles`, `katana`, `vhosts`, `directories`. No duplicates, no unknown names. |
 | `config` | no | A configuration file, resolved relative to the template. Omit it to derive a narrow scope from the target on the command line. |
+| `hosts_file` | no | A list of hostnames to resolve and probe alongside anything discovered. |
 | `vhosts_file` | no | Candidate file for the `vhosts` stage. |
 | `directories_file` | no | Candidate file for the `directories` stage. Required whenever `directories` is selected. |
 

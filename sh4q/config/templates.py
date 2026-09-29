@@ -34,6 +34,7 @@ TEMPLATE_OWNED_OPTIONS = (
     ("--js-bundles", "js_bundles"),
     ("--katana", "katana"),
     ("--vhosts", "vhosts"),
+    ("--hosts-file", "hosts_file"),
     ("--vhosts-file", "vhosts_file"),
     ("--vhosts-from-scan", "vhosts_from_scan"),
     ("--directories", "directories"),
@@ -51,6 +52,7 @@ class ScanTemplate:
     name: str
     config: Path | None
     stages: tuple[str, ...]
+    hosts_file: str | None = None
     vhosts_file: str | None = None
     directories_file: str | None = None
 
@@ -90,6 +92,7 @@ def load_template(path: str | Path) -> ScanTemplate:
         config_path = (template_path.parent / config).resolve()
         if not config_path.is_file():
             raise ValueError(f"scan template config not found: {config_path}")
+    hosts_file = _optional_path_field(raw, "hosts_file", template_path)
     vhosts_file = _optional_path_field(raw, "vhosts_file", template_path)
     directories_file = _optional_path_field(raw, "directories_file", template_path)
     if vhosts_file and "vhosts" not in stages:
@@ -107,6 +110,7 @@ def load_template(path: str | Path) -> ScanTemplate:
         name=name.strip(),
         config=config_path,
         stages=tuple(stages),
+        hosts_file=hosts_file,
         vhosts_file=vhosts_file,
         directories_file=directories_file,
     )
