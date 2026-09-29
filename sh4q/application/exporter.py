@@ -170,7 +170,10 @@ def export_scan(
     if asset_type == "http-inventory":
         assets = inventory_assets or []
     elif asset_type == "technology":
-        observations = list_technology_observations(database, scan_id=run.id, limit=1000)
+        # No cap: an export is the record handed to someone else, and a
+        # silently shortened one is worse than none. Terminal listings cap
+        # because they are read on screen; this is not.
+        observations = list_technology_observations(database, scan_id=run.id, limit=None)
         assets = [
             {
                 "type": "technology",

@@ -139,7 +139,7 @@ def list_technology_observations(
             signal=attributes.get("raw_observation", ""),
             source=attributes.get("source", ""),
         ))
-        if limit is not None and len(observations) >= max(1, min(limit, 1000)):
+        if limit is not None and len(observations) >= max(1, limit):
             break
     return observations
 
