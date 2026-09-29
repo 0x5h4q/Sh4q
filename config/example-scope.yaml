@@ -44,6 +44,13 @@ timeout:
 output:
   directory: "./sh4q-output"
 
+# How much of what the scan finds it goes on to check. These, not the request
+# budget, usually decide coverage: resolving names is cheap, probing them is
+# what the budget pays for.
+enrichment:
+  max_names_resolved: 500
+  max_hosts_probed: 200
+
 adapters:
   httpx:
     max_endpoints: 200

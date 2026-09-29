@@ -19,6 +19,7 @@ OFFLINE_TESTS = (
     "test_cleanup_failure.py",
     "test_cli_sub_flag.py",
     "test_config_schema_version.py",
+    "test_enrichment_bounds.py",
     "test_scan_template.py",
     "test_cli_formatting.py",
     "test_cli_presentation.py",
