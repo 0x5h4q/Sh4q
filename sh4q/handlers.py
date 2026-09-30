@@ -441,6 +441,17 @@ def make_discovery_handler(
             "error",
         ))
 
+    async def _directory_truncated(kind, data, source_plugin, scan_target, event_scan_run_id, event) -> None:
+        not_swept = data.get("not_swept", 0)
+        if stats is not None:
+            stats["directory_not_swept"] = not_swept
+        print(status_line(
+            f"INCOMPLETE directory-discovery swept {data.get('swept', 0)} of "
+            f"{data.get('total', 0)} candidate(s) before its deadline; "
+            f"{not_swept} were not probed",
+            "error",
+        ))
+
     async def _vhost_partial(kind, data, source_plugin, scan_target, event_scan_run_id, event) -> None:
         display_bounded("vhost notices", status_line(f"vhost stage retained {data.get('captured', 0)} partial observations", "info"), limit=1)
 
@@ -609,6 +620,7 @@ def make_discovery_handler(
         "directory_rejected": _directory_rejected,
         "directory_budget_denied": _directory_budget_denied,
         "directory_baseline": _directory_baseline,
+        "directory_truncated": _directory_truncated,
         "subdomain_found": _subdomain_found,
         "ct_provider_status": _ct_provider_status,
         "adapter_execution": _adapter_execution,
