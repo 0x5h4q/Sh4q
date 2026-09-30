@@ -15,11 +15,15 @@ from .interface import Plugin, PluginMetadata
 class JavaScriptBundlePlugin(Plugin):
     """Fetch a bounded set of discovered script bundles for passive parsing."""
 
+    #: The floor the stage published before its deadline scaled. Kept as a
+    #: floor so a one-bundle stage is not made quicker to fail than it was.
+    MINIMUM_TIMEOUT = 45.0
+
     metadata = PluginMetadata(
         name="javascript-bundles",
         dependencies=["javascript-extraction"],
         risk_level="active-low",
-        timeout=45.0,
+        timeout=MINIMUM_TIMEOUT,
     )
 
     def __init__(
@@ -28,11 +32,30 @@ class JavaScriptBundlePlugin(Plugin):
         bundle_fetcher: Callable[[str], Awaitable[str | None]],
         limits: JavaScriptExtractionLimits | None = None,
         max_bundles: int = 10,
+        limiter=None,
+        per_request_timeout: float = 10.0,
     ):
         self._observations_provider = observations_provider
         self._bundle_fetcher = bundle_fetcher
         self._limits = limits or JavaScriptExtractionLimits()
         self._max_bundles = max(1, max_bundles)
+
+        # A whole-stage deadline has to scale with the work the stage was
+        # asked to do. The class attribute was a flat 45s while the work is
+        # `max_bundles` rate-limited fetches, each able to spend the full
+        # per-request timeout: on a real scan the stage hit the deadline and
+        # was retried, which spends the request budget twice over for the
+        # same reason it failed the first time.
+        rate = getattr(limiter, "requests_per_second", None) or 2.0
+        per_fetch = 1.0 / max(rate, 0.1) + max(0.1, per_request_timeout)
+        self.metadata = PluginMetadata(
+            name=type(self).metadata.name,
+            dependencies=list(type(self).metadata.dependencies),
+            risk_level=type(self).metadata.risk_level,
+            timeout=max(
+                self.MINIMUM_TIMEOUT, self._max_bundles * per_fetch * 1.2 + 15.0
+            ),
+        )
 
     async def execute(self, target: str) -> list[Discovery]:
         script_urls: list[str] = []

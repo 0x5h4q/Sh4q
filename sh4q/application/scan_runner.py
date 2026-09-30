@@ -374,6 +374,11 @@ async def run_scan(
                         http_observations,
                         fetch_bundle,
                         limits=JavaScriptExtractionLimits(),
+                        # The stage deadline is derived from these, so it has
+                        # to see the same rate and per-request timeout the
+                        # fetches will actually run under.
+                        limiter=limiter,
+                        per_request_timeout=config.timeout.http_seconds,
                     )
                 )
         if include_httpx:

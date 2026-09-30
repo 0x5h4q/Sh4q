@@ -90,62 +90,85 @@ class DirectoryDiscoveryPlugin(Plugin):
         loaded = load_candidates(self._file, max_paths=self._max_paths)
         endpoint = probe_url(self._scheme, self._scope.normalize_target(target), self._port, "/")
         discoveries: list[Discovery] = [Discovery(kind="directory_rejected", data={"path": raw, "line": line, "reason": reason}) for line, raw, reason in loaded.rejected]
-        async with self._client_factory() as client:
-            remaining = self._request_budget
-            baseline = await self._probe(client, endpoint)
-            remaining -= 1
-            root_fp = baseline.data.get("fingerprint") if baseline.kind == "directory_observation" else None
-
-            # The root page is the wrong thing to compare a candidate against:
-            # every genuine 404 differs from the homepage and would be reported
-            # as a candidate. Probe a path that cannot exist to learn what this
-            # server's "not found" actually looks like.
-            probe_token = secrets.token_hex(16)
-            missing = await self._probe(client, endpoint.rstrip("/") + f"/sh4q-{probe_token}")
-            remaining -= 1
-            missing_fp = missing.data.get("fingerprint") if missing.kind == "directory_observation" else None
-            missing_status = missing.data.get("status") if missing.kind == "directory_observation" else None
-            discoveries.append(Discovery(kind="directory_baseline", data={
-                "endpoint": endpoint,
-                "fingerprint": root_fp,
-                "not_found_fingerprint": missing_fp,
-                "not_found_status": missing_status,
-            }))
-            for path in loaded.accepted:
-                if remaining <= 0:
-                    discoveries.append(Discovery(kind="directory_budget_denied", data={"path": path, "reason": "directory request budget exhausted"}))
-                    continue
-                url = endpoint.rstrip("/") + path
-                parsed = urlsplit(url)
-                port = parsed.port or (443 if parsed.scheme == "https" else 80)
-                if not parsed.hostname or not self._scope.authorize(parsed.hostname, port).allowed:
-                    discoveries.append(Discovery(kind="directory_rejected", data={"path": path, "reason": "out of scope"}))
-                    continue
-                result = await self._probe(client, url)
+        swept = 0
+        try:
+            async with self._client_factory() as client:
+                remaining = self._request_budget
+                baseline = await self._probe(client, endpoint)
                 remaining -= 1
-                if result.kind == "directory_observation":
-                    result.data["path"] = path
-                    fingerprint = result.data.get("fingerprint")
-                    status = result.data.get("status")
-                    # A response is uninteresting when it is byte-identical to
-                    # the server's not-found response, when it repeats the root
-                    # page (a soft 404), or when it carries the same error
-                    # status as the not-found probe.
-                    known_missing = (
-                        (missing_fp is not None and fingerprint == missing_fp)
-                        or (root_fp is not None and fingerprint == root_fp)
-                        or (
-                            missing_status is not None
-                            and status == missing_status
-                            and isinstance(status, int)
-                            and status >= 400
+                root_fp = baseline.data.get("fingerprint") if baseline.kind == "directory_observation" else None
+
+                # The root page is the wrong thing to compare a candidate against:
+                # every genuine 404 differs from the homepage and would be reported
+                # as a candidate. Probe a path that cannot exist to learn what this
+                # server's "not found" actually looks like.
+                probe_token = secrets.token_hex(16)
+                missing = await self._probe(client, endpoint.rstrip("/") + f"/sh4q-{probe_token}")
+                remaining -= 1
+                missing_fp = missing.data.get("fingerprint") if missing.kind == "directory_observation" else None
+                missing_status = missing.data.get("status") if missing.kind == "directory_observation" else None
+                discoveries.append(Discovery(kind="directory_baseline", data={
+                    "endpoint": endpoint,
+                    "fingerprint": root_fp,
+                    "not_found_fingerprint": missing_fp,
+                    "not_found_status": missing_status,
+                }))
+                for index, path in enumerate(loaded.accepted):
+                    # Every earlier candidate was fully handled, whatever its outcome.
+                    swept = index
+                    if remaining <= 0:
+                        discoveries.append(Discovery(kind="directory_budget_denied", data={"path": path, "reason": "directory request budget exhausted"}))
+                        continue
+                    url = endpoint.rstrip("/") + path
+                    parsed = urlsplit(url)
+                    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+                    if not parsed.hostname or not self._scope.authorize(parsed.hostname, port).allowed:
+                        discoveries.append(Discovery(kind="directory_rejected", data={"path": path, "reason": "out of scope"}))
+                        continue
+                    result = await self._probe(client, url)
+                    remaining -= 1
+                    if result.kind == "directory_observation":
+                        result.data["path"] = path
+                        fingerprint = result.data.get("fingerprint")
+                        status = result.data.get("status")
+                        # A response is uninteresting when it is byte-identical to
+                        # the server's not-found response, when it repeats the root
+                        # page (a soft 404), or when it carries the same error
+                        # status as the not-found probe.
+                        known_missing = (
+                            (missing_fp is not None and fingerprint == missing_fp)
+                            or (root_fp is not None and fingerprint == root_fp)
+                            or (
+                                missing_status is not None
+                                and status == missing_status
+                                and isinstance(status, int)
+                                and status >= 400
+                            )
                         )
-                    )
-                    result.data["classification"] = (
-                        "not_found_match" if known_missing else "candidate_observation"
-                    )
-                discoveries.append(result)
-                await asyncio.sleep(1.0)
+                        result.data["classification"] = (
+                            "not_found_match" if known_missing else "candidate_observation"
+                        )
+                    discoveries.append(result)
+                    await asyncio.sleep(1.0)
+                swept = len(loaded.accepted)
+        except asyncio.CancelledError:
+            # The 900s deadline is terminal (retry_on_timeout=False), so
+            # letting the cancellation through discarded every observation
+            # already made -- each one a request actually sent to the
+            # target. The cost was paid; throwing the result away only
+            # hides that it was.
+            #
+            # The truncation record is not optional: a suppressed
+            # cancellation never reaches asyncio.wait_for, so without it
+            # the scheduler reports a clean completion over a partial sweep.
+            total = len(loaded.accepted)
+            discoveries.append(Discovery(kind="directory_truncated", data={
+                "endpoint": endpoint,
+                "total": total,
+                "swept": swept,
+                "not_swept": total - swept,
+                "reason": "stage deadline reached before the sweep finished",
+            }))
         return discoveries
 
     async def _probe(self, client, url: str) -> Discovery:
