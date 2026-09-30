@@ -44,11 +44,32 @@ def finish_scan(database: str, scan_id: str, status: str) -> None:
         db.commit()
 
 
-def list_scans(database: str, limit: int = 50) -> list[ScanRun]:
+_SCAN_RUNS_TABLE = (
+    "CREATE TABLE IF NOT EXISTS scan_runs (id TEXT PRIMARY KEY, target TEXT NOT NULL, "
+    "started_at TEXT NOT NULL, completed_at TEXT, status TEXT NOT NULL)"
+)
+
+
+def list_scans(database: str, limit: int | None = 50) -> list[ScanRun]:
+    """Recorded scan runs, newest first. `limit=None` returns every one.
+
+    A requested limit is honoured as asked; this clamped to 500 silently.
+    """
     with open_sync_database(database) as db:
-        db.execute("CREATE TABLE IF NOT EXISTS scan_runs (id TEXT PRIMARY KEY, target TEXT NOT NULL, started_at TEXT NOT NULL, completed_at TEXT, status TEXT NOT NULL)")
-        rows = db.execute("SELECT id, target, started_at, completed_at, status FROM scan_runs ORDER BY started_at DESC LIMIT ?", (max(1, min(limit, 500)),)).fetchall()
+        db.execute(_SCAN_RUNS_TABLE)
+        query = "SELECT id, target, started_at, completed_at, status FROM scan_runs ORDER BY started_at DESC"
+        if limit is None:
+            rows = db.execute(query).fetchall()
+        else:
+            rows = db.execute(query + " LIMIT ?", (max(1, limit),)).fetchall()
     return [ScanRun(*row) for row in rows]
+
+
+def count_scans(database: str) -> int:
+    """How many scan runs are recorded, whatever a listing chose to show."""
+    with open_sync_database(database) as db:
+        db.execute(_SCAN_RUNS_TABLE)
+        return int(db.execute("SELECT COUNT(*) FROM scan_runs").fetchone()[0])
 
 
 def latest_scan(
