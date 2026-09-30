@@ -96,6 +96,7 @@ OFFLINE_TESTS = (
     "test_export_redaction.py",
     "test_url_history_scheduler_integration.py",
     "test_scheduler_progress.py",
+    "test_stage_outcome_line.py",
     "test_subfinder_scheduler_integration.py",
     "test_trusted_service_http.py",
     "test_unique_scan_reporting.py",

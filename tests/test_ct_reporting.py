@@ -65,7 +65,9 @@ async def main() -> None:
     retrying = CTPlugin(connectors=[successful, flaky])
     first = await retrying.execute("example.com")
     assert any(item.data.get("retryable") is True for item in first)
-    second = await retrying.execute("example.com")
+    retry_output = io.StringIO()
+    with contextlib.redirect_stdout(retry_output):
+        second = await retrying.execute("example.com")
     assert successful.calls == 1
     assert flaky.calls == 2
     assert sum(item.kind == "subdomain_found" for item in second) == 3
@@ -74,6 +76,22 @@ async def main() -> None:
         and item.data["source"] == "certspotter"
         and item.data["preserved"] is True
         for item in second
+    )
+
+    # The durable discovery recorded `preserved: True` above, and this file
+    # asserted that -- but never the printed table, so a `continue` dropped the
+    # preserved provider from terminal output and nothing failed. On a real
+    # target crt.sh timed out three times while certspotter's 184 names sat
+    # preserved and unmentioned, and attempts 2 and 3 printed only
+    # "crt.sh degraded 0 names retained", reading as total collapse.
+    retried = retry_output.getvalue()
+    assert "certspotter" in retried, (
+        f"a provider whose result was carried over must still be listed: {retried!r}"
+    )
+    assert "certspotter    success      2 names (preserved)" in retried, retried
+    assert "flaky          success      1 names" in retried, retried
+    assert "(preserved)" not in retried.split("flaky")[1].splitlines()[0], (
+        "a provider that was re-fetched this attempt is not preserved"
     )
 
     class LimitedConnector(CTConnector):
@@ -96,9 +114,15 @@ async def main() -> None:
     limited_output = io.StringIO()
     with contextlib.redirect_stdout(limited_output):
         limited_first = await limited_plugin.execute("example.com")
-    await limited_plugin.execute("example.com")
+    limited_retry = io.StringIO()
+    with contextlib.redirect_stdout(limited_retry):
+        await limited_plugin.execute("example.com")
     assert limited.calls == 1
     assert "rate-limited 1 names retained" in limited_output.getvalue()
+    # A rate-limited provider is terminal: it is not re-queried, and it must
+    # still appear on the next attempt rather than vanishing from the table.
+    assert "rate-limited 1 names retained" in limited_retry.getvalue(), limited_retry.getvalue()
+    assert "(preserved)" in limited_retry.getvalue(), limited_retry.getvalue()
     limited_status = next(item for item in limited_first if item.kind == "ct_provider_status")
     assert limited_status.data["status"] == "partial_rate_limited"
     assert limited_status.data["names"] == 1

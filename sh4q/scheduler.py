@@ -9,6 +9,15 @@ from sh4q.scope import ScopeEngine
 from sh4q.cli.branding import status_line
 
 
+# How a non-clean stage outcome is named in terminal output. The status
+# strings themselves are the durable record and are not renamed here.
+_STAGE_LABELS = {
+    "retry_exhausted": "INCOMPLETE",
+    "timeout_exhausted": "INCOMPLETE",
+    "error": "FAILED",
+}
+
+
 class Scheduler:
     def __init__(
         self,
@@ -370,7 +379,20 @@ class Scheduler:
             self.stage_durations[plugin.metadata.name] = round(
                 time.monotonic() - stage_started, 3
             )
-            print("\n" + status_line(f"STAGE COMPLETE {plugin.metadata.name}", "ok"))
+            # The recorded outcome is already to hand -- the progress event
+            # below reads it. Printing "STAGE COMPLETE" unconditionally put
+            # that line directly beneath "RETRY EXHAUSTED", which reads as a
+            # contradiction rather than as a stage that kept partial results.
+            outcome = self.stage_outcomes.get(plugin.metadata.name, {})
+            status = outcome.get("status", "completed")
+            if status == "completed":
+                print("\n" + status_line(f"STAGE COMPLETE {plugin.metadata.name}", "ok"))
+            else:
+                print("\n" + status_line(
+                    f"STAGE {_STAGE_LABELS.get(status, status.upper())} "
+                    f"{plugin.metadata.name}: kept {len(discoveries)} result(s)",
+                    "muted",
+                ))
             self._progress("stage_complete", stage=plugin.metadata.name, target=target, status=self.stage_outcomes.get(plugin.metadata.name, {}).get("status"), attempts=self.stage_outcomes.get(plugin.metadata.name, {}).get("attempts", 0), discoveries=len(discoveries))
 
         return decision
