@@ -13,7 +13,7 @@ from pathlib import Path
 from sh4q.application import run_scan
 from sh4q.adapters import AdapterExecutionError
 from sh4q.events.event_log import DurableEventLog
-from sh4q.storage.scan_runs import get_scan, latest_scan, list_scans, scan_asset_count
+from sh4q.storage.scan_runs import count_scans, get_scan, latest_scan, list_scans, scan_asset_count
 from sh4q.application.results import friendly_technology_source, list_assets, list_response_attributes, summarize_names, list_failures, list_javascript_observations, list_technology_observations, summarize_technology_observations
 from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
 from sh4q.application.scan_report import build_scan_report
@@ -460,6 +460,38 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def event_coverage(rows, total: int) -> str:
+    """How many log events the shown summary groups account for.
+
+    Two different denominators meet in this view and must not be mixed up. The
+    COUNT inside each shown group is complete, so a group limit hides whole
+    groups -- and every event they held. Printing "those groups cover 7179
+    event(s)" beneath "Showing 5 of 18 event group(s)" was simply false: it
+    reported the size of the whole log.
+    """
+    covered = sum(row.count for row in rows)
+    if covered >= total:
+        return f"Those groups cover all {total} event(s) in the log."
+    return f"Those groups cover {covered} of {total} event(s) in the log."
+
+
+async def _event_records(event_log, args) -> tuple[list, int]:
+    """Records for the requested page, and how many match in total."""
+    return (
+        await event_log.list_records(status=args.status, target=args.target, limit=args.limit),
+        await event_log.count_records(status=args.status, target=args.target),
+    )
+
+
+async def _event_summary(event_log, args) -> tuple[list, int, int]:
+    """Summary rows for the requested page, plus group and event totals."""
+    return (
+        await event_log.summarize(status=args.status, target=args.target, limit=args.limit),
+        await event_log.count_groups(status=args.status, target=args.target),
+        await event_log.count_records(status=args.status, target=args.target),
+    )
+
+
 def showing(shown: int, total: int, noun: str, hint: str = "Use --limit to increase the view.") -> str:
     """State how much of the matching set a view is displaying.
 
@@ -778,17 +810,20 @@ def main() -> None:
         print("  SH4Q EVENT LOG")
         print("  ===============")
         if args.details:
-            records = asyncio.run(event_log.list_records(status=args.status, target=args.target, limit=args.limit))
+            records, total = asyncio.run(_event_records(event_log, args))
             if not records:
                 print("  No matching events.")
             else:
                 render_event_results(records)
+                print(showing(len(records), total, "durable record(s)"))
         else:
-            rows = asyncio.run(event_log.summarize(status=args.status, target=args.target, limit=args.limit))
+            rows, groups, events = asyncio.run(_event_summary(event_log, args))
             if not rows:
                 print("  No matching events.")
             else:
                 render_event_summary(rows)
+                print(showing(len(rows), groups, "event group(s)"))
+                print(note(f"  {event_coverage(rows, events)}"))
                 print("\n  Use --details to inspect individual durable records and event IDs.")
         print()
         return
@@ -994,7 +1029,12 @@ def main() -> None:
             parser.error(f"database not found: {database}")
         print("\n  SH4Q SCAN RUNS\n  ============== ")
         runs = list_scans(str(database), args.limit)
-        render_scan_runs([(run, scan_asset_count(str(database), run.id)) for run in runs])
+        total = count_scans(str(database))
+        if not runs:
+            print("  No scan runs are recorded in this database.")
+        else:
+            render_scan_runs([(run, scan_asset_count(str(database), run.id)) for run in runs])
+            print(showing(len(runs), total, "scan run(s)"))
         print()
         return
 
