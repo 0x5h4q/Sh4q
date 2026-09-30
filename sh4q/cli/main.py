@@ -460,6 +460,21 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def showing(shown: int, total: int, noun: str, hint: str = "Use --limit to increase the view.") -> str:
+    """State how much of the matching set a view is displaying.
+
+    "Showing 100 technology observation(s)" reads as the whole answer. On a
+    real scan the real number was 194, and the 94 absent rows were
+    indistinguishable from rows that did not exist. Every count states its
+    denominator.
+    """
+    if total == 0:
+        return f"\n  Nothing matched this query: 0 {noun}."
+    if shown >= total:
+        return f"\n  Showing all {total} {noun}."
+    return f"\n  Showing {shown} of {total} {noun}. {hint}"
+
+
 def next_steps(summary, *, resolved_stage_ran: bool) -> list[str]:
     """Commands worth running against what this scan actually found.
 
@@ -898,13 +913,14 @@ def main() -> None:
                 scan_id = latest.id
                 print(f"  Scan     {latest.id} ({latest.target})")
             rows = list_failures(
-                str(database), target=args.target, scan_id=scan_id, limit=args.limit
+                str(database), target=args.target, scan_id=scan_id, limit=None
             )
             if not rows:
                 print("  No recorded failures.")
             else:
-                render_failure_results(rows)
-                print(f"\n  Showing {len(rows)} failure record(s). Use --limit to increase the view.")
+                shown = rows[: max(1, args.limit)]
+                render_failure_results(shown)
+                print(showing(len(shown), len(rows), "failure record(s)"))
         else:
             scan_id = args.scan
             if args.latest:
@@ -918,29 +934,45 @@ def main() -> None:
                 rows = list_technology_observations(
                     str(database), target=args.target, scan_id=scan_id,
                     source=args.source, category=args.category, status=args.status,
-                    limit=args.limit if args.details else None,
+                    limit=None,
                 )
                 if args.details:
-                    render_technology_results(rows)
-                    print(f"\n  Showing {len(rows)} technology observation(s). Use --limit to increase the view.")
+                    shown = rows[: max(1, args.limit)]
+                    render_technology_results(shown)
+                    print(showing(len(shown), len(rows), "technology observation(s)"))
                 else:
-                    summaries = summarize_technology_observations(rows)[: max(1, min(args.limit, 1000))]
-                    render_technology_summary(summaries)
-                    print(f"\n  Showing {len(summaries)} technology group(s). Use --details for endpoints.")
+                    groups = summarize_technology_observations(rows)
+                    shown_groups = groups[: max(1, args.limit)]
+                    render_technology_summary(shown_groups)
+                    print(showing(
+                        len(shown_groups), len(groups), "technology group(s)",
+                        "Use --limit to increase the view, or --details for endpoints.",
+                    ))
             elif args.type == "javascript":
                 rows = list_javascript_observations(
                     str(database), scan_id=scan_id, kind=args.js_kind,
-                    source_filter=args.source_endpoint, limit=args.limit,
+                    source_filter=args.source_endpoint, limit=None,
                 )
-                render_javascript_results(rows)
-                print(f"\n  Showing {len(rows)} JavaScript observation(s). Use --limit to increase the view.")
+                shown = rows[: max(1, args.limit)]
+                render_javascript_results(shown)
+                print(showing(len(shown), len(rows), "JavaScript observation(s)"))
+                if not rows:
+                    # An empty table is indistinguishable from a stage that ran
+                    # and found nothing, which is the more reassuring reading
+                    # and usually the wrong one.
+                    print(note(
+                        "  No JavaScript observations are recorded for this scan. "
+                        "The extraction\n  stage runs under --js, --profile web, "
+                        "or --profile full."
+                    ))
             else:
                 rows = list_assets(
                     str(database), asset_type=args.type, target=args.target,
-                    scan_id=scan_id, source=args.source, limit=args.limit
+                    scan_id=scan_id, source=args.source, limit=None
                 )
-                render_asset_results(rows)
-                print(f"\n  Showing {len(rows)} asset(s). Use --limit to increase the view.")
+                shown = rows[: max(1, args.limit)]
+                render_asset_results(shown)
+                print(showing(len(shown), len(rows), "asset(s)"))
         print()
         return
 
