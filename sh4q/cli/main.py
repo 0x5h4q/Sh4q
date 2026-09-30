@@ -460,11 +460,23 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def next_steps(summary, *, resolved_stage_ran: bool) -> list[str]:
+def next_steps(
+    summary,
+    *,
+    resolved_stage_ran: bool,
+    scope_flags: str = "",
+    template: str | None = None,
+) -> list[str]:
     """Commands worth running against what this scan actually found.
 
     Suggested at the moment the data lands, because an operator who has to
     read `--help` to discover a view will usually not read it.
+
+    A suggested command has to be runnable as printed. `scope_flags` carries
+    the scope selector this run used: without it, a scan configured by
+    `--config` was told to re-run without one, which silently falls back to a
+    target-only scope on ports 80/443 and -- for a private-address lab --
+    refuses every address it just resolved.
     """
     target = summary.target
     # The default database needs no flag, and repeating a long path in every
@@ -476,10 +488,18 @@ def next_steps(summary, *, resolved_stage_ran: bool) -> list[str]:
 
     names = summary.ct_names + summary.adapter_names
     if names and not resolved_stage_ran:
-        steps.append(
-            f"{names} hostname(s) were found but not checked. Resolve and probe them:\n"
-            f"    sh4q scan {target} --resolve"
-        )
+        if template is not None:
+            # A template owns stage selection, so `--template X --resolve` is
+            # refused by design. The change belongs in the template.
+            steps.append(
+                f"{names} hostname(s) were found but not checked. Add \"resolve\" to the\n"
+                f"  stages list in {template}, then run the same command again."
+            )
+        else:
+            steps.append(
+                f"{names} hostname(s) were found but not checked. Resolve and probe them:\n"
+                f"    sh4q scan {target} {scope_flags}--resolve"
+            )
     if names:
         steps.append(
             "See what those names are made of, and how many proved real:\n"
@@ -498,7 +518,13 @@ def next_steps(summary, *, resolved_stage_ran: bool) -> list[str]:
     return steps
 
 
-def render_summary(summary, *, resolved_stage_ran: bool = True) -> None:
+def render_summary(
+    summary,
+    *,
+    resolved_stage_ran: bool = True,
+    scope_flags: str = "",
+    template: str | None = None,
+) -> None:
     print()
     print("  SH4Q SCAN SUMMARY")
     print("  =================")
@@ -560,7 +586,10 @@ def render_summary(summary, *, resolved_stage_ran: bool = True) -> None:
     print()
     print("  Scan complete.")
     steps = [] if _terminal_is_narrow(80) else next_steps(
-        summary, resolved_stage_ran=resolved_stage_ran
+        summary,
+        resolved_stage_ran=resolved_stage_ran,
+        scope_flags=scope_flags,
+        template=template,
     )
     if steps:
         print()
@@ -594,6 +623,9 @@ def main() -> None:
 
     if args.command == "scan":
         template = None
+        # Captured before a template rewrites args.config, so a suggested
+        # follow-up echoes the scope selector the operator actually typed.
+        scope_flags = f"--config {args.config} " if args.config else ""
         if args.template:
             # A template is the single source of truth for stage selection.
             # Anything it would otherwise overwrite is rejected explicitly
@@ -696,6 +728,8 @@ def main() -> None:
                 resolved_stage_ran=bool(
                     args.resolve or web_profile or args.sub or full_profile or args.hosts_file
                 ),
+                scope_flags=scope_flags,
+                template=args.template,
             )
         sys.exit(0 if summary.scope_allowed else 1)
 
