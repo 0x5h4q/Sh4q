@@ -10,6 +10,36 @@ from .event import Event
 from sh4q.storage.db import open_database
 
 
+# The grouping the summary view aggregates by. Named once so the summary and
+# its total cannot describe different sets: a hand-written COUNT beside a
+# hand-written SELECT is two sources of truth, and they drift.
+_GROUP_EXPRESSIONS = (
+    "COALESCE(json_extract(payload, '$.scan_target'), '')",
+    "COALESCE(json_extract(payload, '$.source_plugin'), '')",
+    "COALESCE(json_extract(payload, '$.kind'), type)",
+    "status",
+)
+
+
+def _event_filter(status: str | None, target: str | None) -> tuple[str, list[object]]:
+    """The WHERE clause shared by every event-log query."""
+    conditions: list[str] = []
+    parameters: list[object] = []
+    if status:
+        conditions.append("status = ?")
+        parameters.append(status.upper())
+    if target:
+        conditions.append("json_extract(payload, '$.scan_target') = ?")
+        parameters.append(target)
+    clause = (" WHERE " + " AND ".join(conditions)) if conditions else ""
+    return clause, parameters
+
+
+def _limit_clause(limit: int | None) -> str:
+    """`None` means every matching row, which is what a count needs."""
+    return "" if limit is None else " LIMIT ?"
+
+
 @dataclass(frozen=True)
 class EventLogRecord:
     id: str
@@ -124,19 +154,13 @@ class DurableEventLog:
         *,
         status: str | None = None,
         target: str | None = None,
-        limit: int = 50,
+        limit: int | None = 50,
     ) -> list[EventLogRecord]:
-        query = "SELECT * FROM event_log"
-        parameters: list[object] = []
-        if status:
-            query += " WHERE status = ?"
-            parameters.append(status.upper())
-        if target:
-            query += " AND " if " WHERE " in query else " WHERE "
-            query += "json_extract(payload, '$.scan_target') = ?"
-            parameters.append(target)
-        query += " ORDER BY updated_at DESC LIMIT ?"
-        parameters.append(max(1, min(limit, 500)))
+        clause, parameters = _event_filter(status, target)
+        query = f"SELECT * FROM event_log{clause} ORDER BY updated_at DESC"
+        query += _limit_clause(limit)
+        if limit is not None:
+            parameters.append(max(1, limit))
         async with open_database(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             rows = await (await db.execute(query, parameters)).fetchall()
@@ -163,31 +187,57 @@ class DurableEventLog:
         *,
         status: str | None = None,
         target: str | None = None,
-        limit: int = 50,
+        limit: int | None = 50,
     ) -> list[EventLogSummary]:
-        conditions = []
-        parameters: list[object] = []
-        if status:
-            conditions.append("status = ?")
-            parameters.append(status.upper())
-        if target:
-            conditions.append("json_extract(payload, '$.scan_target') = ?")
-            parameters.append(target)
-        query = """SELECT
-            COALESCE(json_extract(payload, '$.scan_target'), '') AS target,
-            COALESCE(json_extract(payload, '$.source_plugin'), '') AS source_plugin,
-            COALESCE(json_extract(payload, '$.kind'), type) AS discovery_kind,
+        clause, parameters = _event_filter(status, target)
+        target_expression, plugin_expression, kind_expression, _ = _GROUP_EXPRESSIONS
+        query = f"""SELECT
+            {target_expression} AS target,
+            {plugin_expression} AS source_plugin,
+            {kind_expression} AS discovery_kind,
             status, COUNT(*) AS event_count,
             SUM(CASE WHEN attempts > 0 THEN 1 ELSE 0 END) AS retried,
             MAX(updated_at) AS last_updated
-            FROM event_log"""
-        if conditions:
-            query += " WHERE " + " AND ".join(conditions)
-        query += " GROUP BY target, source_plugin, discovery_kind, status ORDER BY last_updated DESC LIMIT ?"
-        parameters.append(max(1, min(limit, 500)))
+            FROM event_log{clause}
+            GROUP BY target, source_plugin, discovery_kind, status
+            ORDER BY last_updated DESC"""
+        query += _limit_clause(limit)
+        if limit is not None:
+            parameters.append(max(1, limit))
         async with open_database(self._db_path) as db:
             rows = await (await db.execute(query, parameters)).fetchall()
         return [EventLogSummary(*row) for row in rows]
+
+    async def count_records(
+        self, *, status: str | None = None, target: str | None = None
+    ) -> int:
+        """How many durable records match, whatever a listing chose to show.
+
+        `events --details --limit 10` printed ten rows out of 7179 for one real
+        database and said nothing about the other 7169.
+        """
+        clause, parameters = _event_filter(status, target)
+        async with open_database(self._db_path) as db:
+            row = await (
+                await db.execute(f"SELECT COUNT(*) FROM event_log{clause}", parameters)
+            ).fetchone()
+        return int(row[0])
+
+    async def count_groups(
+        self, *, status: str | None = None, target: str | None = None
+    ) -> int:
+        """How many summary rows match, built from the same grouping."""
+        clause, parameters = _event_filter(status, target)
+        grouping = ", ".join(_GROUP_EXPRESSIONS)
+        async with open_database(self._db_path) as db:
+            row = await (
+                await db.execute(
+                    f"SELECT COUNT(*) FROM (SELECT 1 FROM event_log{clause} "
+                    f"GROUP BY {grouping})",
+                    parameters,
+                )
+            ).fetchone()
+        return int(row[0])
 
 
 def _iso_now() -> str:
