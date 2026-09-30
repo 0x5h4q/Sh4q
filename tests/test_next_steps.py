@@ -76,6 +76,51 @@ for line in custom.splitlines():
     if stripped.startswith("sh4q "):
         assert "--latest" in stripped and "--target example.com" in stripped, stripped
 
+# The scope selector the run used must survive into a suggested re-scan.
+# Without it, following the advice after a `--config` run silently falls back
+# to a target-only scope on ports 80/443; against the localhost lab scope it
+# refused every address it had just resolved, because
+# `allow_private_addresses` is off by default. The operator had done nothing
+# wrong -- the tool told them to do the wrong thing.
+scoped = joined(next_steps(
+    summary(ct_names=16, discoveries=18, database_path="./local/lab/out/sh4q.db"),
+    resolved_stage_ran=False,
+    scope_flags="--config local/lab/scope.yaml ",
+))
+assert "sh4q scan example.com --config local/lab/scope.yaml --resolve" in scoped, scoped
+
+# No config was passed, so none may be invented.
+unscoped = joined(next_steps(summary(ct_names=16, discoveries=18), resolved_stage_ran=False))
+assert "sh4q scan example.com --resolve" in unscoped, unscoped
+assert "--config" not in unscoped, unscoped
+
+# A template owns stage selection, so the parser refuses `--template X
+# --resolve`. Suggesting it would print a command that cannot run.
+templated = joined(next_steps(
+    summary(ct_names=16, discoveries=18),
+    resolved_stage_ran=False,
+    scope_flags="--config resolved.yaml ",
+    template="local/lab/template.yaml",
+))
+assert "local/lab/template.yaml" in templated, templated
+assert "--resolve" not in templated, (
+    f"a template run must not be told to pass --resolve: {templated}"
+)
+
+# The scope selector must not leak into the read-only views: they read the
+# database, and `sh4q results --config ...` is not a valid command.
+views = next_steps(
+    summary(ct_names=16, http_endpoints=2, discoveries=18,
+            database_path="./local/lab/out/sh4q.db"),
+    resolved_stage_ran=True,
+    scope_flags="--config local/lab/scope.yaml ",
+)
+assert views, "a scan with names and endpoints must suggest something"
+for step in views:
+    assert "--config" not in step, f"a read-only view needs no scope: {step}"
+    assert "--database ./local/lab/out/sh4q.db" in step, step
+
+
 print("next steps test passed")
 
 
