@@ -85,27 +85,30 @@ class CTPlugin(Plugin):
             if error is not None:
                 errors.append((source_name, error))
 
+        # Every provider is listed on every attempt, including the ones whose
+        # result was carried over rather than re-fetched. Skipping those made a
+        # retry read as total collapse: on a real target crt.sh timed out three
+        # times while certspotter's 184 names sat preserved and unmentioned, so
+        # attempts 2 and 3 printed only "crt.sh degraded  0 names retained".
         print("CT providers:")
         for source_name, hostnames, error, cached in results:
-            if cached:
-                continue
+            suffix = " (preserved)" if cached else ""
             if error is None:
-                suffix = " (preserved)" if cached else ""
                 print(f"  {source_name:<14} success      {len(hostnames)} names{suffix}")
             elif error.rate_limited:
                 print(
                     f"  {source_name:<14} rate-limited "
-                    f"{len(hostnames)} names retained; {str(error)}"
+                    f"{len(hostnames)} names retained; {str(error)}{suffix}"
                 )
             elif hostnames:
                 print(
                     f"  {source_name:<14} partial      "
-                    f"{len(hostnames)} names; {str(error)}"
+                    f"{len(hostnames)} names; {str(error)}{suffix}"
                 )
             else:
                 print(
                     f"  {source_name:<14} degraded     "
-                    f"0 names retained; {str(error)}"
+                    f"0 names retained; {str(error)}{suffix}"
                 )
 
         discoveries: list[Discovery] = []
