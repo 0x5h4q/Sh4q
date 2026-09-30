@@ -49,6 +49,26 @@ SOURCE_ALIASES = {
 }
 
 
+# `limit=None` means "every matching row", which is what a count needs: deriving
+# a total from a second, hand-written COUNT query would give each view two
+# sources of truth, and they drift.
+#
+# A requested limit is honoured as asked. These functions used to clamp it to
+# 1000 silently, so `list_assets(limit=5000)` returned 1000 rows and reported
+# nothing unusual -- which is how `results --names` came to tell an operator
+# "1000 hostname(s)" when the scan had recorded 1209.
+
+
+def _row_cap(limit: int | None) -> int:
+    """SQL LIMIT for a requested row count. SQLite reads -1 as no limit."""
+    return -1 if limit is None else max(1, limit)
+
+
+def _capped(rows: list, limit: int | None) -> list:
+    """Apply a requested row count to rows already filtered in Python."""
+    return rows if limit is None else rows[: max(1, limit)]
+
+
 def friendly_technology_source(source: str) -> str:
     return {
         "offline-http-signatures": "native",
@@ -62,7 +82,7 @@ def list_javascript_observations(
     scan_id: str | None = None,
     kind: str | None = None,
     source_filter: str | None = None,
-    limit: int = 100,
+    limit: int | None = 100,
 ) -> list[JavaScriptObservation]:
     query = "SELECT kind, content, captured_at FROM evidence WHERE kind LIKE 'javascript_%'"
     params: list[object] = []
@@ -73,7 +93,7 @@ def list_javascript_observations(
         query += " AND kind = ?"
         params.append(f"javascript_{kind}")
     query += " ORDER BY captured_at, kind LIMIT ?"
-    params.append(max(1, min(limit, 1000)))
+    params.append(_row_cap(limit))
     with open_sync_database(database) as db:
         rows = db.execute(query, params).fetchall()
     observations = []
@@ -89,7 +109,7 @@ def list_javascript_observations(
             continue
         seen.add(key)
         observations.append(JavaScriptObservation(kind, value, source_endpoint, captured_at))
-    return observations
+    return _capped(observations, limit)
 
 
 def list_technology_observations(
@@ -163,7 +183,7 @@ def list_assets(
     target: str | None = None,
     scan_id: str | None = None,
     source: str | None = None,
-    limit: int = 100,
+    limit: int | None = 100,
 ) -> list[ResultRow]:
     query = "SELECT DISTINCT n.type, n.value, n.attributes FROM nodes n"
     params: list[object] = []
@@ -183,7 +203,7 @@ def list_assets(
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
     query += " ORDER BY type, value LIMIT ?"
-    params.append(max(1, min(limit, 1000)))
+    params.append(_row_cap(limit))
     with open_sync_database(database) as db:
         if scan_id:
             source_clause = ""
@@ -197,7 +217,7 @@ def list_assets(
                 WHERE sa.scan_run_id = ? AND (? IS NULL OR n.type = ?)
                 """ + source_clause + """
                 ORDER BY n.type, n.value LIMIT ?""",
-                (scan_id, asset_type, asset_type, *source_params, max(1, min(limit, 1000))),
+                (scan_id, asset_type, asset_type, *source_params, _row_cap(limit)),
             ).fetchall()
             return [ResultRow(row[0], row[1], json.loads(row[2])) for row in scan_rows]
         if normalized and asset_type == "url":
@@ -207,7 +227,9 @@ def list_assets(
                 "SELECT type, value, attributes FROM nodes WHERE type = 'url' ORDER BY value"
             ).fetchall()
             assets = [ResultRow(row[0], row[1], json.loads(row[2])) for row in url_rows]
-            return [asset for asset in assets if _matches_target(asset, normalized)][: max(1, min(limit, 1000))]
+            return _capped(
+                [asset for asset in assets if _matches_target(asset, normalized)], limit
+            )
         rows = db.execute(query, params).fetchall()
         assets = [ResultRow(row[0], row[1], json.loads(row[2])) for row in rows]
         if target and asset_type == "ip":
@@ -222,7 +244,7 @@ def list_assets(
                 ORDER BY ip.value
                 LIMIT ?
                 """,
-                (normalized, f"%.{normalized}", max(1, min(limit, 1000))),
+                (normalized, f"%.{normalized}", _row_cap(limit)),
             ).fetchall()
             return [ResultRow(row[0], row[1], json.loads(row[2])) for row in ip_rows]
         if target and asset_type == "technology":
@@ -241,13 +263,13 @@ def list_assets(
                 ResultRow(row[0], row[1], json.loads(row[2]))
                 for row in technology_rows
             ]
-            return [
+            return _capped([
                 item for item in technologies
                 if any(
                     _matches_target(url, normalized)
                     for url in _technology_endpoints(db, item.value)
                 )
-            ][: max(1, min(limit, 1000))]
+            ], limit)
     return assets
 
 
@@ -278,7 +300,7 @@ def list_failures(
     *,
     target: str | None = None,
     scan_id: str | None = None,
-    limit: int = 100,
+    limit: int | None = 100,
 ) -> list[tuple[str, str, str]]:
     query = "SELECT plugin, kind, content FROM evidence WHERE (kind LIKE '%error%' OR kind IN ('adapter_execution', 'ct_provider_status'))"
     params: list[object] = []
@@ -288,7 +310,10 @@ def list_failures(
     if scan_id:
         query += " AND scan_run_id = ?"
         params.append(scan_id)
-    query += " ORDER BY captured_at DESC LIMIT 1000"
+    # No SQL row cap: rows are dropped below by kind, so capping here would
+    # cap the candidates rather than the results, and a total could never
+    # exceed 1000 however many failures a scan actually recorded.
+    query += " ORDER BY captured_at DESC"
     with open_sync_database(database) as db:
         rows = db.execute(query, params).fetchall()
     failures: list[tuple[str, str, str]] = []
@@ -303,7 +328,7 @@ def list_failures(
         if kind == "ct_provider_status" and details.get("status") == "success":
             continue
         failures.append((plugin, kind, content))
-        if len(failures) >= max(1, min(limit, 1000)):
+        if limit is not None and len(failures) >= max(1, limit):
             break
     return failures
 
