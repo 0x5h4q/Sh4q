@@ -43,6 +43,12 @@ the ones that answer is a large traffic increase, so it is opt-in:
 sh4q scan example.com --resolve
 ```
 
+If the first scan used `--config`, repeat it on the follow-up. Without it the
+second run falls back to a target-only scope on ports 80/443, which for a
+private-address lab scope refuses every address the first run resolved. The
+command printed under **Next** at the end of a scan already carries whichever
+scope selector that run used, so running it as printed is safest.
+
 A list you already hold -- from a prior scan, a client inventory, or a
 certificate dump -- can be checked the same way:
 
@@ -222,6 +228,15 @@ Raising `max_names_resolved` costs DNS lookups, which are fast and not drawn
 from the request budget. Raising `max_hosts_probed` costs HTTP requests, which
 are, and which are rate limited.
 
+**When more names are found than the bound allows, the ones checked are a
+sample, not a prefix.** Names you supplied with `--hosts-file` are taken first,
+then names more than one source agrees on, then an even spread across the sorted
+remainder. This matters when reading a result: an earlier version took the
+alphabetically first N, which on a real target spent 62% of a 500-name budget on
+hostnames beginning with `c` and never reached anything after `m`. The selection
+is deterministic — the same input always produces the same set — but absence
+from the checked set is not evidence of absence. Raise the bound instead.
+
 `requests_per_second` is the main control over how long a scan takes. The
 default of 2.0 is deliberately conservative. Raising it shortens a scan
 proportionally and increases the load placed on the target, which is the
@@ -333,9 +348,27 @@ The HTML report is self-contained and can be opened offline. The asset table
 is the verified scan-owned surface; the JavaScript, vhost, and directory
 sections contain bounded observations that still require operator review.
 Observation labels are explained under [Reading Observations](#reading-observations);
-neither label is a security finding. Redaction removes
-URL query values before sharing a report. The SQLite database and raw evidence
-may contain sensitive target data; review them before distribution.
+neither label is a security finding.
+
+`--redact` replaces the value of query parameters whose key looks like a secret
+(`token`, `api_key`, `password`, and similar) with `[REDACTED]`, and drops URL
+fragments. It covers every URL-bearing field in the export, including the
+technology and HTTP-inventory endpoint columns, the JavaScript observations, and
+the report's vhost, directory and failure rows. Anything else is left
+byte-for-byte, so a redacted export differs from the observation only where a
+secret was removed.
+
+Because that can legitimately be nowhere, the export reports what it did:
+
+```text
+  Exported 1460 asset(s) from scan be2174b5... to report.json
+  Redaction rewrote 0 of 374 URL-bearing field(s).
+```
+
+A zero there means this scan recorded no secret-like query parameters, not that
+redaction failed. Redaction changes only the exported file: the SQLite database
+and raw evidence keep the original values, may contain sensitive target data,
+and should be reviewed before distribution.
 
 ## Reading Observations
 

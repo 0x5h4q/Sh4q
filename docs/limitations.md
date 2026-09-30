@@ -7,10 +7,23 @@ This list describes the v1.3.0 boundary. It should be read before judging scan o
 - Certificate-transparency services can time out, return errors, or rate-limit requests.
 - Subfinder output varies with provider availability, configuration, cache state, and network conditions.
 - Passive names can be stale, wildcard-generated, or nonexistent.
-- Discovered-host DNS resolution is bounded to the first 500 accepted Subfinder names per scan.
-- Discovered HTTP probing is bounded to the first 200 successfully resolved names.
-- A discovered-HTTP stage timeout does not retry the entire batch; completed
-  per-host results are retained and unfinished probes are recorded as absent.
+- Discovered-host DNS resolution and HTTP probing are bounded by
+  `enrichment.max_names_resolved` (default 500) and `enrichment.max_hosts_probed`
+  (default 200). Both are configurable; see
+  [operator_reference.md](operator_reference.md#coverage) before assuming the
+  request budget is what limited a scan.
+- Names are drawn from certificate transparency and Subfinder, plus any list
+  supplied with `--hosts-file`.
+- When more names are found than the bound allows, the selection is **not** the
+  first N. Operator-supplied names come first, then names more than one source
+  agrees on, then an even spread across the sorted remainder. Taking the
+  alphabetically first N spent 62% of a 500-name budget on hostnames beginning
+  with `c` and never reached anything after `m`. The selection is deterministic,
+  but it is a sample: raise the bound rather than infer absence from it.
+- A stage cut off at its deadline keeps what it completed and records that it
+  was cut off. `discovered-http` reports hosts never contacted; directory
+  discovery reports candidates never probed. Neither retries the batch, and a
+  partial stage is never presented as a whole one.
 - Transport exceptions with empty messages are reported with their exception
   class and phase so provider or TLS failures remain diagnosable.
 - A scan is not proof that every asset was found.
@@ -65,6 +78,26 @@ This list describes the v1.3.0 boundary. It should be read before judging scan o
   that case: it probes 80 and 443 only. A non-standard service reachable under
   such a configuration will not be found unless its port is listed.
 
+## Attribution and Third-Party Disclosure
+
+- Sh4q sends no custom `User-Agent`. Requests carry the HTTP client's default,
+  so authorised traffic is not identifiable as authorised. A defender seeing it
+  has no way to attribute it to you, and bug-bounty programmes that require an
+  identifying header are not satisfied by any current option.
+- A scan discloses the target to third parties, and nothing records which ones.
+  Certificate transparency contacts `crt.sh` and `api.certspotter.com` directly
+  on every default scan. `--sub` and `--url-history` pass the target to the
+  `subfinder` and `waybackurls` subprocesses, which query their own providers --
+  Subfinder's configured sources and the Internet Archive respectively -- so
+  what they disclose, and to whom, is outside Sh4q's view and outside its
+  request limiter. DNS queries go to the system resolver, one per name, which
+  for most operators means their network's or ISP's resolver.
+- Neither of the above is a policy position; both are unimplemented. If an
+  engagement restricts what may be disclosed to third parties, review which
+  stages you enable before running, not afterwards.
+- There is no proxy or egress control, so requests originate from the host
+  running the scan.
+
 ## Metrics and Reporting
 
 - Native request metrics cover Sh4q's HTTP and CT traffic, not opaque provider traffic inside Subfinder or `httpx`.
@@ -73,6 +106,16 @@ This list describes the v1.3.0 boundary. It should be read before judging scan o
 - Migration-era scans may contain evidence without exact asset ownership and cannot be safely backfilled.
 - Global assets are deduplicated, while evidence remains observation-oriented; counts therefore describe different things.
 - Source ownership counts are not the same as raw provider result counts.
+- Every listing states how much of the matching set it shows (`Showing 100 of
+  194 ...`). A figure without a denominator is a defect, not a total. `--limit`
+  is honoured as given; it is a display bound, not a query cap.
+- The `events` summary groups events, so its `--limit` caps groups rather than
+  events. The count inside each group is complete; the line beneath the table
+  says how many events the shown groups actually account for.
+- `--redact` reports how many URL-bearing fields it rewrote, because an export
+  whose URLs carry no secret-keyed query parameter is byte-identical to an
+  unredacted one and would otherwise be indistinguishable from redaction
+  failing.
 
 ## Storage and Deployment
 

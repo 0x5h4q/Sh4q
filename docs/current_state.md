@@ -153,7 +153,11 @@ Stable current capabilities:
 - resolution and probing of discovered names (`--resolve`) and of an
   operator-supplied host list (`--hosts-file`);
 - hostname composition and response-attribute reporting (`results --names`,
-  `results --response-attributes`).
+  `results --response-attributes`);
+- every listing states how much of the matching set it is showing, and `--limit`
+  is honoured as given rather than silently clamped;
+- a stage cut off at its deadline keeps its completed work and records that it
+  was cut off (`discovered-http`, `directory-discovery`).
 
 Implemented explicit capabilities, never enabled by a profile:
 
@@ -230,8 +234,9 @@ The `v1.3.0` release was validated locally on Python 3.14.4: 77/77 offline
 tests, documentation and configuration-schema checks, a fresh-wheel
 installation, and an end-to-end scan against a local lab target exercising the
 virtual-host, directory, JavaScript, and template paths. Work merged since that
-release has taken the suite to 85 offline tests, with 1 opt-in integration test
-and 6 network tests run separately under `--network`. An earlier note here
+release has taken the suite to 90 offline tests, with 1 opt-in integration test
+and 6 network tests run separately under `--network`. Every file in `tests/` is
+claimed by exactly one of those lists. An earlier note here
 warned that Python 3.14 reproduced timeouts in the async event and SQLite
 tests; that has not recurred in repeated runs during this cycle. Report a
 full-suite pass only when the runner actually completes.
