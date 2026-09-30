@@ -431,7 +431,7 @@ The default database is `./sh4q-output/sh4q.db`. It may contain sensitive target
 - Reserved/private address controls and redirect validation.
 - DNS, HTTP, certificate-transparency, and optional Subfinder discovery.
 - Optional ProjectDiscovery HTTPX enrichment.
-- Bounded discovered-host DNS and HTTP enrichment.
+- Discovered-host DNS and HTTP enrichment, bounded by configurable limits.
 - Durable events, retries, interruption handling, and evidence storage.
 - Per-scan ownership, results, scan overview, JSON/CSV export, and liveness filters.
 - Conservative native technology observations from already-authorised HTTP responses.
