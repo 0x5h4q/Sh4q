@@ -986,7 +986,14 @@ def main() -> None:
             parser.error(f"{error}; pass --force to overwrite it")
         except ScanOwnershipUnavailableError as error:
             parser.error(f"{error}; run a new scan before exporting exact assets")
-        print(f"\n  Exported {count} asset(s) from scan {run.id} to {args.output}\n")
+        print(f"\n  Exported {int(count)} asset(s) from scan {run.id} to {args.output}")
+        # A safety feature that cannot be distinguished from a no-op is a trap:
+        # --redact printed nothing of its own, so an export whose URLs happened
+        # to carry no query string looked exactly like a working one -- and so
+        # would a regression that silently stopped redacting.
+        if count.redaction_summary:
+            print(note(f"  {count.redaction_summary}"))
+        print()
         return
 
 

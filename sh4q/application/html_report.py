@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 
 from sh4q.storage.db import open_sync_database
 from sh4q.storage.scan_runs import ScanRun
-from sh4q.application.redaction import redact_url
+from sh4q.application.redaction import Redactor
 
 
 def _safe_json(value: object) -> str:
@@ -26,7 +26,7 @@ def _banner_data_uri() -> str | None:
     return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode("ascii")
 
 
-def _owned_rows(database: str, run: ScanRun, *, redact: bool = False) -> list[dict]:
+def _owned_rows(database: str, run: ScanRun, *, redactor: Redactor | None = None) -> list[dict]:
     with open_sync_database(database) as db:
         rows = db.execute(
             """SELECT n.type, n.value, n.attributes,
@@ -71,7 +71,11 @@ def _owned_rows(database: str, run: ScanRun, *, redact: bool = False) -> list[di
                 host = ", ".join(sorted({item["host"] for item in endpoints}))
                 status = ", ".join(sorted({str(item["status"]) for item in endpoints if item["status"]}))
         display_type = "historical-url" if asset_type == "url" and has_history and not has_live else asset_type
-        display_value = redact_url(value) if redact and display_type in {"url", "historical-url"} else value
+        display_value = (
+            redactor.url(value)
+            if redactor is not None and display_type in {"url", "historical-url"}
+            else value
+        )
         assets.append({
             "type": display_type,
             "value": display_value,
@@ -86,7 +90,7 @@ def _owned_rows(database: str, run: ScanRun, *, redact: bool = False) -> list[di
     return assets
 
 
-def _report_metadata(database: str, run: ScanRun) -> dict:
+def _report_metadata(database: str, run: ScanRun, *, redactor: Redactor | None = None) -> dict:
     evidence = []
     failures = []
     stages = []
@@ -98,6 +102,17 @@ def _report_metadata(database: str, run: ScanRun) -> dict:
     vhost_rejections = []
     directories = []
     directory_rejections = []
+
+    def clean(value):
+        """Redact a URL-bearing evidence field, if redaction is on.
+
+        Redaction previously reached only the asset table, so a report
+        exported with --redact still carried the unredacted URL in its
+        JavaScript observations, its vhost and directory rows, and the JSON
+        the page embeds for its own filtering.
+        """
+        return value if redactor is None else redactor.url(value)
+
     with open_sync_database(database) as db:
         table = db.execute(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name='evidence'"
@@ -120,17 +135,17 @@ def _report_metadata(database: str, run: ScanRun) -> dict:
                     historical_urls_rejected += 1
                 elif kind.startswith("javascript_") and kind != "javascript_bundle_error":
                     javascript.append(record | {
-                        "value": content.get("value", ""),
-                        "source_endpoint": content.get("source_endpoint", ""),
+                        "value": clean(content.get("value", "")),
+                        "source_endpoint": clean(content.get("source_endpoint", "")),
                         "pattern": content.get("pattern", ""),
                     })
                 elif kind in {"vhost_baseline", "vhost_observation"}:
                     vhosts.append(record | {
                         "candidate": content.get("candidate", ""),
-                        "endpoint": content.get("endpoint", ""),
+                        "endpoint": clean(content.get("endpoint", "")),
                         "status": content.get("status", ""),
                         "classification": content.get("classification", "baseline" if kind == "vhost_baseline" else "candidate_observation"),
-                        "location": content.get("location", ""),
+                        "location": clean(content.get("location", "")),
                     })
                 elif kind == "vhost_rejected":
                     vhost_rejections.append(record | {
@@ -141,21 +156,21 @@ def _report_metadata(database: str, run: ScanRun) -> dict:
                     # Without the subject a failure says "no A answer" and
                     # nothing else, which is the same row a thousand times.
                     failures.append(record | {
-                        "subject": _failure_subject(content),
+                        "subject": clean(_failure_subject(content)),
                         "detail": content.get("error") or content.get("reason") or "unknown error",
                     })
                 elif kind == "vhost_error":
                     failures.append(record | {
-                        "subject": _failure_subject(content),
+                        "subject": clean(_failure_subject(content)),
                         "detail": content.get("error") or "unknown error",
                     })
                 elif kind in {"directory_baseline", "directory_observation"}:
                     directories.append(record | {
                         "path": content.get("path", "baseline" if kind == "directory_baseline" else ""),
-                        "url": content.get("url", content.get("endpoint", "")),
+                        "url": clean(content.get("url", content.get("endpoint", ""))),
                         "status": content.get("status", ""),
                         "classification": content.get("classification", "baseline" if kind == "directory_baseline" else "candidate_observation"),
-                        "location": content.get("location", ""),
+                        "location": clean(content.get("location", "")),
                     })
                 elif kind in {"directory_rejected", "directory_budget_denied"}:
                     directory_rejections.append(record | {
@@ -207,9 +222,9 @@ def _grouped_failures(failures: list[dict]) -> list[dict]:
     return sorted(rows, key=lambda row: (-row["count"], row["plugin"], row["detail"]))
 
 
-def render_html_report(database: str, run: ScanRun, *, redact: bool = False) -> str:
-    assets = _owned_rows(database, run, redact=redact)
-    metadata = _report_metadata(database, run)
+def render_html_report(database: str, run: ScanRun, *, redactor: Redactor | None = None) -> str:
+    assets = _owned_rows(database, run, redactor=redactor)
+    metadata = _report_metadata(database, run, redactor=redactor)
     banner_uri = _banner_data_uri()
     grouped_failures = _grouped_failures(metadata["failures"])
     payload = {

@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import csv
 import json
+from dataclasses import dataclass
 from pathlib import Path
 
 from sh4q.storage.scan_runs import ScanRun
 from sh4q.application.results import list_technology_observations
 from sh4q.storage.db import open_sync_database
 from sh4q.application.html_report import render_html_report
-from sh4q.application.redaction import redact_url
+from sh4q.application.redaction import Redactor
 
 
 class ScanOwnershipUnavailableError(Exception):
@@ -105,6 +106,53 @@ def _http_inventory(db, scan_id: str) -> list[dict]:
     return inventory
 
 
+REDACTABLE_ASSET_TYPES = frozenset({"url", "historical-url"})
+
+
+def _redact_asset(item: dict, redactor: Redactor) -> dict:
+    if item.get("type") not in REDACTABLE_ASSET_TYPES:
+        return item
+    return item | {"value": redactor.url(item["value"])}
+
+
+@dataclass(frozen=True)
+class ExportResult:
+    """What an export wrote, including what redaction changed.
+
+    `export_scan` returned a bare asset count, so `--redact` printed the same
+    line whether it rewrote four hundred values or none.
+    """
+
+    asset_count: int
+    redaction_enabled: bool = False
+    fields_considered: int = 0
+    fields_redacted: int = 0
+
+    def __int__(self) -> int:
+        return self.asset_count
+
+    def __eq__(self, other) -> bool:
+        # Callers that only care how many assets went out compare against an
+        # int, and several tests already do.
+        if isinstance(other, int):
+            return self.asset_count == other
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.asset_count)
+
+    @property
+    def redaction_summary(self) -> str:
+        if not self.redaction_enabled:
+            return ""
+        if not self.fields_considered:
+            return "Redaction was on; no URL-bearing field was exported."
+        return (
+            f"Redaction rewrote {self.fields_redacted} of "
+            f"{self.fields_considered} URL-bearing field(s)."
+        )
+
+
 def export_scan(
     database: str,
     run: ScanRun,
@@ -115,7 +163,8 @@ def export_scan(
     alive: str | None = None,
     asset_type: str | None = None,
     redact: bool = False,
-) -> int:
+) -> ExportResult:
+    redactor = Redactor(enabled=redact)
     if alive not in (None, "http", "dns"):
         raise ValueError(f"unsupported alive filter: {alive}")
     if alive and asset_type:
@@ -201,7 +250,9 @@ def export_scan(
         ]
 
     if format == "html":
-        output.write_text(render_html_report(database, run, redact=redact), encoding="utf-8")
+        output.write_text(
+            render_html_report(database, run, redactor=redactor), encoding="utf-8"
+        )
     elif format == "json":
         document = {
             "scan": {
@@ -212,8 +263,14 @@ def export_scan(
                 "status": run.status,
             },
             "asset_count": len(assets),
-            "assets": [(item | {"value": redact_url(item["value"])}) if redact and item.get("type") in {"url", "historical-url"} else item for item in assets],
-            "javascript_observations": javascript_observations,
+            "assets": [_redact_asset(item, redactor) for item in assets],
+            "javascript_observations": [
+                observation | {
+                    "value": redactor.url(observation.get("value", "")),
+                    "source_endpoint": redactor.url(observation.get("source_endpoint", "")),
+                }
+                for observation in javascript_observations
+            ],
         }
         output.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     elif format == "csv":
@@ -247,7 +304,7 @@ def export_scan(
                     writer.writerow({
                         "scan_id": run.id,
                         "target": run.target,
-                        "endpoint": item["endpoint"],
+                        "endpoint": redactor.url(item["endpoint"]),
                         "technology": item["value"],
                         "category": item["category"],
                         "version": item["version"],
@@ -262,7 +319,7 @@ def export_scan(
                         "scan_id": run.id,
                         "target": run.target,
                         "domain": item["domain"],
-                        "endpoint": item["endpoint"],
+                        "endpoint": redactor.url(item["endpoint"]),
                         "http_status": item["http_status"],
                         "resolved_addresses": ";".join(item["resolved_addresses"]),
                         "technologies": ";".join(value["name"] for value in observations),
@@ -273,8 +330,9 @@ def export_scan(
                         "sources": ";".join(item["sources"]),
                     })
                 else:
-                    if redact and item.get("type") in {"url", "historical-url"}:
-                        item = item | {"value": redact_url(item["value"])}
+                    item = _redact_asset(item, redactor)
+                    if "endpoint" in item and alive == "http":
+                        item = item | {"endpoint": redactor.url(item["endpoint"])}
                     writer.writerow({
                         "scan_id": run.id,
                         "target": run.target,
@@ -286,4 +344,9 @@ def export_scan(
                     })
     else:
         raise ValueError(f"unsupported export format: {format}")
-    return len(assets)
+    return ExportResult(
+        asset_count=len(assets),
+        redaction_enabled=redactor.enabled,
+        fields_considered=redactor.considered,
+        fields_redacted=redactor.redacted,
+    )
