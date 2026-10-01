@@ -67,18 +67,30 @@ def make_discovery_handler(
         domain = data["domain"]
         ip = data["ip"]
 
-        domain_node = Node(type="domain", value=domain)
-        await storage.save_node(domain_node)
-
-        # The hostname was authorized at Gate 1. The resolved IP is
-        # checked against address safety policy, not hostname scope.
-        decision = scope.authorize_resolved_address(ip)
-
+        # This used to save the domain node first and check only the address,
+        # on the reasoning that Gate 1 had already authorized the hostname.
+        # That holds only while the event belongs to the scan now running.
+        # Delivery is durable and `recover_unfinished` filters on neither
+        # target nor scan run, so one database can hand this handler an
+        # unfinished event from a scan of an entirely different target --
+        # which then entered the new scan's graph unauthorized. Authorize the
+        # hostname here, under the scope that is handling it, and persist
+        # nothing before both checks have passed.
+        decision = scope.authorize(domain)
         if not decision.allowed:
-            print(gate_line(ip, decision.reason, "not persisted"))
+            print(gate_line(domain, decision.reason, "not persisted"))
             return
 
+        # Hostname scope and address safety are separate policies: an
+        # authorized name may still resolve somewhere it may not be contacted.
+        address_decision = scope.authorize_resolved_address(ip)
+        if not address_decision.allowed:
+            print(gate_line(ip, address_decision.reason, "not persisted"))
+            return
+
+        domain_node = Node(type="domain", value=domain)
         ip_node = Node(type="ip", value=ip)
+        await storage.save_node(domain_node)
         await storage.save_node(ip_node)
 
         relationship = Relationship(from_id=domain_node.id, to_id=ip_node.id, type="RESOLVES_TO")

@@ -192,6 +192,10 @@ async def gate_two() -> None:
     # Regression: subdomain_found used to persist its parent domain before any
     # authorization ran, and never authorized the parent at all. Adapter output
     # is untrusted, so an out-of-scope parent could be written into the graph.
+    #
+    # dns_resolution had the same save-before-authorize shape, reachable only
+    # through durable event recovery across scopes; its regression needs a real
+    # event log and lives in test_cross_scope_recovery.py.
     assert "domain:evil.com" not in storage.nodes, (
         "the parent of a subdomain discovery must be authorized before it is persisted"
     )
