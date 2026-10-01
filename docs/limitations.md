@@ -77,6 +77,12 @@ This list describes the v1.3.0 boundary. It should be read before judging scan o
 - An empty port list authorizes every port. Sh4q does not sweep every port in
   that case: it probes 80 and 443 only. A non-standard service reachable under
   such a configuration will not be found unless its port is listed.
+- `scope.ports` gates **inventory as well as contact**. A URL on an unauthorized
+  port stays in evidence, where the record of what was observed belongs, but it
+  does not become an asset. This matters most for passive sources: a historical
+  URL from `waybackurls` on port 8443 is recorded and reported as refused, not
+  added to the graph. The asset graph is the authorized subset, ports included.
+  Widen `scope.ports` if you want those origins inventoried.
 
 ## Attribution and Third-Party Disclosure
 
