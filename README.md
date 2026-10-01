@@ -326,7 +326,7 @@ illustrative example only; use real targets only with written permission.
 Requirements: Linux, Python 3.11 or newer, and Git. Subfinder is optional.
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/0x5h4q/Sh4q.git sh4q
 cd sh4q
 python3 -m venv venv
 source venv/bin/activate
@@ -336,8 +336,14 @@ python -m pip install -e .
 For a globally available command with isolated dependencies, use `pipx`:
 
 ```bash
-pipx install git+https://github.com/0x5h4q/Sh4q.git@v1.3.0
+pipx install git+https://github.com/0x5h4q/Sh4q.git@main
 ```
+
+`@main` is recommended: it is where fixes land, and work merges only with
+the offline suite green. Swap `main` for a tag such as `v1.3.0` when you
+need a fixed snapshot — see
+[installation.md](docs/installation.md#which-reference-to-install) for what
+a tag does and does not include.
 
 Scan a domain you own or are explicitly authorised to test:
 

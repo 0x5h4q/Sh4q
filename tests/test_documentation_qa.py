@@ -7,13 +7,32 @@ root = Path(__file__).resolve().parents[1]
 readme = (root / "README.md").read_text(encoding="utf-8")
 current_state = (root / "docs" / "current_state.md").read_text(encoding="utf-8")
 roadmap = (root / "docs" / "v1_roadmap.md").read_text(encoding="utf-8")
+installation = (root / "docs" / "installation.md").read_text(encoding="utf-8")
 version = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
 
 assert not re.search(r"^(<<<<<<<|=======|>>>>>>>)", readme, re.MULTILINE)
 assert f"releases/tag/v{version}" in readme
 assert f"Sh4q `v{version}`" in readme
-assert f"@v{version}" in readme
 assert "docs/current_state.md" in readme
+
+# The recommended install must name a moving reference, not a tag.
+#
+# A tag is a snapshot of the day it was cut. v1.3.0 was three days old and
+# already 34 merges behind `main`, two of them scope-authorization fixes, while
+# both README and installation.md still told a new user to install the tag.
+#
+# Note what the check below could not catch: the pinned version *equalled* the
+# package version, so nothing was stale by its measure. The gap was between the
+# tag and `main`, which no assertion here can see. Hence this one, which pins
+# the posture instead.
+for document, text in (("README.md", readme), ("docs/installation.md", installation)):
+    assert "Sh4q.git@main" in text, (
+        f"{document} must recommend installing from @main; a tag hands a new "
+        "user whatever was true on the day it was cut"
+    )
+assert "which-reference-to-install" in readme, (
+    "the README must link to the explanation of what a tag does not include"
+)
 assert f"Published release: `v{version}`" in current_state
 assert "Current Milestone: Workflow Foundations" in roadmap
 assert "Scan templates" in roadmap
