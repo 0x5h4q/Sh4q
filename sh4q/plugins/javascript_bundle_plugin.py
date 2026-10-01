@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from collections.abc import Awaitable, Callable
 
 from sh4q.javascript_extraction import (
@@ -81,6 +83,16 @@ class JavaScriptBundlePlugin(Plugin):
         for script_url in script_urls:
             try:
                 content = await self._bundle_fetcher(script_url)
+            except asyncio.CancelledError:
+                # One await per bundle, so the deadline lands mid-loop and the
+                # bundles already parsed are real work. The scheduler's timeout
+                # path returns [] for a stage that lets the cancellation
+                # through, so returning here is what keeps them -- but only
+                # when there is something to keep. An empty return would claim
+                # the stage completed and found nothing.
+                if not discoveries:
+                    raise
+                return discoveries
             except Exception as error:
                 discoveries.append(
                     Discovery(

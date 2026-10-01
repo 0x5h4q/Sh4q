@@ -63,9 +63,26 @@ class CTPlugin(Plugin):
             else:
                 pending.append(connector)
 
-        attempted = await asyncio.gather(
-            *(self._try_connector(connector, target) for connector in pending)
-        )
+        tasks = [
+            asyncio.create_task(self._try_connector(connector, target))
+            for connector in pending
+        ]
+        try:
+            attempted = await asyncio.gather(*tasks)
+        except asyncio.CancelledError:
+            # The successful-result cache only helps on a retry; it cannot help
+            # if a provider's names never leave execute(). When one provider
+            # holds the stage past its deadline, keep whatever the others
+            # already returned.
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            settled = await asyncio.gather(*tasks, return_exceptions=True)
+            attempted = [item for item in settled if isinstance(item, tuple)]
+            # Nothing survived, so there is nothing to preserve: let the
+            # cancellation through rather than reporting an empty success.
+            if not any(hostnames for _, hostnames, _ in attempted) and not results:
+                raise
         for source_name, hostnames, error in attempted:
             if error is None:
                 self._successful_results[(target, source_name)] = set(hostnames)

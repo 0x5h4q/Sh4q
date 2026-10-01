@@ -7,6 +7,38 @@ from enum import Enum
 from sh4q.config import Sh4qConfig
 
 
+def _is_addressable(value: str, *, allow_network: bool = False) -> bool:
+    """Whether a normalized value can name something on a network.
+
+    An IP address, or a hostname whose labels are all non-empty and free of
+    characters a hostname cannot carry. `allow_network` additionally accepts a
+    CIDR block, which is valid in a scope pattern but never as a destination.
+    """
+    if not value:
+        return False
+    try:
+        ipaddress.ip_address(value)
+        return True
+    except ValueError:
+        pass
+    if allow_network:
+        try:
+            ipaddress.ip_network(value, strict=False)
+            return True
+        except ValueError:
+            pass
+    labels = value.split(".")
+    if not all(labels):
+        return False
+    # A hostname label cannot be empty, cannot exceed 63 octets, and cannot
+    # contain a wildcard, whitespace, or an authority delimiter. Certificate
+    # transparency emits "*.example.com" for a wildcard certificate; the
+    # connectors strip that prefix, and anything that still carries one is not
+    # a name that could be contacted.
+    forbidden = set("*?!/\\@:#[]%,'\" \t")
+    return all(len(label) <= 63 and not (forbidden & set(label)) for label in labels)
+
+
 class ScopeStatus(Enum):
     ALLOW = "allow"
     DENY = "deny"
@@ -39,6 +71,16 @@ class ScopeEngine:
 
     def authorize(self, target: str, port: int | None = None) -> ScopeDecision:
         target = self.normalize_target(target)
+        # Subdomain inheritance is granted by `endswith("." + pattern)`, which
+        # strings that are not hostnames also satisfy: ".example.com",
+        # "..example.com" and "*.example.com" all matched "example.com" and
+        # were authorized, became domain nodes, and were handed on to be
+        # resolved. Refuse them here rather than relying on each emitter to
+        # filter first.
+        if not _is_addressable(target):
+            return ScopeDecision(
+                ScopeStatus.DENY, f"{target} is not a usable hostname or address"
+            )
         # Excluded list always wins, even over an otherwise-valid match.
         if self._matches_any(target, self._excluded):
             return ScopeDecision(ScopeStatus.DENY, f"{target} is explicitly excluded")
@@ -79,6 +121,11 @@ class ScopeEngine:
     def _matches_one(self, target: str, pattern: str) -> bool:
         target = self.normalize_target(target)
         pattern = self.normalize_target(pattern)
+        # A malformed pattern matches nothing. Otherwise an operator typo such
+        # as ".example.com" in the target list would act as a looser rule than
+        # the hostname it was meant to be.
+        if not _is_addressable(pattern, allow_network=True):
+            return False
         try:
             network = ipaddress.ip_network(pattern, strict=False)
             ip = ipaddress.ip_address(target)
