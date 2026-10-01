@@ -9,6 +9,25 @@ from sh4q.fingerprints.normalize import normalize_external_technology
 from sh4q.network import probe_url
 
 
+def _effective_port(value: str) -> int | None:
+    """The port a URL would be contacted on, or None when it cannot be known.
+
+    `scope.ports` authorizes origins, and the asset graph is the authorized
+    subset, so a port belongs in the persistence check and not only in the
+    contact check. Returning None for anything that is not an absolute http(s)
+    URL -- a relative JavaScript reference, say -- makes `authorize` skip the
+    port rule, which keeps those references behaving exactly as they did.
+    """
+    try:
+        url = HttpURL(value)
+    except Exception:
+        return None
+    scheme = url.scheme.lower()
+    if scheme not in {"http", "https"} or not url.host:
+        return None
+    return url.port or (443 if scheme == "https" else 80)
+
+
 def _canonical_url(value: str) -> str:
     url = HttpURL(value)
     scheme = url.scheme.lower()
@@ -141,7 +160,7 @@ def make_discovery_handler(
         final_url = _canonical_url(data["final_url"])
         host = HttpURL(final_url).host
 
-        decision = scope.authorize(host)
+        decision = scope.authorize(host, _effective_port(final_url))
 
         if not decision.allowed:
             print(gate_line(host, decision.reason, f"{final_url} not persisted"))
@@ -190,7 +209,7 @@ def make_discovery_handler(
                 host = HttpURL(historical_url).host
             except Exception:
                 continue
-            decision = scope.authorize(host)
+            decision = scope.authorize(host, _effective_port(historical_url))
             if not decision.allowed:
                 if stats is not None:
                     stats["historical_urls_rejected"] = stats.get("historical_urls_rejected", 0) + 1
@@ -238,7 +257,7 @@ def make_discovery_handler(
         except Exception:
             print(status_line(f"FAILED url_history_found: invalid URL {raw_url!r}", "error"))
             return
-        decision = scope.authorize(host)
+        decision = scope.authorize(host, _effective_port(historical_url))
         if not decision.allowed:
             if stats is not None:
                 stats["historical_urls_rejected"] = stats.get("historical_urls_rejected", 0) + 1
@@ -308,7 +327,7 @@ def make_discovery_handler(
             host = HttpURL(reference_url).host
         except Exception:
             return
-        decision = scope.authorize(host)
+        decision = scope.authorize(host, _effective_port(reference_url))
         if not decision.allowed:
             display_bounded(
                 "JavaScript scope denials",
@@ -337,7 +356,7 @@ def make_discovery_handler(
     async def _http_fingerprint(kind, data, source_plugin, scan_target, event_scan_run_id, event) -> None:
         endpoint = _canonical_url(data["endpoint"])
         host = HttpURL(endpoint).host
-        decision = scope.authorize(host)
+        decision = scope.authorize(host, _effective_port(endpoint))
         if not decision.allowed:
             print(gate_line(host, decision.reason, "fingerprint not persisted"))
             return
@@ -392,15 +411,22 @@ def make_discovery_handler(
     async def _vhost_observation(kind, data, source_plugin, scan_target, event_scan_run_id, event) -> None:
         candidate = data.get("candidate", "")
         endpoint = data.get("endpoint", "")
-        if candidate and endpoint and scope.authorize(candidate).allowed:
+        endpoint_parts = HttpURL(endpoint) if endpoint else None
+        # Record the origin that was actually contacted. Dropping the port
+        # stored a URL that was never requested and that points at a
+        # different service on the default port -- and the port has to be
+        # known before the decision, because it is part of it.
+        scheme = endpoint_parts.scheme if endpoint_parts else "https"
+        port = _effective_port(endpoint) if endpoint else None
+        decision = scope.authorize(candidate, port) if candidate and endpoint else None
+        if decision is not None and not decision.allowed:
+            display_bounded(
+                "vhost scope denials",
+                gate_line(candidate, decision.reason, f"{endpoint} not persisted"),
+            )
+        if decision is not None and decision.allowed:
             domain_node = Node(type="domain", value=candidate)
-            endpoint_parts = HttpURL(endpoint)
-            # Record the origin that was actually contacted. Dropping the
-            # port stored a URL that was never requested and that points at
-            # a different service on the default port.
-            scheme = endpoint_parts.scheme
-            port = endpoint_parts.port or (443 if scheme == "https" else 80)
-            candidate_url = probe_url(scheme, candidate, port, "/")
+            candidate_url = probe_url(scheme, candidate, port or (443 if scheme == "https" else 80), "/")
             url_node = Node(type="url", value=candidate_url, attributes={
                 "vhost_candidate": candidate,
                 "probe_endpoint": endpoint,
@@ -470,9 +496,15 @@ def make_discovery_handler(
     async def _directory_observation(kind, data, source_plugin, scan_target, event_scan_run_id, event) -> None:
         url = data.get("url", "")
         parsed = HttpURL(url)
-        port = parsed.port or (443 if parsed.scheme == "https" else 80)
-        decision = scope.authorize(parsed.host or "", port)
+        decision = scope.authorize(parsed.host or "", _effective_port(url))
         if not decision.allowed:
+            # This returned silently. A refusal that leaves no trace in the
+            # output is indistinguishable from a path that was never probed,
+            # which is the one thing an auditable tool must not do.
+            display_bounded(
+                "directory scope denials",
+                gate_line(parsed.host or url, decision.reason, f"{url} not persisted"),
+            )
             return
         # A path that matched the server's not-found response is a
         # negative result. It stays in evidence, where the record of what
@@ -491,7 +523,19 @@ def make_discovery_handler(
             return
         node = Node(type="url", value=url, attributes={"status": data.get("status"), "classification": data.get("classification", "candidate_observation")})
         await storage.save_node(node)
-        root = Node(type="url", value=f"https://{scope.normalize_target(scan_target)}/")
+        # Anchor the edge at the origin that was actually swept. This was a
+        # hardcoded `https://<target>/`, so a sweep of http://host:8081/ wrote
+        # a root URL that had never been contacted -- and, once ports are part
+        # of the persistence check, one this very scope denies: port 443 under
+        # `ports: [8081]`. Deriving it from the observation keeps the root
+        # authorized by construction.
+        root_port = _effective_port(url) or (443 if parsed.scheme == "https" else 80)
+        root = Node(type="url", value=probe_url(
+            parsed.scheme or "https",
+            parsed.host or scope.normalize_target(scan_target),
+            root_port,
+            "/",
+        ))
         await storage.save_node(root)
         relationship = Relationship(root.id, node.id, "DIRECTORY_OBSERVATION")
         await storage.save_relationship(relationship)

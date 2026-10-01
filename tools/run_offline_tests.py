@@ -68,6 +68,7 @@ OFFLINE_TESTS = (
     "test_schema_version.py",
     "test_scope_engine.py",
     "test_cross_scope_recovery.py",
+    "test_persistence_port_policy.py",
     "test_storage_manual.py",
     "test_output_permissions.py",
     "test_dependency_bounds.py",
