@@ -28,6 +28,7 @@ build/
 
 # Internal working notes: known gaps and unfixed weaknesses are not
 # published in a public repository.
+SCOPE_REVIEW.md
 BACKLOG.md
 reconftw_README.md
 
