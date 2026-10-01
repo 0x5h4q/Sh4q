@@ -149,9 +149,30 @@ class HTTPPlugin(Plugin):
                     )]
 
             # Every authorized port is probed, not only the well-known pair.
-            batches = await asyncio.gather(
-                *(bounded_probe(origin) for origin in probe_targets(self.scope.authorized_ports))
-            )
+            tasks = [
+                asyncio.create_task(bounded_probe(origin))
+                for origin in probe_targets(self.scope.authorized_ports)
+            ]
+            try:
+                batches = await asyncio.gather(*tasks)
+            except asyncio.CancelledError:
+                # A scope naming several ports means several probes, and the
+                # scheduler's timeout path returns [] for a stage that lets the
+                # cancellation through -- so every origin that had already
+                # answered was discarded. Keep them and let the ordinary
+                # de-duplication below run over what survived.
+                for task in tasks:
+                    if not task.done():
+                        task.cancel()
+                settled = await asyncio.gather(*tasks, return_exceptions=True)
+                batches = [batch for batch in settled if isinstance(batch, list)]
+                # Only swallow the cancellation when there is something to
+                # protect. Returning an empty list from a cancelled stage tells
+                # the caller it completed and found nothing, which is a
+                # different claim: discovered-http reuses this stage per host
+                # and counted a host whose probe never ran as "reached".
+                if not any(batches):
+                    raise
             discoveries = [item for batch in batches for item in batch]
 
         unique: dict[tuple, Discovery] = {}

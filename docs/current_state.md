@@ -156,8 +156,12 @@ Stable current capabilities:
   `results --response-attributes`);
 - every listing states how much of the matching set it is showing, and `--limit`
   is honoured as given rather than silently clamped;
-- a stage cut off at its deadline keeps its completed work and records that it
-  was cut off (`discovered-http`, `directory-discovery`).
+- a stage cut off at its deadline keeps its completed work rather than
+  discarding it, across every stage where partial work can exist;
+- the authorisation perimeter refuses strings that cannot name a host, so a
+  malformed name is not granted subdomain inheritance;
+- `scope.ports` gates inventory as well as contact: a URL on an unauthorised
+  port is recorded as refused and does not become an asset.
 
 Implemented explicit capabilities, never enabled by a profile:
 
@@ -234,7 +238,7 @@ The `v1.3.0` release was validated locally on Python 3.14.4: 77/77 offline
 tests, documentation and configuration-schema checks, a fresh-wheel
 installation, and an end-to-end scan against a local lab target exercising the
 virtual-host, directory, JavaScript, and template paths. Work merged since that
-release has taken the suite to 90 offline tests, with 1 opt-in integration test
+release has taken the suite to 94 offline tests, with 1 opt-in integration test
 and 6 network tests run separately under `--network`. Every file in `tests/` is
 claimed by exactly one of those lists. An earlier note here
 warned that Python 3.14 reproduced timeouts in the async event and SQLite

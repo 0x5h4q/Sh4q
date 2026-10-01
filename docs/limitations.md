@@ -20,10 +20,18 @@ This list describes the v1.3.0 boundary. It should be read before judging scan o
   alphabetically first N spent 62% of a 500-name budget on hostnames beginning
   with `c` and never reached anything after `m`. The selection is deterministic,
   but it is a sample: raise the bound rather than infer absence from it.
-- A stage cut off at its deadline keeps what it completed and records that it
-  was cut off. `discovered-http` reports hosts never contacted; directory
-  discovery reports candidates never probed. Neither retries the batch, and a
-  partial stage is never presented as a whole one.
+- A stage cut off at its deadline keeps what it completed rather than
+  discarding it. `discovered-dns`, `discovered-http`, `vhost-discovery`,
+  `directory-discovery`, `http`, `ct` and `javascript-bundles` all do this;
+  `discovered-http` additionally reports hosts never contacted and directory
+  discovery candidates never probed. A partial stage is never presented as a
+  whole one, and a cancelled stage that preserved nothing is reported as
+  incomplete rather than as an empty success.
+- Two stages do not preserve partial results, deliberately.
+  `javascript-extraction` has a single awaitable step, so either it completes
+  or there is nothing to keep. `httpx-fingerprint` is one external process
+  bounded by its own shorter timeout, which is already reported as an adapter
+  execution failure.
 - Transport exceptions with empty messages are reported with their exception
   class and phase so provider or TLS failures remain diagnosable.
 - A scan is not proof that every asset was found.
@@ -83,6 +91,25 @@ This list describes the v1.3.0 boundary. It should be read before judging scan o
   URL from `waybackurls` on port 8443 is recorded and reported as refused, not
   added to the graph. The asset graph is the authorized subset, ports included.
   Widen `scope.ports` if you want those origins inventoried.
+
+## Scope Matching
+
+- A target is authorised by exact match, by subdomain inheritance
+  (`sub.example.com` is in scope when `example.com` is listed), or by CIDR
+  membership. The `excluded` list always wins.
+- Names are normalised before every comparison: NFKC, trailing dot removed,
+  IDNA encoding and case folding for hostnames, canonical form for addresses.
+  Homoglyphs do not fold onto the names they imitate and are refused.
+- A string that cannot name a host is refused rather than inherited. An empty
+  label (`.example.com`, `sub..example.com`), a label over 63 characters, a
+  wildcard (`*.example.com`) or an embedded authority delimiter is not a
+  hostname, and the subdomain rule no longer accepts one. Certificate
+  transparency strips the `*.` prefix of a wildcard certificate name before it
+  reaches the engine, so no discovery is lost to this.
+- A malformed entry in `scope.targets` matches nothing. A typo cannot act as a
+  looser rule than the hostname it was meant to be.
+- Authorisation of a hostname is separate from the safety of the address it
+  resolves to; see `allow_private_addresses`.
 
 ## Attribution and Third-Party Disclosure
 
