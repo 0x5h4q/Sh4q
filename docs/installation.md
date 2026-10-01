@@ -18,7 +18,7 @@ remains experimental until equivalent runtime coverage is available.
 ## Install from the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/0x5h4q/Sh4q.git sh4q
 cd sh4q
 python3.13 -m venv venv
 source venv/bin/activate
@@ -38,9 +38,45 @@ If you want the `sh4q` command available globally while keeping its
 dependencies isolated, `pipx` can manage the virtual environment for you:
 
 ```bash
-pipx install git+https://github.com/0x5h4q/Sh4q.git@v1.3.0
+pipx install git+https://github.com/0x5h4q/Sh4q.git@main
 sh4q --help
 ```
+
+### Which reference to install
+
+`@main` is the recommended choice and is what the rest of this
+documentation describes. Work merges to `main` only with the offline suite
+green, and fixes land there well before they are tagged.
+
+```bash
+pipx install git+https://github.com/0x5h4q/Sh4q.git@main   # current code
+pipx install git+https://github.com/0x5h4q/Sh4q.git@v1.3.0 # a fixed snapshot
+```
+
+Install a tag when you need a byte-identical build across machines, or to
+reproduce a recorded result. Be aware of what that costs: a tag is a
+snapshot of the day it was cut, and `main` may by then carry correctness
+and scope fixes that the tag does not. `CHANGELOG.md` lists what each
+release contained; anything merged after the newest entry exists only on
+`main`. Check `git log v1.3.0..main` before concluding a tag is current.
+
+`sh4q --version` reports the version recorded in the package metadata,
+which is the last released version. A build from `main` therefore reports
+that same number while being ahead of the tag, and the two cannot be told
+apart by `--version` alone. Use `git rev-parse --short HEAD` in a checkout,
+or `pipx list` for the installed reference, when you need to identify
+precisely what you are running.
+
+If `--version` disagrees with what you expect, check for more than one
+installation in the environment:
+
+```bash
+ls venv/lib/python*/site-packages/ | grep sh4q
+```
+
+Two `dist-info` directories mean two editable installs are stacked and the
+reported version is whichever is found first. Run `pip uninstall sh4q`
+until none remain, then reinstall.
 
 The explicit virtual-environment method above remains useful for development,
 source changes, and repeatable test runs. Installing directly into a system
