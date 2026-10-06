@@ -14,6 +14,7 @@ from sh4q.application import run_scan
 from sh4q.adapters import AdapterExecutionError
 from sh4q.events.event_log import DurableEventLog
 from sh4q.storage.scan_runs import count_scans, get_scan, latest_scan, list_scans, scan_asset_count
+from sh4q.application.disclosure import DECLARED, summarize_disclosures
 from sh4q.application.results import friendly_technology_source, list_assets, list_response_attributes, summarize_names, list_failures, list_javascript_observations, list_technology_observations, summarize_technology_observations
 from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
 from sh4q.application.scan_report import build_scan_report
@@ -415,6 +416,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Show cookie flags and review headers recorded for each endpoint.",
     )
+    results.add_argument(
+        "--disclosures",
+        action="store_true",
+        help="Show which third parties this scan told about the target.",
+    )
     results.add_argument("--js-kind", choices=["script_url", "style_url", "page_url", "xhr_endpoint", "endpoint_reference", "secret_like_pattern"], help="Filter JavaScript observations by kind")
     results.add_argument("--source-endpoint", help="Filter JavaScript observations by source endpoint")
     scan_selection = results.add_mutually_exclusive_group()
@@ -490,6 +496,36 @@ async def _event_summary(event_log, args) -> tuple[list, int, int]:
         await event_log.count_groups(status=args.status, target=args.target),
         await event_log.count_records(status=args.status, target=args.target),
     )
+
+
+def render_disclosures(ledger) -> None:
+    """Which third parties learned about this target, and how certainly."""
+    if not ledger.disclosures:
+        print("  No third-party disclosure is recorded for this scan.")
+        print(note(
+            "  Either the scan contacted nothing external, or it predates\n"
+            "  disclosure recording."
+        ))
+        return
+    print()
+    print(f"  {'SERVICE':<30}  {'VIA':<18}  {'FIDELITY':<9}  SUBJECTS")
+    print(f"  {'-' * 30}  {'-' * 18}  {'-' * 9}  --------")
+    for item in ledger.disclosures:
+        print(
+            f"  {_fit(item.service, 30):<30}  {_fit(item.via, 18):<18}  "
+            f"{item.fidelity:<9}  {figure(str(item.subjects))}"
+        )
+    print(note(
+        "\n  observed: sh4q made the request, so the service and subject are known."
+    ))
+    if ledger.declared:
+        print(note(
+            "  declared: an external tool made requests sh4q never saw. Only what the\n"
+            "  tool is documented to contact is listed, and that changes with its version."
+        ))
+    print(note(
+        "\n  Subjects counts distinct hostnames disclosed, not requests sent."
+    ))
 
 
 def showing(shown: int, total: int, noun: str, hint: str = "Use --limit to increase the view.") -> str:
@@ -869,6 +905,22 @@ def main() -> None:
         print()
         print("  SH4Q RESULTS")
         print("  ============")
+        if args.disclosures:
+            scan_id = args.scan
+            if args.latest:
+                latest = latest_scan(str(database), args.target)
+                if latest is None:
+                    print("  No recorded scan run matches this query.\n")
+                    return
+                scan_id = latest.id
+                print(f"  Scan     {latest.id} ({latest.target})")
+            ledger = summarize_disclosures(
+                str(database), target=args.target, scan_id=scan_id
+            )
+            render_disclosures(ledger)
+            print()
+            return
+
         if args.names:
             scan_id = args.scan
             if args.latest:

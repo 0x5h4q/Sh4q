@@ -117,7 +117,12 @@ This list describes the v1.3.0 boundary. It should be read before judging scan o
   so authorised traffic is not identifiable as authorised. A defender seeing it
   has no way to attribute it to you, and bug-bounty programmes that require an
   identifying header are not satisfied by any current option.
-- A scan discloses the target to third parties, and nothing records which ones.
+- A scan discloses the target to third parties. `results --disclosures` reports
+  which ones, in two fidelity tiers: **observed**, where Sh4q made the request
+  itself and both service and subject are known, and **declared**, where an
+  external tool made requests Sh4q never saw and only what the tool is
+  documented to contact can be stated. A declared entry is weaker evidence than
+  an observed one, and a tool's real source list changes with its version.
   Certificate transparency contacts `crt.sh` and `api.certspotter.com` directly
   on every default scan; `certificate_transparency.sources` names them, and
   narrowing that list is the one disclosure control currently available. `--sub` and `--url-history` pass the target to the
@@ -126,9 +131,11 @@ This list describes the v1.3.0 boundary. It should be read before judging scan o
   what they disclose, and to whom, is outside Sh4q's view and outside its
   request limiter. DNS queries go to the system resolver, one per name, which
   for most operators means their network's or ISP's resolver.
-- Neither of the above is a policy position; both are unimplemented. If an
-  engagement restricts what may be disclosed to third parties, review which
-  stages you enable before running, not afterwards.
+- The ledger records disclosure; it does not prevent it. Narrowing
+  `certificate_transparency.sources` and leaving adapters disabled are the
+  controls; the `DISCLOSE` line printed before a scan starts states what is
+  about to happen while you can still stop it.
+- The missing `User-Agent` above is unimplemented, not a policy position.
 - There is no proxy or egress control, so requests originate from the host
   running the scan.
 
