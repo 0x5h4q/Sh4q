@@ -103,6 +103,27 @@ This list describes the v1.4.0 boundary. It should be read before judging scan o
   added to the graph. The asset graph is the authorized subset, ports included.
   Widen `scope.ports` if you want those origins inventoried.
 
+## Targets That Are Not Apex Domains
+
+Sh4q assumes the target is a registrable domain, and several stages are less
+useful or useless when it is not. Nothing stops you scanning
+`portal.example.com`; these are the consequences.
+
+- Certificate transparency looks for subdomains **of the target**, so on a
+  subdomain it hunts for sub-subdomains, which rarely exist. On a real estate
+  that stage cost four minutes and disclosed the target to three services for
+  no result. Set `certificate_transparency.sources: []` to skip it.
+- `crt.name` answers only for a registrable apex and refuses a subdomain
+  outright, reporting the apex it would accept.
+- `--sub` has the same shape: Subfinder enumerates beneath the name it is
+  given.
+- `--resolve` then has little to resolve, since it consumes what those stages
+  produced.
+- What still works normally: DNS, HTTP probing, technology observation,
+  JavaScript extraction, `--url-history`, and the virtual-host and directory
+  sweeps. A single-host assessment is a supported use; it is the discovery
+  stages that assume breadth.
+
 ## Scope Matching
 
 - A target is authorised by exact match, by subdomain inheritance

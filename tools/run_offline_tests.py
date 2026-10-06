@@ -27,6 +27,7 @@ OFFLINE_TESTS = (
     "test_next_steps.py",
     "test_output_hierarchy.py",
     "test_ct_reporting.py",
+    "test_ct_opt_out.py",
     "test_crt_name_connector.py",
     "test_disclosure_ledger.py",
     "test_discovered_dns_plugin.py",
