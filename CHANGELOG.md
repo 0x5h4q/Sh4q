@@ -1,5 +1,104 @@
 # Changelog
 
+## 1.4.0 - 2026-10-06
+
+Correctness release. Two scope-authorization fixes change what enters the
+asset graph, and one changes what a scan records, so read the first two
+sections before comparing results with a v1.3.0 run.
+
+### Security and correctness
+
+- Fixed a Gate 2 bypass in `dns_resolution`. The handler saved its domain
+  node before any check and only ever validated the resolved address, on
+  the reasoning that Gate 1 had already authorized the hostname. That
+  holds only while the event belongs to the scan currently running. Event
+  delivery is durable and recovery filters on neither target nor scan, so
+  one database could hand a later scan an unfinished event from a scan of
+  a different target -- and the domain, its address, and the relationship
+  entered the new scan's graph unauthorized. No request was ever made out
+  of scope: the request-time gate was never affected, and the defect was
+  graph integrity. Every handler that persists a hostname now authorizes
+  it under the scope handling the event.
+- `scope.ports` now gates inventory as well as contact. Only directory
+  discovery checked the port before persisting; six other handlers
+  authorized the hostname and ignored it, so a URL on a port you never
+  authorized became an asset. Live scans were shielded by plugin-side
+  checks, which is the same reasoning that made the bypass above look
+  safe. A refused URL stays in evidence and is reported as refused.
+- The authorization perimeter refuses strings that cannot name a host.
+  Subdomain inheritance is granted by a suffix match, and `.example.com`,
+  `sub..example.com` and `*.example.com` all satisfied it: they were
+  authorized, became domain nodes, and were handed on to be resolved. A
+  malformed entry in `scope.targets` now matches nothing, so a typo
+  cannot act as a looser rule than the name it was meant to be.
+
+### Scanning
+
+- Added `crt.name` as an opt-in certificate-transparency source, and made
+  the source list configurable through `certificate_transparency.sources`.
+  On one engagement crt.sh timed out on all three attempts while
+  crt.name returned 1750 names against certspotter's 176. Narrowing the
+  list is also the only disclosure control currently available.
+- A provider that refuses terminally is no longer re-queried. A
+  non-retryable error is now cached like a rate limit, so a stage retry
+  driven by one provider stops re-asking another that already gave its
+  final answer, and the refusal reports the reason the service gave.
+- `enrichment.max_names_resolved` and `max_hosts_probed` make coverage
+  configurable, and the stage deadlines derive from them. A flat 300s
+  could not bound 1500 names -- at ten lookups in flight and a three
+  second per-name timeout that needs 450s -- so a large bound was cut off
+  by arithmetic before the scan started.
+- `--resolve` and `--hosts-file` resolve and probe discovered or
+  operator-supplied names. Selection among more candidates than the bound
+  prefers operator-supplied names, then names more than one source
+  corroborates, then spreads the remainder evenly: taking the
+  alphabetically first N spent 62% of a 500-name budget on hostnames
+  beginning with "c".
+
+### Reporting
+
+- Added a third-party disclosure ledger: `results --disclosures` reports
+  which external services learned about the target, in two tiers.
+  Observed means sh4q made the request, so service and subject are both
+  known; declared means an external tool made requests sh4q never saw, so
+  only what it documents contacting can be stated. Every scan also prints
+  what it is about to disclose before it does.
+- Every listing states how much of the matching set it shows, and a
+  requested `--limit` is honoured rather than silently clamped. The
+  technology view reported "100" where the real total was 194; `--names`
+  reported 1000 of 1209; `events --details` showed 10 of 7179 and said
+  nothing.
+- A stage cut off at its deadline keeps its completed work and says it
+  was cut off. `discovered-dns` had preserved partial results longer than
+  any other stage and never reported the truncation: on a real scan it
+  announced 1500 names, ran past its deadline, and 189 left no resolution
+  and no error while the stage printed COMPLETE.
+- `--redact` reports how many URL-bearing fields it rewrote, and reaches
+  all of them. It previously covered only url asset values, leaving the
+  technology and HTTP-inventory endpoint columns, the exported JavaScript
+  observations, and the report's own embedded JSON unredacted. It also
+  rebuilt query strings unconditionally, altering 8 of 238 real URLs
+  while removing nothing.
+- JavaScript observations say which references are inventory. The view
+  reads evidence, so it legitimately lists references Gate 2 refused; it
+  now marks them rather than showing them beside real assets.
+- Added `results --names` and `--response-attributes`: hostname
+  composition by resolution outcome and leftmost label, and the cookie
+  flags and review headers each endpoint sent.
+- A suggested follow-up command carries the scope selector the run used.
+  Without it, following the advice after a `--config` run silently fell
+  back to a target-only scope and, for a private-address lab, refused
+  every address it had just resolved.
+
+### Documentation
+
+- Install instructions recommend `@main`, with tags described as
+  snapshots. A tag three days old was already 34 merges behind, two of
+  them scope fixes.
+- `docs/limitations.md` gains sections on scope matching and on
+  attribution and third-party disclosure, including the two gaps that
+  remain: no custom `User-Agent`, and no proxy or egress control.
+
 ## 1.3.0 - 2026-09-28
 
 Correctness and workflow release. Three of the fixes below change what a scan

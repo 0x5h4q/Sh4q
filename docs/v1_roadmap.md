@@ -52,7 +52,17 @@ silent inclusion in a general profile.
    can be separated from execution-setting changes.
 4. **Proxy support:** define proxy behavior for native HTTP traffic and disclose
    which external adapters do or do not inherit it. Proxying must never bypass
-   scope validation or destination authorization.
+   scope validation or destination authorization. Two constraints found while
+   specifying it: `ScopedHTTPClient` passes an explicit `transport=`, and httpx
+   does not consult `proxy=` when one is given, so the proxy must be threaded
+   into the pinned transport or the setting is silently ignored. And IP pinning
+   needs local DNS while proxying for privacy needs remote DNS, so these are
+   two features with opposite requirements, not one.
+4a. **Third-party disclosure:** shipped in v1.4.0. `results --disclosures`
+   reports which external services learned about a target, in observed and
+   declared tiers, and every scan states what it is about to disclose before
+   it does. Remaining: no custom `User-Agent`, so authorised traffic is not
+   identifiable as authorised.
 5. **Scheduled execution:** document or integrate repeatable cron/systemd jobs
    using stable templates and explicit output handling. A long-running Sh4q
    daemon is not required for the local v1 product.

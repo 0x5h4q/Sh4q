@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/0x5h4q/Sh4q/releases/tag/v1.3.0"><img src="https://img.shields.io/badge/release-v1.3.0-2c9c94.svg" alt="Release v1.3.0"></a>
+  <a href="https://github.com/0x5h4q/Sh4q/releases/tag/v1.4.0"><img src="https://img.shields.io/badge/release-v1.4.0-2c9c94.svg" alt="Release v1.4.0"></a>
   <a href="https://github.com/0x5h4q/Sh4q/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-167d76.svg" alt="MIT License"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.11%2B-3776ab.svg" alt="Python 3.11+"></a>
   <a href="https://github.com/0x5h4q/Sh4q"><img src="https://img.shields.io/badge/platform-Linux-lightgrey.svg" alt="Linux"></a>
@@ -340,7 +340,7 @@ pipx install git+https://github.com/0x5h4q/Sh4q.git@main
 ```
 
 `@main` is recommended: it is where fixes land, and work merges only with
-the offline suite green. Swap `main` for a tag such as `v1.3.0` when you
+the offline suite green. Swap `main` for a tag such as `v1.4.0` when you
 need a fixed snapshot — see
 [installation.md](docs/installation.md#which-reference-to-install) for what
 a tag does and does not include.
@@ -455,7 +455,7 @@ The default database is `./sh4q-output/sh4q.db`. It may contain sensitive target
 
 ## Project Status
 
-Sh4q `v1.3.0` is the current published release for trusted testers.
+Sh4q `v1.4.0` is the current published release for trusted testers.
 It includes bounded JavaScript, Katana, virtual-host, and directory discovery,
 scan profiles, SQLite large-scan indexing, machine-readable progress output,
 improved HTTP timeout handling, and interactive HTML report improvements.

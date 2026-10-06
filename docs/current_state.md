@@ -7,21 +7,22 @@ documents provide context but do not override this guide.
 
 ## Current Release
 
-- Published release: `v1.3.0`
-- Package version on `main`: `1.3.0`
+- Published release: `v1.4.0`
+- Package version on `main`: `1.4.0`
 - Runtime: Python 3.11 or newer on Linux
 - Deployment model: local, single-user CLI backed by SQLite
 - Distribution: GitHub release and tag; wheel and source artifacts built and
   verified locally; tagged `pipx` installation supported
-- GitHub Actions: the account is billing-locked, so no workflow job can start.
-  Jobs were being refused with `The job was not started because your account is
-  locked due to a billing issue`, which surfaced on pull requests as red checks
-  that said nothing about the code. The `Offline tests` and `Release` workflows
-  are therefore disabled manually, and Dependabot's `github-actions` ecosystem
-  is paused. Dependabot's `pip` ecosystem still runs, because those updates can
-  be verified locally. Do not describe remote CI as running: the offline suite
-  has never once passed on GitHub, and every release so far was published by
-  hand after local verification
+- GitHub Actions: the `Offline tests` and `Release` workflows are disabled.
+  They were switched off after failing on 2026-09-27, and the reason recorded
+  at the time was a billing lock. That explanation no longer fits what the API
+  reports: Actions are enabled, `allowed_actions` is `all`, the repository is
+  public, and Dependabot's workflow runs have succeeded repeatedly since. The
+  real cause is unknown and the logs have expired. **Do not describe remote CI
+  as running** -- the offline suite has never passed on GitHub and every
+  release so far was published by hand after local verification -- but
+  re-enabling `offline-tests.yml` and pushing is a cheap experiment that has
+  not been tried under the current conditions
 
 Sh4q is a policy-controlled reconnaissance and evidence tool. It is not a
 vulnerability scanner, exploitation framework, broad port scanner, or a
@@ -195,7 +196,10 @@ The current workflow-foundations milestone proceeds in this order:
    remains follow-up work.
 3. Persist effective template/configuration and tool-version identity for
    repeatable comparisons.
-4. Proxy support with explicit per-transport and per-adapter behavior.
+4. Proxy support with explicit per-transport and per-adapter behavior. Note
+   two constraints found while specifying it: an explicit `transport=` means
+   httpx ignores `proxy=`, and IP pinning needs local DNS while proxying for
+   privacy needs remote DNS.
 5. Scheduling guidance or integration built on stable templates.
 6. Platform v2 design only after the local workflow is stable.
 
@@ -234,13 +238,17 @@ Acceptance means:
 - the PR states motivation, implementation, exact tests, and any unverified
   environment-dependent behavior.
 
-The `v1.3.0` release was validated locally on Python 3.14.4: 77/77 offline
+The `v1.4.0` release was validated locally on Python 3.14.4: 99/99 offline
 tests, documentation and configuration-schema checks, a fresh-wheel
-installation, and an end-to-end scan against a local lab target exercising the
-virtual-host, directory, JavaScript, and template paths. Work merged since that
-release has taken the suite to 94 offline tests, with 1 opt-in integration test
-and 6 network tests run separately under `--network`. Every file in `tests/` is
-claimed by exactly one of those lists. An earlier note here
+installation, and end-to-end scans against three targets -- a local lab
+exercising the virtual-host, directory, JavaScript and template paths, the
+Acunetix test suite, and an authorised university estate running
+`--profile full` across 1779 discovered hostnames. That last run is the
+acceptance evidence for this release: the resolution accounting balances
+exactly (194 resolved plus 1306 failed equals the 1500-name bound), which is
+the defect the release fixes. 1 opt-in integration test and 6 network tests run
+separately under `--network`; every file in `tests/` is claimed by exactly one
+of those lists. An earlier note here
 warned that Python 3.14 reproduced timeouts in the async event and SQLite
 tests; that has not recurred in repeated runs during this cycle. Report a
 full-suite pass only when the runner actually completes.
