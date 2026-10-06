@@ -343,8 +343,17 @@ class CrtNameConnector(CTConnector):
             )
 
         if response.status_code != 200:
+            # The service explains refusals in the body, and the explanation
+            # is actionable: it answers only for a registrable apex, so a
+            # subdomain gets "invalid apex: not an apex (eTLD+1 is nmap.org)".
+            # Reporting a bare HTTP 400 leaves the operator with nothing to do
+            # about it. sh4q does not guess the apex itself -- that needs a
+            # public-suffix list, and guessing wrong on a name like
+            # "example.edu.ng" would query a whole suffix.
+            reason = " ".join(response.text.split())[:200]
+            detail = f": {reason}" if reason else ""
             raise CTConnectorError(
-                f"crt.name returned HTTP {response.status_code}",
+                f"crt.name returned HTTP {response.status_code}{detail}",
                 retryable=response.status_code in {408, 500, 502, 503, 504},
             )
 

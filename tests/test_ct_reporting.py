@@ -126,6 +126,54 @@ async def main() -> None:
     limited_status = next(item for item in limited_first if item.kind == "ct_provider_status")
     assert limited_status.data["status"] == "partial_rate_limited"
     assert limited_status.data["names"] == 1
+    # --- a provider that said no is not asked again -----------------------
+    # crt.name answers only for a registrable apex. Given a subdomain it
+    # returns HTTP 400 "invalid apex", which is terminal -- retryable=False.
+    # But only rate-limited errors were cached as terminal, so a stage retry
+    # driven by a *different* provider re-queried it: on a real scan it was
+    # asked three times and refused three times, three wasted requests to a
+    # service that had already given its final answer.
+    class TerminalConnector(CTConnector):
+        name = "terminal"
+
+        def __init__(self):
+            self.calls = 0
+
+        async def fetch_hostnames(self, target, timeout):
+            self.calls += 1
+            raise CTConnectorError(
+                "terminal returned HTTP 400: invalid apex", retryable=False
+            )
+
+    class RetryableConnector(CTConnector):
+        """Keeps failing retryably, so the stage keeps retrying."""
+
+        name = "retryable"
+
+        def __init__(self):
+            self.calls = 0
+
+        async def fetch_hostnames(self, target, timeout):
+            self.calls += 1
+            raise CTConnectorError("retryable returned HTTP 502", retryable=True)
+
+    terminal, retryable = TerminalConnector(), RetryableConnector()
+    mixed = CTPlugin(connectors=[terminal, retryable])
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        for _ in range(3):
+            await mixed.execute("example.com")
+    assert terminal.calls == 1, (
+        f"a terminal error must be asked once, was asked {terminal.calls} times"
+    )
+    assert retryable.calls == 3, (
+        f"a retryable error must be re-attempted, got {retryable.calls}"
+    )
+    # And it stays visible in the table rather than disappearing once cached.
+    rendered = output.getvalue()
+    assert rendered.count("terminal") >= 3, rendered
+    assert "(preserved)" in rendered, rendered
+
     print("CT provider reporting test passed")
 
 

@@ -99,6 +99,28 @@ async def main() -> None:
             assert error.retryable is retryable, f"{status}: {error.retryable}"
             assert error.rate_limited is False
 
+    # The service explains refusals in the body, and the explanation is the
+    # actionable part: it answers only for a registrable apex, so a subdomain
+    # target is refused with the apex it would accept. A bare "HTTP 400" left
+    # an operator nothing to act on.
+    explained = FakeClient(status=400, body="invalid apex: not an apex (eTLD+1 is nmap.org)")
+    try:
+        await connector_with(explained).fetch_hostnames("scanme.nmap.org", 10.0)
+        raise AssertionError("400 must raise")
+    except CTConnectorError as error:
+        assert "invalid apex" in str(error), error
+        assert "nmap.org" in str(error), error
+        assert error.retryable is False
+
+    # A refusal body is bounded and flattened; it reaches a terminal line.
+    noisy = FakeClient(status=400, body="x" * 5000 + "\n\nmore")
+    try:
+        await connector_with(noisy).fetch_hostnames("example.com", 10.0)
+        raise AssertionError("400 must raise")
+    except CTConnectorError as error:
+        assert len(str(error)) < 300, len(str(error))
+        assert "\n" not in str(error)
+
     timed_out = FakeClient(raises=httpx.ConnectTimeout("too slow"))
     try:
         await connector_with(timed_out).fetch_hostnames("example.com", 10.0)
