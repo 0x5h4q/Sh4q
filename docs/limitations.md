@@ -9,7 +9,10 @@ This list describes the v1.3.0 boundary. It should be read before judging scan o
 - Passive names can be stale, wildcard-generated, or nonexistent.
 - Discovered-host DNS resolution and HTTP probing are bounded by
   `enrichment.max_names_resolved` (default 500) and `enrichment.max_hosts_probed`
-  (default 200). Both are configurable; see
+  (default 200). Raising them raises the stage deadlines with them, since both
+  deadlines are derived from the bound rather than fixed; a large bound still
+  takes proportionally longer, and the stage reports how many names it never
+  reached if it runs out of time anyway. Both are configurable; see
   [operator_reference.md](operator_reference.md#coverage) before assuming the
   request budget is what limited a scan.
 - Names are drawn from certificate transparency and Subfinder, plus any list
@@ -22,9 +25,10 @@ This list describes the v1.3.0 boundary. It should be read before judging scan o
   but it is a sample: raise the bound rather than infer absence from it.
 - A stage cut off at its deadline keeps what it completed rather than
   discarding it. `discovered-dns`, `discovered-http`, `vhost-discovery`,
-  `directory-discovery`, `http`, `ct` and `javascript-bundles` all do this;
-  `discovered-http` additionally reports hosts never contacted and directory
-  discovery candidates never probed. A partial stage is never presented as a
+  `directory-discovery`, `http`, `ct` and `javascript-bundles` all do this.
+  `discovered-dns`, `discovered-http` and `directory-discovery` additionally
+  report how much they never got to: names never queried, hosts never
+  contacted, candidates never probed. A partial stage is never presented as a
   whole one, and a cancelled stage that preserved nothing is reported as
   incomplete rather than as an empty success.
 - Two stages do not preserve partial results, deliberately.

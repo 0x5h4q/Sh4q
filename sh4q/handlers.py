@@ -479,6 +479,17 @@ def make_discovery_handler(
             "error",
         ))
 
+    async def _discovered_dns_truncated(kind, data, source_plugin, scan_target, event_scan_run_id, event) -> None:
+        not_attempted = data.get("not_attempted", 0)
+        if stats is not None:
+            stats["dns_not_attempted"] = not_attempted
+        print(status_line(
+            f"INCOMPLETE discovered-dns looked up {data.get('attempted', 0)} of "
+            f"{data.get('total', 0)} name(s) before its deadline; "
+            f"{not_attempted} were never queried",
+            "error",
+        ))
+
     async def _directory_truncated(kind, data, source_plugin, scan_target, event_scan_run_id, event) -> None:
         not_swept = data.get("not_swept", 0)
         if stats is not None:
@@ -670,6 +681,7 @@ def make_discovery_handler(
         "vhost_error": _vhost_error,
         "vhost_budget_denied": _vhost_budget_denied,
         "discovered_http_truncated": _discovered_http_truncated,
+        "discovered_dns_truncated": _discovered_dns_truncated,
         "vhost_partial": _vhost_partial,
         "directory_observation": _directory_observation,
         "directory_error": _directory_error,
