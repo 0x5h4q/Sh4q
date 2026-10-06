@@ -7,6 +7,8 @@ from sh4q.javascript_extraction import (
     extract_javascript_observations,
 )
 
+from sh4q.cli.branding import status_line
+
 from .discovery import Discovery
 from .interface import Plugin, PluginMetadata
 
@@ -33,11 +35,13 @@ class JavaScriptExtractionPlugin(Plugin):
 
     async def execute(self, target: str) -> list[Discovery]:
         discoveries: list[Discovery] = []
+        examined = 0
         for observation in await self._observations_provider(target):
             endpoint = observation.get("endpoint")
             content = observation.get("content", "")
             if not endpoint or not isinstance(content, str):
                 continue
+            examined += 1
             for extracted in extract_javascript_observations(
                 content,
                 endpoint,
@@ -52,4 +56,18 @@ class JavaScriptExtractionPlugin(Plugin):
                         },
                     )
                 )
+        # Zero references from three pages and zero pages examined are
+        # different facts, and the stage used to report both as silence. On a
+        # real scan it examined 21KB across three endpoints that contained no
+        # <script> tag at all -- a correct result, indistinguishable from
+        # having had no HTML to look at.
+        if examined:
+            print(status_line(
+                f"examined {examined} endpoint(s) for JavaScript references; "
+                f"found {len(discoveries)}"
+            ))
+        else:
+            print(status_line(
+                "no HTML was captured to examine for JavaScript references"
+            ))
         return discoveries

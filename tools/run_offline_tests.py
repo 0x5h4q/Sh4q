@@ -49,6 +49,7 @@ OFFLINE_TESTS = (
     "test_javascript_extraction.py",
     "test_javascript_extraction_plugin.py",
     "test_javascript_extraction_pipeline.py",
+    "test_javascript_extraction_denominator.py",
     "test_javascript_stage_order.py",
     "test_katana_adapter.py",
     "test_katana_scheduler_integration.py",
