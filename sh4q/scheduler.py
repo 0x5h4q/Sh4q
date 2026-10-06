@@ -9,11 +9,27 @@ from sh4q.scope import ScopeEngine
 from sh4q.cli.branding import status_line
 
 
+#: Discovery kinds a stage emits when a bound cut it short. Named here so the
+#: durable stage status agrees with the record the stage wrote, rather than
+#: reporting a clean completion over a partial run.
+_TRUNCATION_KINDS = frozenset({
+    "discovered_dns_truncated",
+    "discovered_http_truncated",
+    "directory_truncated",
+    "url_history_truncated",
+})
+
+
+def _truncated(discoveries) -> bool:
+    return any(item.kind in _TRUNCATION_KINDS for item in discoveries)
+
+
 # How a non-clean stage outcome is named in terminal output. The status
 # strings themselves are the durable record and are not renamed here.
 _STAGE_LABELS = {
     "retry_exhausted": "INCOMPLETE",
     "timeout_exhausted": "INCOMPLETE",
+    "truncated": "INCOMPLETE",
     "error": "FAILED",
 }
 
@@ -248,8 +264,16 @@ class Scheduler:
             # ---------------------------------------------------------
 
             if not self._retryable_discovery(discoveries):
+                # A stage that preserves partial results swallows its own
+                # cancellation, which is what keeps them -- so the scheduler
+                # sees a normal return and recorded "completed" over a stage
+                # that reached 72 of 164 hosts. The stage does say what
+                # happened, in the discoveries it returns; this reads that the
+                # same way `_retryable_discovery` reads a transient failure.
                 self.stage_outcomes[stage_name] = {
-                    "status": "completed", "attempts": attempt, "discoveries": len(discoveries)
+                    "status": "truncated" if _truncated(discoveries) else "completed",
+                    "attempts": attempt,
+                    "discoveries": len(discoveries),
                 }
                 return discoveries
 

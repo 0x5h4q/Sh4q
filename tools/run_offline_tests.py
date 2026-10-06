@@ -107,6 +107,7 @@ OFFLINE_TESTS = (
     "test_url_history_scheduler_integration.py",
     "test_scheduler_progress.py",
     "test_stage_outcome_line.py",
+    "test_truncated_stage_status.py",
     "test_stage_deadline_loss.py",
     "test_stage_partial_preservation.py",
     "test_subfinder_scheduler_integration.py",
