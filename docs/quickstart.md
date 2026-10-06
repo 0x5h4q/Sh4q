@@ -69,6 +69,13 @@ Check what each endpoint sent back:
 sh4q results --latest --target your-domain.example --response-attributes
 ```
 
+See which third parties learned about the target. Every scan also prints this
+before it runs, so the decision is informed rather than retrospective:
+
+```bash
+sh4q results --latest --target your-domain.example --disclosures
+```
+
 
 Technology matching is performed locally against responses already admitted by Sh4q. It does not create a second fingerprinting request. Exact versions appear only when an inspected header, meta value, script path, stylesheet path, cookie, or HTML marker explicitly exposes one.
 

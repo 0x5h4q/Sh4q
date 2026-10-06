@@ -324,6 +324,18 @@ or network activity starts.
 
 ## Inspecting Results
 
+Every read command takes `--database`. It defaults to `./sh4q-output/sh4q.db`,
+so it can be omitted only when the scan used the default `output.directory`:
+
+```bash
+sh4q results --database ./engagements/acme/sh4q.db --latest --target acme.example --names
+```
+
+A scan whose config sets `output.directory` writes elsewhere, and the commands
+Sh4q suggests at the end of such a scan already carry the flag. Copy them
+rather than retyping, or a read command will quietly inspect a different
+database -- or an empty one.
+
 List recorded scans and inspect one overview:
 
 ```bash

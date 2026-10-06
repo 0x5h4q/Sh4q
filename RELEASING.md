@@ -1,12 +1,12 @@
 # Releasing Sh4q
 
-The process actually used for `v1.0.0` through `v1.3.0`, written down so it is
+The process actually used for `v1.0.0` through `v1.4.0`, written down so it is
 repeatable. Sh4q is a single-maintainer project with no working remote CI, so
 every gate below is a local one. Do not describe any part of it as automated.
 
 ## Versioning
 
-Semantic versioning, with a `v`-prefixed annotated tag (`v1.3.0`).
+Semantic versioning, with a `v`-prefixed annotated tag (`v1.4.0`).
 
 | Change | Bump |
 | --- | --- |
