@@ -23,6 +23,7 @@ OFFLINE_TESTS = (
     "test_scan_template.py",
     "test_cli_formatting.py",
     "test_cli_presentation.py",
+    "test_column_alignment.py",
     "test_next_steps.py",
     "test_output_hierarchy.py",
     "test_ct_reporting.py",

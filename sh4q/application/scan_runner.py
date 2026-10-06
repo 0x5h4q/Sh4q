@@ -2,6 +2,7 @@
 
 import shutil
 import os
+import textwrap
 import time
 import httpx
 from dataclasses import dataclass
@@ -451,8 +452,20 @@ async def run_scan(
             resolves_names=True,
         )
         if planned:
-            services = ", ".join(dict.fromkeys(item.service for item in planned))
-            notices.append(status_line(f"DISCLOSE this scan may tell: {services}"))
+            services = list(dict.fromkeys(item.service for item in planned))
+            # One 130-character line is not a declaration anyone reads. Count
+            # them, then wrap, so the number registers before the list does.
+            wrapped = textwrap.wrap(
+                ", ".join(services), width=84,
+                initial_indent="           ", subsequent_indent="           ",
+            )
+            notices.append(
+                status_line(
+                    f"DISCLOSE {len(services)} third part(ies) will learn this target:"
+                )
+                + "\n"
+                + "\n".join(wrapped)
+            )
         enrichment_notice = "\n".join(notices) if notices else None
         decision = await scheduler.run(target, before_stages=enrichment_notice)
         await bus.drain()
