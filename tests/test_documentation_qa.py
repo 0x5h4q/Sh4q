@@ -15,6 +15,26 @@ assert f"releases/tag/v{version}" in readme
 assert f"Sh4q `v{version}`" in readme
 assert "docs/current_state.md" in readme
 
+# The README badge names a test count, and a badge is read as current by
+# definition. It has gone stale twice in one week -- at 88 and at 99 -- and
+# with no remote CI to regenerate it, this assertion is the only thing that
+# can notice. Keep the number; make it impossible to forget.
+import sys  # noqa: E402
+
+sys.path.insert(0, str(root / "tools"))
+from run_offline_tests import OFFLINE_TESTS  # noqa: E402
+
+badge = re.search(r"offline%20suite-(\d+)%20checks", readme)
+assert badge, "the README must carry the offline-suite badge"
+assert int(badge.group(1)) == len(OFFLINE_TESTS), (
+    f"the README badge says {badge.group(1)} checks; the runner has "
+    f"{len(OFFLINE_TESTS)}. Update the badge, or it claims a number nobody "
+    "verified."
+)
+assert f'alt="{len(OFFLINE_TESTS)} offline checks"' in readme, (
+    "the badge alt text must match the badge"
+)
+
 # The recommended install must name a moving reference, not a tag.
 #
 # A tag is a snapshot of the day it was cut. v1.3.0 was three days old and
