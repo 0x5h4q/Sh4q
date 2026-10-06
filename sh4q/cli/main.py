@@ -175,13 +175,66 @@ def render_failure_results(rows) -> None:
 
 
 def render_javascript_results(rows) -> None:
-    columns = (("TYPE", 28), ("VALUE / PATTERN", 52), ("SOURCE ENDPOINT", 52))
+    columns = (("TYPE", 26), ("VALUE / PATTERN", 48), ("SOURCE ENDPOINT", 46), ("IN SCOPE", 8))
     print()
     print("  " + "  ".join(label.ljust(width) for label, width in columns))
     print("  " + "  ".join("-" * width for _, width in columns))
     for row in rows:
         kind = row.kind.removeprefix("javascript_")
-        print("  " + "  ".join(_fit(value, width).ljust(width) for value, (_, width) in zip((kind, row.value or row.kind, row.source_endpoint or "-"), columns)))
+        cells = (
+            kind,
+            row.value or row.kind,
+            row.source_endpoint or "-",
+            "yes" if row.in_inventory else "refused",
+        )
+        print("  " + "  ".join(
+            _fit(value, width).ljust(width) for value, (_, width) in zip(cells, columns)
+        ))
+    refused = sum(1 for row in rows if not row.in_inventory)
+    if refused:
+        print(note(
+            f"\n  {refused} of {len(rows)} reference(s) point outside the scope and were\n"
+            "  refused at Gate 2. They are recorded because a page linking them is a\n"
+            "  fact worth keeping, but they are not inventory."
+        ))
+
+
+def no_javascript_message(total: int, kind: str | None) -> str:
+    """Why a JavaScript listing is empty, without guessing.
+
+    A filter matching nothing says nothing about whether the stage ran. On a
+    real scan `--js-kind secret_like_pattern` reported "No JavaScript
+    observations are recorded for this scan" while 55 were recorded.
+    """
+    if total:
+        subject = f"of kind {kind!r}" if kind else "matching this query"
+        return (
+            f"  No JavaScript observations {subject}. This scan recorded "
+            f"{total} of other kinds."
+        )
+    return (
+        "  No JavaScript observations are recorded for this scan.\n"
+        "  Either the extraction stage did not run -- it needs --js,\n"
+        "  --profile web or --profile full -- or it examined the pages\n"
+        "  and found no references. The scan output says which."
+    )
+
+
+def resolution_bound_note(unchecked: int, resolved: int, unresolved: int) -> str:
+    """State the bound that applied, not the one that ships by default.
+
+    A scan configured for 1500 names was told its leftover was "past the
+    per-scan resolution bound, which defaults to 500". The default was not
+    the bound; the bound is how many names the scan actually attempted, and
+    that is derivable from what it reported.
+    """
+    attempted = resolved + unresolved
+    return (
+        f"  {unchecked} name(s) were past this scan's resolution bound of "
+        f"{attempted}.\n  Raise enrichment.max_names_resolved, or run the "
+        "remainder explicitly:\n"
+        "    sh4q results ... --type domain   then feed them to --hosts-file"
+    )
 
 
 def render_metrics(title: str, rows) -> None:
@@ -945,9 +998,7 @@ def main() -> None:
                     print(f"    {muted('not checked')}              {c.unchecked}   {note('(run with --resolve)')}")
             if c.unchecked and (c.resolved or c.unresolved):
                 print()
-                print(note(f"  {c.unchecked} name(s) were past the per-scan resolution bound, which"))
-                print(note("  defaults to 500. Narrow the scope, or run the remainder explicitly:"))
-                print(note("    sh4q results ... --type domain   then feed them to --hosts-file"))
+                print(note(resolution_bound_note(c.unchecked, c.resolved, c.unresolved)))
                 print()
             if c.auto_issued:
                 print()
@@ -1080,13 +1131,13 @@ def main() -> None:
                 if not rows:
                     # An empty table is indistinguishable from a stage that ran
                     # and found nothing, which is the more reassuring reading
-                    # and usually the wrong one.
-                    print(note(
-                        "  No JavaScript observations are recorded for this scan.\n"
-                        "  Either the extraction stage did not run -- it needs --js,\n"
-                        "  --profile web or --profile full -- or it examined the pages\n"
-                        "  and found no references. The scan output says which."
-                    ))
+                    # and usually the wrong one -- and a filter matching nothing
+                    # is a third case that says nothing about either.
+                    unfiltered = list_javascript_observations(
+                        str(database), scan_id=scan_id,
+                        source_filter=args.source_endpoint, limit=None,
+                    )
+                    print(note(no_javascript_message(len(unfiltered), args.js_kind)))
             else:
                 rows = list_assets(
                     str(database), asset_type=args.type, target=args.target,
