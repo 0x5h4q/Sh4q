@@ -50,7 +50,7 @@ green, and fixes land there well before they are tagged.
 
 ```bash
 pipx install git+https://github.com/0x5h4q/Sh4q.git@main   # current code
-pipx install git+https://github.com/0x5h4q/Sh4q.git@v1.3.0 # a fixed snapshot
+pipx install git+https://github.com/0x5h4q/Sh4q.git@v1.4.0 # a fixed snapshot
 ```
 
 Install a tag when you need a byte-identical build across machines, or to
@@ -58,7 +58,7 @@ reproduce a recorded result. Be aware of what that costs: a tag is a
 snapshot of the day it was cut, and `main` may by then carry correctness
 and scope fixes that the tag does not. `CHANGELOG.md` lists what each
 release contained; anything merged after the newest entry exists only on
-`main`. Check `git log v1.3.0..main` before concluding a tag is current.
+`main`. Check `git log v1.4.0..main` before concluding a tag is current.
 
 `sh4q --version` reports the version recorded in the package metadata,
 which is the last released version. A build from `main` therefore reports
@@ -83,7 +83,7 @@ source changes, and repeatable test runs. Installing directly into a system
 Python is possible where the operating system permits it, but is not the
 recommended deployment path.
 
-The `v1.3.0` tag is installable from the published GitHub release.
+The `v1.4.0` tag is installable from the published GitHub release.
 
 Run the offline checks:
 
