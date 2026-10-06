@@ -212,7 +212,7 @@ def render_scan_report(report) -> None:
         print(f"  Duration     {duration:.2f}s")
 
     print("\n  Verified Surface")
-    print(f"    Hostnames resolved     {report.dns_hostnames:>6}")
+    print(f"    Hostnames with address {report.dns_hostnames:>6}")
     print(f"    Addresses, all hosts   {report.dns_addresses:>6}")
     print(f"    HTTP hosts             {report.http_hosts:>6}")
     print(f"    HTTP endpoints         {report.http_endpoints:>6}")
@@ -633,8 +633,8 @@ def render_summary(
         ("HTTP endpoints", summary.http_endpoints),
         ("CT names", summary.ct_names),
         ("Adapter names", summary.adapter_names),
-        ("Resolved names", summary.resolved_discovered_addresses),
-        ("DNS failures", summary.resolved_discovered_failures),
+        ("Discovered names resolved", summary.resolved_discovered_addresses),
+        ("Discovered names failed", summary.resolved_discovered_failures),
     ]
     for reason, count in sorted(summary.dns_failure_reasons.items()):
         asset_rows.append((f"DNS failure: {reason}", count))
