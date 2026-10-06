@@ -119,7 +119,8 @@ This list describes the v1.3.0 boundary. It should be read before judging scan o
   identifying header are not satisfied by any current option.
 - A scan discloses the target to third parties, and nothing records which ones.
   Certificate transparency contacts `crt.sh` and `api.certspotter.com` directly
-  on every default scan. `--sub` and `--url-history` pass the target to the
+  on every default scan; `certificate_transparency.sources` names them, and
+  narrowing that list is the one disclosure control currently available. `--sub` and `--url-history` pass the target to the
   `subfinder` and `waybackurls` subprocesses, which query their own providers --
   Subfinder's configured sources and the Internet Archive respectively -- so
   what they disclose, and to whom, is outside Sh4q's view and outside its
