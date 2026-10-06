@@ -284,8 +284,9 @@ Two bounds decide how much of what a scan finds it goes on to check:
 
 ```yaml
 enrichment:
-  max_names_resolved: 500   # discovered names to resolve
-  max_hosts_probed: 200     # of those that resolved, how many to contact
+  max_names_resolved: 500    # discovered names to resolve
+  max_hosts_probed: 200      # of those that resolved, how many to contact
+  max_historical_urls: 5000  # URLs kept from --url-history
 ```
 
 **The request budget is usually not the limit.** A real scan of a large estate
@@ -296,7 +297,10 @@ either — `results --names` reports how many names were left past the bound.
 
 Raising `max_names_resolved` costs DNS lookups, which are fast and not drawn
 from the request budget. Raising `max_hosts_probed` costs HTTP requests, which
-are, and which are rate limited.
+are, and which are rate limited. Raising `max_historical_urls` costs nothing at
+all -- `waybackurls` returns everything in one call and the bound only decides
+how much is kept -- and it is the bound that binds most often: one target
+returned 14658 URLs against a default of 5000.
 
 **When more names are found than the bound allows, the ones checked are a
 sample, not a prefix.** Names you supplied with `--hosts-file` are taken first,
