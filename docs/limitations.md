@@ -17,12 +17,19 @@ This list describes the v1.4.0 boundary. It should be read before judging scan o
   request budget is what limited a scan.
 - Names are drawn from certificate transparency and Subfinder, plus any list
   supplied with `--hosts-file`.
+- Historical URLs are bounded by `enrichment.max_historical_urls` (default
+  5000). One real target returned 14658, so this bound binds often.
 - When more names are found than the bound allows, the selection is **not** the
   first N. Operator-supplied names come first, then names more than one source
   agrees on, then an even spread across the sorted remainder. Taking the
   alphabetically first N spent 62% of a 500-name budget on hostnames beginning
   with `c` and never reached anything after `m`. The selection is deterministic,
   but it is a sample: raise the bound rather than infer absence from it.
+- Historical URLs are selected the same way, spread across hosts rather than
+  truncated. Truncating kept 5000 of 14658 and the loss was systematic rather
+  than proportional: one host was 91% of what survived, 20 hosts appeared out
+  of 51, and all 30 https URLs were discarded -- not because they mattered
+  less, but because `http://` sorts before `https://`.
 - A stage cut off at its deadline keeps what it completed rather than
   discarding it. `discovered-dns`, `discovered-http`, `vhost-discovery`,
   `directory-discovery`, `http`, `ct` and `javascript-bundles` all do this.

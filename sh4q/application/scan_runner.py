@@ -292,7 +292,10 @@ async def run_scan(
             adapter_home.mkdir(parents=True, exist_ok=True)
             plugins.append(
                 ExternalAdapterPlugin(
-                    URLHistoryAdapter(executable=executable),
+                    URLHistoryAdapter(
+                        executable=executable,
+                        max_urls=config.enrichment.max_historical_urls,
+                    ),
                     AdapterContext(scope, Path(config.output.directory)),
                     ControlledProcessRunner(
                         {executable},

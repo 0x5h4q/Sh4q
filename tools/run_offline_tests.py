@@ -100,6 +100,7 @@ OFFLINE_TESTS = (
     "test_subfinder_adapter.py",
     "test_url_history_adapter.py",
     "test_url_history_pipeline.py",
+    "test_url_history_selection.py",
     "test_scan_diff.py",
     "test_export_redaction.py",
     "test_url_history_scheduler_integration.py",
