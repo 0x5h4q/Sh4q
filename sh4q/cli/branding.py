@@ -107,3 +107,23 @@ def figure(text: str) -> str:
 def accent(text: str) -> str:
     """A heading inside a result view."""
     return f"\033[1;36m{text}{_RESET}" if colour_enabled() else text
+
+
+def refusal(text: str) -> str:
+    """A policy decision inside a table: magenta, matching the deny marker.
+
+    Not red. A Gate 2 refusal is the system working, and colouring it as an
+    error would misread the one thing this tool exists to show.
+    """
+    return f"{_STYLES['deny']}{text}{_RESET}" if colour_enabled() else text
+
+
+def column(text: str, width: int, style=None) -> str:
+    """Pad to a column width, then style.
+
+    Styling first and padding second is the classic alignment bug: `len()`
+    counts the escape bytes, so a coloured cell is padded short and every
+    column after it drifts. Pad on the plain text, colour the result.
+    """
+    padded = text.ljust(width)
+    return style(padded) if style is not None else padded

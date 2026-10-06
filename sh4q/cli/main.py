@@ -14,14 +14,22 @@ from sh4q.application import run_scan
 from sh4q.adapters import AdapterExecutionError
 from sh4q.events.event_log import DurableEventLog
 from sh4q.storage.scan_runs import count_scans, get_scan, latest_scan, list_scans, scan_asset_count
-from sh4q.application.disclosure import DECLARED, summarize_disclosures
+from sh4q.application.disclosure import DECLARED, OBSERVED, summarize_disclosures
 from sh4q.application.results import friendly_technology_source, list_assets, list_response_attributes, summarize_names, list_failures, list_javascript_observations, list_technology_observations, summarize_technology_observations
 from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
 from sh4q.application.scan_report import build_scan_report
 from sh4q.application.diff import build_scan_diff, diff_document
 from sh4q.config import ConfigFileError, conflicting_template_options, load_template
 from sh4q.storage.db import SchemaVersionError, ensure_schema_version
-from sh4q.cli.branding import accent, figure, muted, note, render_scan_banner
+from sh4q.cli.branding import (
+    accent,
+    column,
+    figure,
+    muted,
+    note,
+    refusal,
+    render_scan_banner,
+)
 from sh4q.dependencies import dependency_reports
 
 
@@ -175,27 +183,29 @@ def render_failure_results(rows) -> None:
 
 
 def render_javascript_results(rows) -> None:
-    columns = (("TYPE", 26), ("VALUE / PATTERN", 48), ("SOURCE ENDPOINT", 46), ("IN SCOPE", 8))
+    columns = (("TYPE", 24), ("VALUE / PATTERN", 46), ("SOURCE ENDPOINT", 42), ("IN SCOPE", 8))
     print()
-    print("  " + "  ".join(label.ljust(width) for label, width in columns))
-    print("  " + "  ".join("-" * width for _, width in columns))
+    print("  " + "".join(column(label, width + 2, accent) for label, width in columns).rstrip())
+    print("  " + "".join(column("-" * width, width + 2, muted) for label, width in columns).rstrip())
     for row in rows:
         kind = row.kind.removeprefix("javascript_")
-        cells = (
-            kind,
-            row.value or row.kind,
-            row.source_endpoint or "-",
-            "yes" if row.in_inventory else "refused",
+        # A refusal is a policy decision, so it carries the deny colour rather
+        # than an error colour, and the whole row dims: it is on the record,
+        # not in the inventory.
+        style = None if row.in_inventory else muted
+        print(
+            "  "
+            + column(_fit(kind, 24), 26, style)
+            + column(_fit(row.value or row.kind, 46), 48, style)
+            + column(_fit(row.source_endpoint or "-", 42), 44, style)
+            + ("yes" if row.in_inventory else refusal("refused"))
         )
-        print("  " + "  ".join(
-            _fit(value, width).ljust(width) for value, (_, width) in zip(cells, columns)
-        ))
     refused = sum(1 for row in rows if not row.in_inventory)
     if refused:
         print(note(
             f"\n  {refused} of {len(rows)} reference(s) point outside the scope and were\n"
-            "  refused at Gate 2. They are recorded because a page linking them is a\n"
-            "  fact worth keeping, but they are not inventory."
+            "  refused at Gate 2. A page linking them is a fact worth keeping, so they\n"
+            "  stay on the record -- but they are not inventory."
         ))
 
 
@@ -230,10 +240,10 @@ def resolution_bound_note(unchecked: int, resolved: int, unresolved: int) -> str
     """
     attempted = resolved + unresolved
     return (
-        f"  {unchecked} name(s) were past this scan's resolution bound of "
-        f"{attempted}.\n  Raise enrichment.max_names_resolved, or run the "
-        "remainder explicitly:\n"
-        "    sh4q results ... --type domain   then feed them to --hosts-file"
+        f"  {unchecked} name(s) were past this scan's resolution bound of {attempted}.\n"
+        "  Raise enrichment.max_names_resolved to reach them, or run the\n"
+        "  remainder explicitly:\n"
+        "      sh4q results ... --type domain   then feed them to --hosts-file"
     )
 
 
@@ -554,30 +564,45 @@ async def _event_summary(event_log, args) -> tuple[list, int, int]:
 def render_disclosures(ledger) -> None:
     """Which third parties learned about this target, and how certainly."""
     if not ledger.disclosures:
-        print("  No third-party disclosure is recorded for this scan.")
+        print(f"\n  {accent('Third-party disclosure')}")
+        print("    None is recorded for this scan.")
         print(note(
-            "  Either the scan contacted nothing external, or it predates\n"
-            "  disclosure recording."
+            "\n    Either the scan contacted nothing external, or it predates\n"
+            "    disclosure recording."
         ))
         return
-    print()
-    print(f"  {'SERVICE':<30}  {'VIA':<18}  {'FIDELITY':<9}  SUBJECTS")
-    print(f"  {'-' * 30}  {'-' * 18}  {'-' * 9}  --------")
+
+    print(f"\n  {accent('Third-party disclosure')}")
+    print(note("    Who learned about this target, and how certainly sh4q knows.\n"))
+
+    headers = (("SERVICE", 30), ("VIA", 18), ("FIDELITY", 10), ("SUBJECTS", 8))
+    print("    " + "".join(column(label, width + 2, accent) for label, width in headers).rstrip())
+    print("    " + "".join(column("-" * width, width + 2, muted) for label, width in headers).rstrip())
+
     for item in ledger.disclosures:
+        # Declared is the weaker claim, so it reads quieter than observed.
+        weaker = item.fidelity == DECLARED
+        style = muted if weaker else None
         print(
-            f"  {_fit(item.service, 30):<30}  {_fit(item.via, 18):<18}  "
-            f"{item.fidelity:<9}  {figure(str(item.subjects))}"
+            "    "
+            + column(_fit(item.service, 30), 32, style)
+            + column(_fit(item.via, 18), 20, style)
+            + column(item.fidelity, 12, style)
+            + figure(str(item.subjects))
         )
+
     print(note(
-        "\n  observed: sh4q made the request, so the service and subject are known."
+        f"\n    {OBSERVED}:  sh4q made the request, so the service and the subject\n"
+        "               are both known."
     ))
     if ledger.declared:
         print(note(
-            "  declared: an external tool made requests sh4q never saw. Only what the\n"
-            "  tool is documented to contact is listed, and that changes with its version."
+            f"    {DECLARED}:  an external tool made requests sh4q never saw. Only what\n"
+            "               the tool documents contacting is listed, and that changes\n"
+            "               with its version. Weaker evidence than observed."
         ))
     print(note(
-        "\n  Subjects counts distinct hostnames disclosed, not requests sent."
+        "\n    Subjects counts distinct hostnames disclosed, not requests sent."
     ))
 
 
