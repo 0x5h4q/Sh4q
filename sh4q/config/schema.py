@@ -93,6 +93,9 @@ class EnrichmentConfig(BaseModel):
 
     max_names_resolved: int = Field(default=500, ge=1, le=20000)
     max_hosts_probed: int = Field(default=200, ge=1, le=5000)
+    #: Historical URLs retained per scan. waybackurls returned 14658 for one
+    #: real target; the rest are selected across hosts rather than truncated.
+    max_historical_urls: int = Field(default=5000, ge=1, le=200000)
 
 
 class AdaptersConfig(BaseModel):
