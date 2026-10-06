@@ -96,7 +96,12 @@ class CTPlugin(Plugin):
         for source_name, hostnames, error in attempted:
             if error is None:
                 self._successful_results[(target, source_name)] = set(hostnames)
-            elif error.rate_limited:
+            elif not error.retryable:
+                # Any non-retryable error is final, not just a rate limit.
+                # Caching only rate limits meant a stage retry driven by one
+                # provider re-queried another that had already refused: a
+                # crt.name "invalid apex" HTTP 400 was asked three times on a
+                # real scan. retryable=False has to mean it.
                 self._terminal_results[(target, source_name)] = error
             results.append((source_name, hostnames, error, False))
 
