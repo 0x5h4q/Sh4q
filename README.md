@@ -9,7 +9,7 @@
   <a href="https://github.com/0x5h4q/Sh4q/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-167d76.svg" alt="MIT License"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.11%2B-3776ab.svg" alt="Python 3.11+"></a>
   <a href="https://github.com/0x5h4q/Sh4q"><img src="https://img.shields.io/badge/platform-Linux-lightgrey.svg" alt="Linux"></a>
-  <img src="https://img.shields.io/badge/offline%20suite-88%20checks-2ea043.svg" alt="88 offline checks">
+  <img src="https://img.shields.io/badge/offline%20suite-99%20checks-2ea043.svg" alt="99 offline checks">
 </p>
 
 <p align="center"><strong>Know what you touched. Know why. Know it was authorised.</strong></p>
@@ -447,8 +447,15 @@ The default database is `./sh4q-output/sh4q.db`. It may contain sensitive target
 - Opt-in virtual-host discovery from bounded candidate files or prior scan assets.
 - Opt-in directory discovery with path normalization, baseline comparison,
   request budgets, durable evidence, and HTML-report observations.
+- A third-party disclosure ledger: which external services learned about the
+  target, separated into what Sh4q observed and what an external tool declares.
+- Configurable certificate-transparency sources, so which parties a scan
+  contacts is declared rather than fixed.
+- Every listing states how much of the matching set it is showing, and a stage
+  cut off at its deadline keeps its work and says it was cut off.
 - Quiet/verbose scan output and machine-readable JSON Lines progress events.
-- A deterministic offline suite used by CI.
+- A deterministic offline suite, run locally before every merge. There is no
+  remote CI: the workflows are disabled and have never passed on GitHub.
 - A self-contained HTML asset report with client-side filters for type, host,
   status, technology/category, source, and text search, plus JavaScript,
   virtual-host, and directory observation sections.

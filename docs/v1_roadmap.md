@@ -22,6 +22,27 @@ unrelated feature branches or silently reorder the roadmap.
 - Published GitHub release and tag `v1.2.0` with verified wheel installation.
 - Versioned configuration schema with legacy v1 compatibility.
 
+## Completed in v1.4.0
+
+- Two Gate 2 fixes: `dns_resolution` authorizes its hostname under the scope
+  handling the event, closing a bypass reachable through durable event
+  recovery; and `scope.ports` gates inventory as well as contact.
+- The authorization perimeter refuses strings that cannot name a host, so
+  subdomain inheritance is no longer granted to `.example.com` or
+  `*.example.com`, and a malformed target entry matches nothing.
+- A third-party disclosure ledger in observed and declared tiers, with every
+  scan stating what it is about to disclose before it does.
+- `crt.name` as an opt-in certificate-transparency source, and
+  `certificate_transparency.sources` to declare which parties a scan contacts.
+- Configurable enrichment bounds, with stage deadlines derived from them
+  rather than flat.
+- Every listing states its denominator; a requested `--limit` is honoured
+  rather than silently clamped; a stage cut off at its deadline keeps its work
+  and records that it was cut off.
+- `--redact` reports what it rewrote and reaches every URL-bearing field.
+- The offline suite runs 99 tests, up from 77 at v1.3.0, with every file
+  accounted for.
+
 ## Completed in v1.3.0
 
 - Named scan templates: versioned recipes that own stage selection, validate
@@ -33,7 +54,7 @@ unrelated feature branches or silently reorder the roadmap.
 - The Amass adapter retired; Subfinder covers passive subdomain discovery.
 - Finding-oriented terminal output, with colour limited to interactive use.
 - Perimeter, wiring, packaged-config, and port regression coverage; the
-  offline suite runs 77 tests with every file accounted for.
+  offline suite ran 77 tests at that release, with every file accounted for.
 - A documented release process in `RELEASING.md`.
 
 Katana, virtual-host discovery, and directory discovery
