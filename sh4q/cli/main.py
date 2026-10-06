@@ -1082,9 +1082,10 @@ def main() -> None:
                     # and found nothing, which is the more reassuring reading
                     # and usually the wrong one.
                     print(note(
-                        "  No JavaScript observations are recorded for this scan. "
-                        "The extraction\n  stage runs under --js, --profile web, "
-                        "or --profile full."
+                        "  No JavaScript observations are recorded for this scan.\n"
+                        "  Either the extraction stage did not run -- it needs --js,\n"
+                        "  --profile web or --profile full -- or it examined the pages\n"
+                        "  and found no references. The scan output says which."
                     ))
             else:
                 rows = list_assets(
