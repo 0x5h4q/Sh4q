@@ -163,3 +163,20 @@ for stale in (
     'Showing {len(rows)} asset(s)',
 ):
     assert stale not in _cli, f"a bare count came back: {stale}"
+
+# Second instance of the same defect, found on a live scan rather than here:
+# `show` printed "Hostnames resolved  1" -- every hostname with an address,
+# which on a single-host scan is the target -- while the summary printed
+# "Resolved names  0", meaning discovered names that resolved. Both figures
+# were correct and the labels were near-identical, so the two views appeared
+# to contradict each other.
+assert '"Discovered names resolved"' in _cli, (
+    "the summary figure must say it counts discovered names"
+)
+assert "Hostnames with address" in _cli, (
+    "the overview figure must say it counts every hostname with an address"
+)
+assert '("Resolved names"' not in _cli, "the ambiguous label must not remain"
+assert "Hostnames resolved " not in _cli, "the ambiguous label must not remain"
+
+print("label disambiguation test passed")
