@@ -247,7 +247,12 @@ async def run_scan(
                 timeout=config.timeout.http_seconds,
             ),
         ]
-        plugins.append(CTPlugin(limiter=limiter, config=config))
+        # Certificate transparency looks for subdomains of the target. On a
+        # target that is already a deep subdomain that means hunting for
+        # sub-subdomains, which rarely exist, at the cost of minutes and a
+        # disclosure to every configured service.
+        if config.certificate_transparency.sources:
+            plugins.append(CTPlugin(limiter=limiter, config=config))
         if include_subfinder:
             executable = shutil.which("subfinder")
             if executable is None:

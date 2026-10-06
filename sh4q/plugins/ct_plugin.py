@@ -122,6 +122,11 @@ class CTPlugin(Plugin):
         # retry read as total collapse: on a real target crt.sh timed out three
         # times while certspotter's 184 names sat preserved and unmentioned, so
         # attempts 2 and 3 printed only "crt.sh degraded  0 names retained".
+        # A provider table with no providers under it claims the stage ran and
+        # found nothing, which is a different statement from not running.
+        if not results:
+            return []
+
         print("CT providers:")
         for source_name, hostnames, error, cached in results:
             suffix = " (preserved)" if cached else ""

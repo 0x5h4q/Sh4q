@@ -259,6 +259,11 @@ certificate_transparency:
   sources: ["certspotter", "crt.sh"]   # the default
 ```
 
+Setting `sources: []` skips the stage entirely. That is worth doing when the
+target is already a subdomain: certificate transparency searches for subdomains
+*of the target*, so it hunts for sub-subdomains, which rarely exist, while
+costing minutes and a disclosure to every configured service.
+
 `crt.name` is available and not enabled by default. Add it when you want a
 third source:
 

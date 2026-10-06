@@ -74,11 +74,11 @@ class CertificateTransparencyConfig(BaseModel):
                 f"unknown certificate transparency source(s): {', '.join(unknown)}; "
                 f"known sources: {known}"
             )
-        if not value:
-            raise ValueError(
-                "certificate_transparency.sources must name at least one source; "
-                "disable the stage instead of emptying the list"
-            )
+        # An empty list means "do not run the stage". This used to be refused
+        # with advice to "disable the stage instead", which nothing could do:
+        # CT was appended unconditionally and no flag skipped it. The lever
+        # belongs here rather than in a tenth stage flag -- the nine that exist
+        # encode a policy, and a setting with a home should not become one.
         return list(dict.fromkeys(value))
 
 
