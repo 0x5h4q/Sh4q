@@ -31,6 +31,7 @@ from sh4q.storage.scan_runs import create_scan, finish_scan
 from sh4q.storage.scan_assets import SQLiteScanAssetStore
 from sh4q.storage.db import open_sync_database
 from sh4q.storage.db import ensure_schema_version
+from sh4q.application.disclosure import planned_disclosures
 from sh4q.application.request_metrics import persist_request_metrics
 from sh4q.application.stage_metrics import persist_stage_metrics
 from sh4q.adapters import (
@@ -427,14 +428,32 @@ async def run_scan(
             scan_run_id=scan_run.id,
             progress_callback=progress_callback,
         )
+        notices = []
         if include_subfinder or include_resolve or supplied_hosts:
-            enrichment_notice = status_line(
+            notices.append(status_line(
                 f"ENRICH   up to {config.enrichment.max_names_resolved} name(s) to resolve "
                 f"and {config.enrichment.max_hosts_probed} to probe, "
                 f"at {config.rate_limit.requests_per_second:g} request(s)/second"
-            )
-        else:
-            enrichment_notice = None
+            ))
+        # State who this scan will tell about the target before it tells them.
+        # Printed, not prompted: the same command runs under --progress jsonl
+        # and from a scheduled job, and a confirmation would hang both.
+        planned = planned_disclosures(
+            ct_sources=tuple(config.certificate_transparency.sources),
+            adapters=tuple(
+                name for name, enabled in (
+                    ("subfinder", include_subfinder),
+                    ("url-history", include_url_history),
+                    ("katana", include_katana),
+                    ("httpx-fingerprint", include_httpx),
+                ) if enabled
+            ),
+            resolves_names=True,
+        )
+        if planned:
+            services = ", ".join(dict.fromkeys(item.service for item in planned))
+            notices.append(status_line(f"DISCLOSE this scan may tell: {services}"))
+        enrichment_notice = "\n".join(notices) if notices else None
         decision = await scheduler.run(target, before_stages=enrichment_notice)
         await bus.drain()
     except BaseException:

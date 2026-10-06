@@ -208,6 +208,48 @@ adapters:
     timeout_seconds: 120.0
 ```
 
+### What a scan disclosed
+
+Every scan prints what it is about to tell third parties, before it tells them:
+
+```text
+[~] DISCLOSE this scan may tell: api.certspotter.com, crt.sh, subfinder passive sources, web.archive.org, system resolver
+```
+
+It is printed, never prompted — the same command runs under `--progress jsonl`
+and from a scheduled job, and a confirmation would hang both. Stopping the scan
+is the control; the line exists so the decision is informed.
+
+Afterwards, the same ledger is readable from the database:
+
+```bash
+sh4q results --latest --target example.com --disclosures
+```
+
+```text
+  SERVICE                         VIA                 FIDELITY   SUBJECTS
+  ------------------------------  ------------------  ---------  --------
+  api.certspotter.com             native              observed   1
+  crt.sh                          native              observed   1
+  subfinder passive sources       subfinder           declared   1
+  web.archive.org                 url-history         declared   1
+  system resolver                 native              observed   1210
+```
+
+Two tiers, because Sh4q cannot honestly claim more than it knows. **Observed**
+means Sh4q made the request, so the service and the subject are both known.
+**Declared** means an external tool made requests Sh4q never saw: only what the
+tool is documented to contact is listed, and that changes with its version.
+Treat a declared row as weaker evidence than an observed one.
+
+`SUBJECTS` counts distinct hostnames disclosed, not requests sent — one name
+resolving to six addresses is six requests and one disclosure. The resolver is
+usually the largest row, which is the point: a scan that resolves 1210 names
+tells whichever resolver the host uses about 1210 hostnames, one at a time.
+
+The ledger is read from durable evidence rather than recorded separately, so it
+also answers the question for scans already on disk.
+
 ### Certificate-transparency sources
 
 Which CT services a scan contacts is declared, not fixed:
