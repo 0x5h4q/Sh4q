@@ -27,8 +27,13 @@ dist/
 build/
 
 # Internal working notes: known gaps and unfixed weaknesses are not
-# published in a public repository.
+# published in a public repository. Personal planning documents are not
+# published at all -- `git add -A` has swept one in twice, so the patterns
+# are broad on purpose.
 SCOPE_REVIEW.md
+*_REVIEW.md
+*-plan.pdf
+0p-*.pdf
 BACKLOG.md
 reconftw_README.md
 

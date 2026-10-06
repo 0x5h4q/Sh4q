@@ -245,7 +245,7 @@ async def run_scan(
                 timeout=config.timeout.http_seconds,
             ),
         ]
-        plugins.append(CTPlugin(limiter=limiter))
+        plugins.append(CTPlugin(limiter=limiter, config=config))
         if include_subfinder:
             executable = shutil.which("subfinder")
             if executable is None:

@@ -208,6 +208,34 @@ adapters:
     timeout_seconds: 120.0
 ```
 
+### Certificate-transparency sources
+
+Which CT services a scan contacts is declared, not fixed:
+
+```yaml
+certificate_transparency:
+  sources: ["certspotter", "crt.sh"]   # the default
+```
+
+`crt.name` is available and not enabled by default. Add it when you want a
+third source:
+
+```yaml
+certificate_transparency:
+  sources: ["certspotter", "crt.sh", "crt.name"]
+```
+
+It earns its place on resilience. On one engagement run, with all three
+enabled: `certspotter` returned 176 names, `crt.sh` timed out as it often
+does, and `crt.name` returned 1750. A provider failing is the normal case, not
+the exceptional one, and the stage keeps whatever the others returned.
+
+It is opt-in because each source is another party that learns which domain you
+are interested in, and that is your decision rather than a property of the
+code. Narrowing the list is the same control in the other direction: a scan
+configured with one source discloses to one service. An unknown name is
+rejected when the config loads, before any network activity.
+
 ### Coverage
 
 Two bounds decide how much of what a scan finds it goes on to check:

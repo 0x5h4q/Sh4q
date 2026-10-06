@@ -1,6 +1,8 @@
 import json
 from dataclasses import dataclass
 
+from urllib.parse import quote
+
 import httpx
 
 from sh4q.network import RequestLimiter, TrustedServiceHTTPClient
@@ -280,3 +282,92 @@ class CrtShConnector(CTConnector):
                     hostnames.add(cleaned)
 
         return sorted(hostnames)
+
+
+class CrtNameConnector(CTConnector):
+    """crt.name, an opt-in third certificate-transparency source.
+
+    Returns newline-delimited hostnames rather than JSON, so there is no
+    envelope to validate and a body cut at the ceiling is still usable --
+    unlike its JSON siblings, where a truncated response parses as nothing.
+
+    `max_bytes` bounds what is parsed and retained, not what is transferred.
+    `TrustedServiceHTTPClient` exposes only `get`, so all three CT connectors
+    materialise the full response; a transfer-level cap would belong on that
+    client and apply to all of them equally.
+
+    Opt-in by default: every CT source is another party that learns which
+    domain an operator is interested in. `certificate_transparency.sources`
+    names them in the config so that disclosure is visible before a scan runs
+    rather than inferred from the code afterwards.
+    """
+
+    name = "crt.name"
+
+    def __init__(
+        self,
+        max_bytes: int = 8 * 1024 * 1024,
+        client_factory=None,
+        limiter: RequestLimiter | None = None,
+    ):
+        if max_bytes < 1:
+            raise ValueError("max_bytes must be positive")
+        self.max_bytes = max_bytes
+        self._client_factory = client_factory or (
+            lambda timeout: TrustedServiceHTTPClient(
+                {"crt.name"}, timeout=timeout, limiter=limiter
+            )
+        )
+
+    async def fetch_hostnames(self, target: str, timeout: float) -> list[str]:
+        url = f"https://crt.name/v1/search?apex={quote(target, safe='')}"
+        try:
+            async with self._client_factory(timeout) as client:
+                response = await client.get(url)
+        except httpx.TimeoutException as error:
+            raise CTConnectorError(
+                f"crt.name timed out: {error}", retryable=True
+            ) from error
+        except httpx.HTTPError as error:
+            raise CTConnectorError(
+                f"crt.name request failed: {error}", retryable=True
+            ) from error
+
+        if response.status_code == 429:
+            retry_after = _retry_after(response)
+            message = "crt.name rate limited"
+            if retry_after is not None:
+                message += f" (Retry-After: {retry_after}s)"
+            raise CTConnectorError(
+                message, retryable=False, rate_limited=True, retry_after=retry_after
+            )
+
+        if response.status_code != 200:
+            raise CTConnectorError(
+                f"crt.name returned HTTP {response.status_code}",
+                retryable=response.status_code in {408, 500, 502, 503, 504},
+            )
+
+        hostnames = set()
+        for line in response.text[: self.max_bytes].splitlines():
+            cleaned = _clean_hostname(line, target)
+            if cleaned:
+                hostnames.add(cleaned)
+        return sorted(hostnames)
+
+
+# Every certificate-transparency source, by the name a config may ask for.
+# A source is a third party that learns which domain is being looked at, so
+# the set is declared in configuration rather than fixed in code.
+CT_CONNECTORS = {
+    "certspotter": CertSpotterConnector,
+    "crt.sh": CrtShConnector,
+    "crt.name": CrtNameConnector,
+}
+
+
+def build_ct_connectors(
+    sources, limiter: RequestLimiter | None = None
+) -> list[CTConnector]:
+    """Instantiate the named sources, preserving the order given."""
+    return [CT_CONNECTORS[name](limiter=limiter) for name in sources]

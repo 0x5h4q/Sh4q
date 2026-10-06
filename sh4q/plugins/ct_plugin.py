@@ -1,10 +1,11 @@
 import asyncio
 
+from sh4q.config.schema import DEFAULT_CT_SOURCES
+
 from .ct_connectors import (
-    CertSpotterConnector,
-    CrtShConnector,
     CTConnector,
     CTConnectorError,
+    build_ct_connectors,
 )
 from .discovery import Discovery
 from .interface import Plugin, PluginMetadata
@@ -22,11 +23,20 @@ class CTPlugin(Plugin):
         self,
         connectors: list[CTConnector] | None = None,
         limiter: RequestLimiter | None = None,
+        config=None,
     ):
-        self._connectors = connectors or [
-            CertSpotterConnector(limiter=limiter),
-            CrtShConnector(limiter=limiter),
-        ]
+        # An explicit connector list wins (tests inject fakes); otherwise the
+        # config decides which third parties this scan may contact, falling
+        # back to the two that have always been default.
+        if connectors is not None:
+            self._connectors = connectors
+        else:
+            sources = (
+                config.certificate_transparency.sources
+                if config is not None
+                else DEFAULT_CT_SOURCES
+            )
+            self._connectors = build_ct_connectors(sources, limiter=limiter)
         self._connector_timeout = 10.0
         self._successful_results: dict[tuple[str, str], set[str]] = {}
         self._terminal_results: dict[tuple[str, str], CTConnectorError] = {}
