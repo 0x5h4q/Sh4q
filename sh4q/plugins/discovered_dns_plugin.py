@@ -90,12 +90,16 @@ def load_host_names(path: str | Path, *, max_hosts: int = 500) -> HostLoadResult
 class DiscoveredDNSPlugin(Plugin):
     """Resolve names emitted by an earlier discovery plugin."""
 
+    #: The deadline this stage published before it scaled. Kept as a floor so
+    #: a default run is bounded exactly as it was.
+    MINIMUM_TIMEOUT = 300.0
+
     metadata = PluginMetadata(
         name="discovered-dns",
         # Passive discovery sources are optional and may be enabled
         # independently; scan_runner appends this stage after them.
         dependencies=[],
-        timeout=300.0,
+        timeout=MINIMUM_TIMEOUT,
         risk_level="passive",
     )
 
@@ -115,6 +119,20 @@ class DiscoveredDNSPlugin(Plugin):
         self._dns = AsyncDNSResolver(lifetime=self._per_name_timeout)
         self._resolver = resolver or self._dns.resolve_addresses
         self._scope = scope
+
+        # A flat deadline cannot bound work the operator sizes. At 10 lookups
+        # in flight and a 3s per-name timeout, 1500 names need up to 450s --
+        # so a real scan configured for 1500 was certain to be cut off at the
+        # old flat 300s, and 189 names were never queried. The bound, not the
+        # names admitted later, is what the deadline has to cover: it is known
+        # now, and it is the most the stage can be asked to do.
+        worst_case = (self._max_names / max(1, max_concurrent)) * self._per_name_timeout
+        self.metadata = PluginMetadata(
+            name=type(self).metadata.name,
+            dependencies=list(type(self).metadata.dependencies),
+            risk_level=type(self).metadata.risk_level,
+            timeout=max(self.MINIMUM_TIMEOUT, worst_case * 1.5 + 30.0),
+        )
         # Which sources offered each name. A name two sources agree on is more
         # likely to be real than one only a permutation tool produced.
         self._sources: dict[str, set[str]] = {}
@@ -199,6 +217,27 @@ class DiscoveredDNSPlugin(Plugin):
                 if isinstance(batch, list)
                 for item in batch
             ]
+            # Preserving the finished lookups is only half of it. This stage
+            # kept partial results before any other did, but never said it had
+            # been cut off -- and a suppressed cancellation never reaches
+            # asyncio.wait_for, so the scheduler recorded a clean completion
+            # over a partial stage. On a real scan it announced 1500 names, ran
+            # past its 300s deadline, and 189 of them left no resolution and no
+            # error: indistinguishable from names that do not exist.
+            #
+            # Unlike `http`/`ct`/`javascript-bundles`, this reports truncation
+            # even when nothing resolved. Those stages re-raise on an empty
+            # result because an empty return would read as "completed, found
+            # nothing"; here the record itself carries the truth, so there is
+            # no empty success to mistake it for.
+            attempted = sum(1 for batch in batches if isinstance(batch, list))
+            total = len(self._names)
+            partial.append(Discovery("discovered_dns_truncated", {
+                "total": total,
+                "attempted": attempted,
+                "not_attempted": total - attempted,
+                "reason": "stage deadline reached before every name was looked up",
+            }))
             return partial
         return [item for batch in batches for item in batch]
 
