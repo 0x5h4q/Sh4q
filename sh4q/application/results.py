@@ -41,6 +41,12 @@ class JavaScriptObservation:
     value: str
     source_endpoint: str
     captured_at: str
+    #: Whether this reference also became an asset. A JavaScript observation
+    #: is read from evidence, so the list legitimately contains references
+    #: Gate 2 refused -- a page linking cdn.jsdelivr.net is a fact worth
+    #: recording. It is not inventory, and a view that shows both without
+    #: distinguishing them presents the audit trail as the authorized subset.
+    in_inventory: bool = True
 
 
 SOURCE_ALIASES = {
@@ -109,6 +115,35 @@ def list_javascript_observations(
             continue
         seen.add(key)
         observations.append(JavaScriptObservation(kind, value, source_endpoint, captured_at))
+
+    # One lookup for the whole page rather than a query per row. The handler
+    # canonicalises a reference before persisting it, so the raw evidence
+    # value has to be canonicalised too: comparing them directly reported
+    # "https://host" as refused when "https://host/" was sitting in the graph,
+    # which is a worse claim than the one this set out to fix.
+    from sh4q.handlers import _canonical_url
+
+    with open_sync_database(database) as db:
+        assets = {
+            row[0]
+            for row in db.execute("SELECT value FROM nodes WHERE type = 'url'").fetchall()
+        }
+
+    def persisted(value: str) -> bool:
+        if not value:
+            return False
+        try:
+            return _canonical_url(value) in assets
+        except Exception:
+            return value in assets
+
+    observations = [
+        JavaScriptObservation(
+            item.kind, item.value, item.source_endpoint, item.captured_at,
+            in_inventory=persisted(item.value),
+        )
+        for item in observations
+    ]
     return _capped(observations, limit)
 
 
