@@ -64,19 +64,40 @@ replacement for every security tool.
 
 **A typical shell workflow**
 
-```text
-run several tools -> join output files -> filter names by hand ->
-check redirects and scope manually -> explain failures from shell history
+```mermaid
+flowchart LR
+    T1[subfinder] --> J[join output files]
+    T2[httpx] --> J
+    T3[waybackurls] --> J
+    J --> F[filter names by hand]
+    F --> M{"in scope?"}
+    M -.->|checked by eye| R[results]
+    R --> E["explain failures<br><small>from shell history</small>"]
+
+    classDef manual fill:#3b2f1e,stroke:#b8860b,color:#f0e6d2
+    class F,M,E manual
 ```
 
 **With Sh4q**
 
-```text
-sh4q scan target.example -> scope checks -> DNS/HTTP evidence ->
-scan-owned results -> filtered HTML/JSON/CSV report
+```mermaid
+flowchart LR
+    S["sh4q scan target.example"] --> G1{{"Gate 1<br>authorise the target"}}
+    G1 -->|denied| X["nothing runs"]
+    G1 -->|allowed| ST[stages]
+    ST --> EV[("evidence<br><small>everything observed</small>")]
+    EV --> G2{{"Gate 2<br>authorise each finding"}}
+    G2 -->|refused| K["recorded as a refusal"]
+    G2 -->|allowed| GR[("asset graph<br><small>the authorised subset</small>")]
+    GR --> OUT["HTML / JSON / CSV<br><small>with provenance</small>"]
+
+    classDef gate fill:#1e3a3a,stroke:#2c9c94,color:#e6f4f1
+    class G1,G2 gate
 ```
 
-Sh4q does not make specialist tools unnecessary. It makes the combined result
+Both pipelines run the same tools. The difference is that every refusal in the
+second one is a recorded decision rather than something you have to remember
+checking. Sh4q does not make specialist tools unnecessary. It makes the combined result
 easier to understand, safer to review, and easier to hand to someone else.
 
 ## Why Scope Matters
