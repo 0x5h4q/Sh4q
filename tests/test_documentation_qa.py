@@ -70,6 +70,18 @@ for document in sorted(root.glob("docs/**/*.md")) + [root / "README.md", root / 
             "Every install instruction and release link must name the current release."
         )
 
+# Every stage status `sh4q show` can print must be explained somewhere. The
+# table is the durable account of what a scan did, and `truncated` arrived
+# with nothing telling an operator it is not a failure.
+_scheduler = (root / "sh4q" / "scheduler.py").read_text(encoding="utf-8")
+_reference = (root / "docs" / "operator_reference.md").read_text(encoding="utf-8")
+_statuses = set(re.findall(r'"status": "([a-z_]+)"', _scheduler)) | {"completed"}
+_undocumented = sorted(s for s in _statuses if f"`{s}`" not in _reference)
+assert not _undocumented, (
+    f"stage status(es) {_undocumented} are printed by `show` and explained "
+    "nowhere; document them in docs/operator_reference.md"
+)
+
 for relative in re.findall(r"\]\(([^)#]+)(?:#[^)]+)?\)", readme):
     if relative.startswith(("http://", "https://", "mailto:")):
         continue

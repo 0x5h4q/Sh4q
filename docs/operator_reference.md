@@ -502,6 +502,50 @@ A `not_found_match` stays in the evidence record — it is part of what was
 probed — but does not become a scan asset. That is why the evidence count and
 the asset count differ.
 
+### Stage statuses
+
+`sh4q show` ends with a Stages table, and its STATUS column is the durable
+record of what each stage did. A scan prints these as they happen; the table is
+what survives to be read later.
+
+| Status | Meaning |
+| --- | --- |
+| `completed` | The stage ran to the end and kept everything it found. |
+| `truncated` | A bound cut it short. It kept what it had and recorded how much it never reached -- see the `INCOMPLETE` line in the scan output for the counts. |
+| `retry_exhausted` | A stage reported a transient failure on every attempt. Results from the attempts are kept; the FINDINGS column says how many. |
+| `timeout_exhausted` | The stage deadline fired on every attempt, and the stage retries on timeout. |
+| `timeout` | The deadline fired and this stage does not retry on timeout, because it already spends a large bounded budget. |
+| `error` | The stage raised. Generic exceptions are never retried. |
+| `skipped` | Preflight refused to run the stage, usually a missing dependency. |
+| `interrupted` | The scan was interrupted while this stage was running. Unfinished events stay recoverable on the next run. |
+| `cleanup_error` | The stage finished, but releasing its resources failed. Its results are unaffected. |
+
+Only `completed` means the whole stage. **`truncated` and `retry_exhausted` both
+carry real results** -- a truncated stage is not a failed one, and reading its
+FINDINGS as zero would be wrong. What it does mean is that the stage did not see
+everything it was asked to, so absence from the results is not evidence of
+absence on the target.
+
+### JavaScript extraction
+
+Extraction is a bounded, pattern-based read of already-authorised responses. It
+does not execute scripts, follow references, or render pages, and what it finds
+reflects that:
+
+- References come from HTML and inline script text up to a byte ceiling, so a
+  large page is sampled rather than read in full.
+- A reference is lifted out of surrounding syntax, so trailing punctuation and
+  JavaScript escapes are trimmed from it. One real scan produced 26 values
+  carrying the escape from their own string literal.
+- URL-shaped strings in a bundle are extracted whether or not they are
+  endpoints. Minified libraries carry their own test vectors, and values like
+  `http://a` or `https://a@b` are observations of text, not destinations.
+- `secret_like_pattern` matches shapes, not secrets. A deliberately vulnerable
+  application will produce planted matches, and a real one may produce none.
+- Every reference is authorised before it becomes an asset. The listing marks
+  which were refused; see [What a scan disclosed](#what-a-scan-disclosed) for
+  the related question of who was told.
+
 ### Output markers
 
 | Marker | Meaning |
