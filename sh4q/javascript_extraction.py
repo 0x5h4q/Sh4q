@@ -33,6 +33,23 @@ def _absolute_reference(reference: str, base_url: str) -> str | None:
     value = reference.strip().rstrip(".,;:!?)]}")
     if not value or value.startswith(("data:", "javascript:", "#")):
         return None
+    # A reference is lifted out of surrounding syntax, and the syntax must not
+    # come with it -- which is why trailing punctuation is trimmed above. A
+    # backslash is the same thing one level down: the URL pattern does not stop
+    # at one, so an escaped JS literal like "https://host/a.css\\" yields a
+    # value ending in a backslash. A real scan produced 26 of those. They were
+    # refused at Gate 2 only because the host happened to be out of scope; an
+    # in-scope one persists as an asset no browser would resolve, and asset
+    # values are what diff compares and what an export hands to someone else.
+    #
+    # Truncated rather than dropped: a backslash cannot appear unescaped
+    # anywhere in a URL, so its presence marks where the match ran past the end
+    # of the literal. What precedes it is the reference, and discarding the
+    # whole match would lose a real discovery. Percent-encoded %5C is untouched
+    # and still legitimate.
+    value = value.split("\\", 1)[0].rstrip(".,;:!?)]}")
+    if not value:
+        return None
     absolute = urljoin(base_url, value)
     parsed = urlparse(absolute)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
