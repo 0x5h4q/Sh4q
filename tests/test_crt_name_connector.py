@@ -140,19 +140,16 @@ async def main() -> None:
     assert all(n.endswith(".example.com") for n in kept)
     assert len(kept) < 5000, "the ceiling must actually bound the read"
 
-    # --- it is not in the default source list -----------------------------
+    # --- it is in the default source list ----------------------------------
     default_names = {c.name for c in CTPlugin()._connectors}
-    assert default_names == {"certspotter", "crt.sh"}, default_names
-    assert "crt.name" not in default_names, (
-        "a new third party must not start learning targets without being asked"
-    )
+    assert default_names == {"certspotter", "crt.sh", "crt.name"}, default_names
 
-    # --- but the config can ask for it ------------------------------------
+    # --- but the config can still narrow it ---------------------------------
     opted_in = Sh4qConfig(scope={"targets": ["example.com"]}, certificate_transparency={
-        "sources": ["certspotter", "crt.sh", "crt.name"],
+        "sources": ["certspotter", "crt.sh"],
     })
     assert {c.name for c in CTPlugin(config=opted_in)._connectors} == {
-        "certspotter", "crt.sh", "crt.name",
+        "certspotter", "crt.sh",
     }
 
     # A config may also narrow the set, which is the disclosure control.

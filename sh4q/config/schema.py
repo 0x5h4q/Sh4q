@@ -48,9 +48,11 @@ class HttpxAdapterConfig(BaseModel):
 #: rather than by an import.
 CT_SOURCE_NAMES = ("certspotter", "crt.sh", "crt.name")
 
-#: Contacted unless a config says otherwise. crt.name is excluded until an
-#: operator asks for it.
-DEFAULT_CT_SOURCES = ("certspotter", "crt.sh")
+#: Contacted unless a config says otherwise. All three are default: crt.sh
+#: fails often enough that a single-provider stage regularly reports nothing,
+#: and each source is named in the pre-scan disclosure so the operator sees
+#: the third party before any contact. Narrowing the list remains the control.
+DEFAULT_CT_SOURCES = ("certspotter", "crt.sh", "crt.name")
 
 
 class CertificateTransparencyConfig(BaseModel):

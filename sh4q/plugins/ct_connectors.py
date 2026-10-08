@@ -296,10 +296,12 @@ class CrtNameConnector(CTConnector):
     materialise the full response; a transfer-level cap would belong on that
     client and apply to all of them equally.
 
-    Opt-in by default: every CT source is another party that learns which
-    domain an operator is interested in. `certificate_transparency.sources`
+    Default-on since the crt.sh outage run: every CT source is another party
+    that learns which domain an operator is interested in, and the default
+    set is disclosed before a scan runs. `certificate_transparency.sources`
     names them in the config so that disclosure is visible before a scan runs
-    rather than inferred from the code afterwards.
+    rather than inferred from the code afterwards; narrowing the list is the
+    control for operators who want fewer third parties involved.
     """
 
     name = "crt.name"

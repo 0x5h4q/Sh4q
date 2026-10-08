@@ -25,16 +25,26 @@ def _javascript_observations(db, scan_id: str) -> list[dict]:
         "AND kind LIKE 'javascript_%' ORDER BY captured_at",
         (scan_id,),
     ).fetchall()
-    return [
-        {
-            "kind": kind,
-            "value": (content := json.loads(raw_content)).get("value", ""),
-            "source_endpoint": content.get("source_endpoint", ""),
-            "pattern": content.get("pattern", ""),
-            "captured_at": captured_at,
-        }
-        for kind, raw_content, captured_at in rows
-    ]
+    from sh4q.application.triage import classify_javascript_reference
+
+    observations = []
+    for kind, raw_content, captured_at in rows:
+        content = json.loads(raw_content)
+        value = content.get("value", "")
+        source_endpoint = content.get("source_endpoint", "")
+        observations.append(
+            {
+                "kind": kind,
+                "value": value,
+                "source_endpoint": source_endpoint,
+                "pattern": content.get("pattern", ""),
+                "relevance": classify_javascript_reference(
+                    value, source_endpoint
+                )[0],
+                "captured_at": captured_at,
+            }
+        )
+    return observations
 
 
 def _http_inventory(db, scan_id: str) -> list[dict]:

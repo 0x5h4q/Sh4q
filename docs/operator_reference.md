@@ -256,7 +256,7 @@ Which CT services a scan contacts is declared, not fixed:
 
 ```yaml
 certificate_transparency:
-  sources: ["certspotter", "crt.sh"]   # the default
+  sources: ["certspotter", "crt.sh", "crt.name"]   # the default
 ```
 
 Setting `sources: []` skips the stage entirely. That is worth doing when the
@@ -264,23 +264,16 @@ target is already a subdomain: certificate transparency searches for subdomains
 *of the target*, so it hunts for sub-subdomains, which rarely exist, while
 costing minutes and a disclosure to every configured service.
 
-`crt.name` is available and not enabled by default. Add it when you want a
-third source:
+All three sources are default because provider failure is the normal case:
+on one engagement run, `certspotter` returned 176 names, `crt.sh` timed out
+as it often does, and `crt.name` returned 1750, and the stage keeps whatever
+the others returned. The default set is disclosed before the scan runs (see
+the pre-scan third-party list), so the third party is never a surprise.
 
-```yaml
-certificate_transparency:
-  sources: ["certspotter", "crt.sh", "crt.name"]
-```
-
-It earns its place on resilience. On one engagement run, with all three
-enabled: `certspotter` returned 176 names, `crt.sh` timed out as it often
-does, and `crt.name` returned 1750. A provider failing is the normal case, not
-the exceptional one, and the stage keeps whatever the others returned.
-
-It is opt-in because each source is another party that learns which domain you
-are interested in, and that is your decision rather than a property of the
-code. Narrowing the list is the same control in the other direction: a scan
-configured with one source discloses to one service. An unknown name is
+Narrowing the list is the disclosure control in the other direction: a scan
+configured with one source discloses to one service. Each source is another
+party that learns which domain you are interested in, and narrowing it is
+your decision rather than a property of the code. An unknown name is
 rejected when the config loads, before any network activity.
 
 ### Coverage

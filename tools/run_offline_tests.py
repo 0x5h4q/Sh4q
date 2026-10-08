@@ -113,6 +113,7 @@ OFFLINE_TESTS = (
     "test_stage_partial_preservation.py",
     "test_subfinder_scheduler_integration.py",
     "test_trusted_service_http.py",
+    "test_triage.py",
     "test_unique_scan_reporting.py",
 )
 

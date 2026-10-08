@@ -47,6 +47,10 @@ class JavaScriptObservation:
     #: recording. It is not inventory, and a view that shows both without
     #: distinguishing them presents the audit trail as the authorized subset.
     in_inventory: bool = True
+    #: Triage bucket for display only (see `sh4q.application.triage`).
+    #: Presentation-side judgment over an already-persisted row: which of
+    #: these do I read first. Never a scope or inventory decision.
+    relevance: str = ""
 
 
 SOURCE_ALIASES = {
@@ -122,6 +126,7 @@ def list_javascript_observations(
     # "https://host" as refused when "https://host/" was sitting in the graph,
     # which is a worse claim than the one this set out to fix.
     from sh4q.handlers import _canonical_url
+    from sh4q.application.triage import classify_javascript_reference
 
     with open_sync_database(database) as db:
         assets = {
@@ -141,6 +146,9 @@ def list_javascript_observations(
         JavaScriptObservation(
             item.kind, item.value, item.source_endpoint, item.captured_at,
             in_inventory=persisted(item.value),
+            relevance=classify_javascript_reference(
+                item.value, item.source_endpoint
+            )[0],
         )
         for item in observations
     ]
