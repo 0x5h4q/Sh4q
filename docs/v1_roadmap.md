@@ -32,8 +32,9 @@ unrelated feature branches or silently reorder the roadmap.
   `*.example.com`, and a malformed target entry matches nothing.
 - A third-party disclosure ledger in observed and declared tiers, with every
   scan stating what it is about to disclose before it does.
-- `crt.name` as an opt-in certificate-transparency source, and
-  `certificate_transparency.sources` to declare which parties a scan contacts.
+- `crt.name` as a default certificate-transparency source alongside
+  certspotter and crt.sh, with `certificate_transparency.sources` to declare
+  (and narrow) which parties a scan contacts.
 - Configurable enrichment bounds, with stage deadlines derived from them
   rather than flat.
 - Every listing states its denominator; a requested `--limit` is honoured

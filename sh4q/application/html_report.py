@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 from sh4q.storage.db import open_sync_database
 from sh4q.storage.scan_runs import ScanRun
 from sh4q.application.redaction import Redactor
+from sh4q.application.triage import classify_historical_url, classify_javascript_reference
 
 
 def _safe_json(value: object) -> str:
@@ -86,6 +87,7 @@ def _owned_rows(database: str, run: ScanRun, *, redactor: Redactor | None = None
             "version": attributes.get("version", ""),
             "confidence": attributes.get("confidence", ""),
             "sources": sorted(source for source in (raw_sources or "").split(",") if source),
+            "bucket": classify_historical_url(display_value)[0] if display_type == "historical-url" else "",
         })
     return assets
 
@@ -134,10 +136,13 @@ def _report_metadata(database: str, run: ScanRun, *, redactor: Redactor | None =
                 elif kind == "url_history_rejected":
                     historical_urls_rejected += 1
                 elif kind.startswith("javascript_") and kind != "javascript_bundle_error":
+                    value = clean(content.get("value", ""))
+                    source_endpoint = clean(content.get("source_endpoint", ""))
                     javascript.append(record | {
-                        "value": clean(content.get("value", "")),
-                        "source_endpoint": clean(content.get("source_endpoint", "")),
+                        "value": value,
+                        "source_endpoint": source_endpoint,
                         "pattern": content.get("pattern", ""),
+                        "relevance": classify_javascript_reference(value, source_endpoint)[0],
                     })
                 elif kind in {"vhost_baseline", "vhost_observation"}:
                     vhosts.append(record | {
@@ -420,11 +425,11 @@ pre {{ overflow-x: auto; margin: 0; padding: 14px; background: var(--surface-2);
 <label>Source<select id="source"><option value="">All</option></select></label>
 <div class="filter-actions"><button id="reset" type="button">Reset filters</button></div>
 </section><div class="chips" id="chips" aria-live="polite"></div><div class="count" id="count"></div>
-<div class="table-wrap"><table><thead><tr><th><button class="sort" data-sort="type" type="button">Type</button></th><th><button class="sort" data-sort="value" type="button">Value</button></th><th><button class="sort" data-sort="host" type="button">Host / target</button></th><th><button class="sort" data-sort="status" type="button">Status</button></th><th><button class="sort" data-sort="technology" type="button">Technology</button></th><th><button class="sort" data-sort="category" type="button">Category</button></th><th><button class="sort" data-sort="source" type="button">Source</button></th></tr></thead>
+<div class="table-wrap"><table><thead><tr><th><button class="sort" data-sort="type" type="button">Type</button></th><th><button class="sort" data-sort="value" type="button">Value</button></th><th><button class="sort" data-sort="host" type="button">Host / target</button></th><th><button class="sort" data-sort="status" type="button">Status</button></th><th><button class="sort" data-sort="technology" type="button">Technology</button></th><th><button class="sort" data-sort="category" type="button">Category</button></th><th><button class="sort" data-sort="source" type="button">Source</button></th><th><button class="sort" data-sort="bucket" type="button">Bucket</button></th></tr></thead>
 <tbody id="rows"></tbody></table></div>
 <div class="pagination"><button id="prev" type="button">Previous</button><span id="page"></span><button id="next" type="button">Next</button></div>
 <details open><summary>Failures</summary><section><div class="table-wrap"><table><thead><tr><th>Count</th><th>Stage</th><th>Reason</th><th>Affected</th></tr></thead><tbody>{''.join(f'<tr><td><strong>{item["count"]}</strong></td><td>{html.escape(item["plugin"])}<br><small>{html.escape(item["kind"])}</small></td><td>{html.escape(item["detail"])}</td><td>{"<br>".join(f"<code>{html.escape(example)}</code>" for example in item["examples"])}{f"<br><small>and {item[chr(34)+chr(34)] if False else item["more"]} more</small>" if item["more"] else ""}</td></tr>' for item in grouped_failures) or '<tr><td colspan="4">No recorded failures.</td></tr>'}</tbody></table></div><p>Identical failures are grouped. Every individual record is retained in evidence.</p></section></details>
-<details open><summary>JavaScript observations</summary><section><div class="table-wrap"><table><thead><tr><th>Type</th><th>Reference or pattern</th><th>Source endpoint</th><th>Captured</th></tr></thead><tbody>{''.join(f'<tr><td>{html.escape(item["kind"].removeprefix("javascript_"))}</td><td><code>{html.escape(str(item["value"]))}</code></td><td><code>{html.escape(str(item["source_endpoint"] or "-"))}</code></td><td>{html.escape(item["captured_at"])}</td></tr>' for item in metadata["javascript"]) or '<tr><td colspan="4">No JavaScript observations.</td></tr>'}</tbody></table></div><p>These are passive, unverified observations. They are not automatically requested or treated as confirmed secrets.</p></section></details>
+<details open><summary>JavaScript observations</summary><section><div class="table-wrap"><table><thead><tr><th>Type</th><th>Reference or pattern</th><th>Relevance</th><th>Source endpoint</th><th>Captured</th></tr></thead><tbody>{''.join(f'<tr><td>{html.escape(item["kind"].removeprefix("javascript_"))}</td><td><code>{html.escape(str(item["value"]))}</code></td><td>{html.escape(str(item.get("relevance", "")))}</td><td><code>{html.escape(str(item["source_endpoint"] or "-"))}</code></td><td>{html.escape(item["captured_at"])}</td></tr>' for item in metadata["javascript"]) or '<tr><td colspan="5">No JavaScript observations.</td></tr>'}</tbody></table></div><p>These are passive, unverified observations. They are not automatically requested or treated as confirmed secrets. Relevance is a display-side triage judgment, not a scope decision.</p></section></details>
 <details open><summary>Virtual-host observations</summary><section><div class="table-wrap"><table><thead><tr><th>Candidate</th><th>Endpoint</th><th>Status</th><th>Classification</th><th>Redirect</th><th>Captured</th></tr></thead><tbody>{''.join(f'<tr><td><code>{html.escape(str(item["candidate"] or "baseline"))}</code></td><td><code>{html.escape(str(item["endpoint"] or "-"))}</code></td><td>{html.escape(str(item["status"] or "-"))}</td><td>{html.escape(str(item["classification"]))}</td><td>{html.escape(str(item["location"] or "-"))}</td><td>{html.escape(item["captured_at"])}</td></tr>' for item in metadata["vhosts"]) or '<tr><td colspan="6">No virtual-host observations.</td></tr>'}</tbody></table></div><h3>Rejected candidates</h3><ul>{''.join(f'<li><code>{html.escape(str(item["candidate"]))}</code>: {html.escape(str(item["reason"]))}</li>' for item in metadata["vhost_rejections"]) or '<li>No rejected candidates.</li>'}</ul><p>Virtual-host observations are bounded, scope-checked candidates and are not security findings.</p></section></details>
 <details open><summary>Directory observations</summary><section><div class="table-wrap"><table><thead><tr><th>Path</th><th>URL</th><th>Status</th><th>Classification</th><th>Redirect</th><th>Captured</th></tr></thead><tbody>{''.join(f'<tr><td><code>{html.escape(str(item["path"] or "baseline"))}</code></td><td><code>{html.escape(str(item["url"] or "-"))}</code></td><td>{html.escape(str(item["status"] or "-"))}</td><td>{html.escape(str(item["classification"]))}</td><td>{html.escape(str(item["location"] or "-"))}</td><td>{html.escape(item["captured_at"])}</td></tr>' for item in metadata["directories"]) or '<tr><td colspan="6">No directory observations.</td></tr>'}</tbody></table></div><h3>Rejected or budget-denied paths</h3><ul>{''.join(f'<li><code>{html.escape(str(item["path"]))}</code>: {html.escape(str(item["reason"]))}</li>' for item in metadata["directory_rejections"]) or '<li>No rejected paths.</li>'}</ul><p>Directory observations are bounded, scope-checked responses and are not security findings.</p></section></details>
 <details><summary>Stage timings</summary><section><div class="table-wrap"><table><thead><tr><th>Stage</th><th>Status</th><th>Attempts</th><th>Findings</th><th>Duration</th></tr></thead><tbody>{''.join(f'<tr><td>{html.escape(str(item.get("name", "")))}</td><td>{html.escape(str(item.get("status", "")))}</td><td>{item.get("attempts", 0)}</td><td>{item.get("discoveries", 0)}</td><td>{item.get("duration_seconds", 0)}s</td></tr>' for item in metadata["stages"]) or '<tr><td colspan="5">No persisted stage metrics.</td></tr>'}</tbody></table></div></section></details>
@@ -454,7 +459,7 @@ function render() {{
  document.querySelector('#chips').innerHTML = Object.entries(fields).filter(([key, input]) => input.value && key !== 'search').map(([key, input]) => `<button class="chip" data-clear="${{key}}" type="button">${{esc(key)}}: ${{esc(input.value)}} x</button>`).join('');
  const shown = value => value === '' || value == null ? '-' : value;
  const statusBadge = value => {{ const code = String(value ?? ''); const family = code.slice(0, 1); return code === '-' ? '-' : `<span class="status status-${{family}}">${{esc(code)}}</span>`; }};
- document.querySelector('#rows').innerHTML = visible.map(a => `<tr><td>${{esc(a.type)}}</td><td><code>${{esc(a.value)}}</code><button class="copy" data-copy="${{esc(a.value)}}" type="button" title="Copy value">Copy</button></td><td>${{esc(shown(a.host))}}</td><td>${{statusBadge(a.status)}}</td><td>${{esc(shown(a.technology))}}</td><td>${{esc(shown(a.category))}}</td><td>${{esc(a.sources.length ? a.sources.join(', ') : '-')}}</td></tr>`).join('') || '<tr><td colspan="7">No assets match these filters.</td></tr>';
+ document.querySelector('#rows').innerHTML = visible.map(a => `<tr><td>${{esc(a.type)}}</td><td><code>${{esc(a.value)}}</code><button class="copy" data-copy="${{esc(a.value)}}" type="button" title="Copy value">Copy</button></td><td>${{esc(shown(a.host))}}</td><td>${{statusBadge(a.status)}}</td><td>${{esc(shown(a.technology))}}</td><td>${{esc(shown(a.category))}}</td><td>${{esc(a.sources.length ? a.sources.join(', ') : '-')}}</td><td>${{esc(shown(a.bucket))}}</td></tr>`).join('') || '<tr><td colspan="8">No assets match these filters.</td></tr>';
 }}
 Object.values(fields).forEach(input => input.addEventListener('input', () => {{ pageNumber = 1; render(); }}));
 document.querySelectorAll('.sort').forEach(button => button.addEventListener('click', () => {{ const next = button.dataset.sort; sortDirection = sortKey === next ? sortDirection * -1 : 1; sortKey = next; render(); }}));

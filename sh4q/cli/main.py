@@ -183,7 +183,7 @@ def render_failure_results(rows) -> None:
 
 
 def render_javascript_results(rows) -> None:
-    columns = (("TYPE", 24), ("VALUE / PATTERN", 46), ("SOURCE ENDPOINT", 42), ("IN SCOPE", 8))
+    columns = (("TYPE", 24), ("VALUE / PATTERN", 42), ("RELEVANCE", 13), ("SOURCE ENDPOINT", 32), ("IN SCOPE", 8))
     print()
     print("  " + "".join(column(label, width + 2, accent) for label, width in columns).rstrip())
     print("  " + "".join(column("-" * width, width + 2, muted) for label, width in columns).rstrip())
@@ -196,8 +196,9 @@ def render_javascript_results(rows) -> None:
         print(
             "  "
             + column(_fit(kind, 24), 26, style)
-            + column(_fit(row.value or row.kind, 46), 48, style)
-            + column(_fit(row.source_endpoint or "-", 42), 44, style)
+            + column(_fit(row.value or row.kind, 42), 44, style)
+            + column(_fit(getattr(row, "relevance", "") or "-", 13), 15, style)
+            + column(_fit(row.source_endpoint or "-", 32), 34, style)
             + ("yes" if row.in_inventory else refusal("refused"))
         )
     refused = sum(1 for row in rows if not row.in_inventory)

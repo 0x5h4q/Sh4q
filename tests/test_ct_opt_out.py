@@ -29,12 +29,12 @@ off = Sh4qConfig(
 )
 assert off.certificate_transparency.sources == []
 
-# --- the default is unchanged --------------------------------------------
+# --- the default is all three sources --------------------------------------
 assert _default_config("example.com").certificate_transparency.sources == [
-    "certspotter", "crt.sh",
+    "certspotter", "crt.sh", "crt.name",
 ]
 assert Sh4qConfig(scope={"targets": ["example.com"]}).certificate_transparency.sources == [
-    "certspotter", "crt.sh",
+    "certspotter", "crt.sh", "crt.name",
 ]
 
 # --- an unknown source is still refused, and still names what is valid ----
