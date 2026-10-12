@@ -291,7 +291,7 @@ def render_scan_report(report) -> None:
     if report.source_assets:
         print("    Owned assets by source")
         for source, count in sorted(report.source_assets.items()):
-            print(f"      {source:<18} {count:>6}")
+            print(f"      {_fit(source, 18):<18} {count:>6}")
 
     print("\n  Failures")
     print(f"    HTTP                    {report.http_failures:>6}")

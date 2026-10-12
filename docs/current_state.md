@@ -13,16 +13,23 @@ documents provide context but do not override this guide.
 - Deployment model: local, single-user CLI backed by SQLite
 - Distribution: GitHub release and tag; wheel and source artifacts built and
   verified locally; tagged `pipx` installation supported
-- GitHub Actions: the `Offline tests` and `Release` workflows are disabled.
-  They were switched off after failing on 2026-09-27, and the reason recorded
-  at the time was a billing lock. That explanation no longer fits what the API
-  reports: Actions are enabled, `allowed_actions` is `all`, the repository is
-  public, and Dependabot's workflow runs have succeeded repeatedly since. The
-  real cause is unknown and the logs have expired. **Do not describe remote CI
-  as running** -- the offline suite has never passed on GitHub and every
-  release so far was published by hand after local verification -- but
-  re-enabling `offline-tests.yml` and pushing is a cheap experiment that has
-  not been tried under the current conditions
+- GitHub Actions: the `Offline tests` and `Release` workflows are disabled,
+  and the account billing lock that caused it is still unresolved. Both
+  workflows failed in under four seconds on 2026-09-27, which is what a
+  billing refusal looks like, and they were switched off.
+
+  Dependabot's runs do keep succeeding, most recently 2026-10-07, and that is
+  not evidence the lock has lifted: Dependabot update jobs execute on GitHub's
+  own infrastructure and are not billed against the account's Actions minutes.
+  A note here previously cited those runs as proof the billing explanation no
+  longer held. It was wrong, and the mistake is recorded rather than quietly
+  removed because the same reasoning is easy to repeat -- a green row in the
+  Actions tab is not necessarily a job the account paid for.
+
+  **Do not describe remote CI as running.** The offline suite has never passed
+  on GitHub, and every release so far was published by hand after local
+  verification. Re-enabling the workflow is not a pending experiment; it is
+  blocked until the billing issue is resolved
 
 Sh4q is a policy-controlled reconnaissance and evidence tool. It is not a
 vulnerability scanner, exploitation framework, broad port scanner, or a
