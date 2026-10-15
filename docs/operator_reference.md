@@ -250,6 +250,76 @@ tells whichever resolver the host uses about 1210 hostnames, one at a time.
 The ledger is read from durable evidence rather than recorded separately, so it
 also answers the question for scans already on disk.
 
+### What a defender would have seen
+
+The disclosure ledger answers *who did this tell about my target*. The detection
+view answers the other half, from the target's side:
+
+```bash
+sh4q results --latest --target example.com --detections
+```
+
+```text
+    SIGNAL                      EVENTS    RATE/S    LOG SOURCE
+    --------------------------  --------  --------  ------------
+    subdomain_enumeration         1065     12.69    dns
+    http_probing                   191      0.26    webserver
+    certificate_transparency      1513      9.09    not visible
+
+    One stage never contacts the target, so nothing on its
+    side records it. A rule for it could never fire, so
+    none is written:
+      certificate_transparency
+```
+
+The third row is the useful one. Certificate transparency, Subfinder and URL
+history retrieve their answers from third parties, so no log on the target's
+side records them — a detection artifact claiming coverage of passive
+reconnaissance would be false. You cannot detect the stage that found your
+subdomains, only the stage that probed them.
+
+Exporting writes one Sigma rule per detectable signal:
+
+```bash
+sh4q export --latest --target example.com --format sigma --output detections/
+```
+
+`sigma` is the only format whose `--output` is a directory: a defender would
+have to split a single file before use. Alongside the rules it writes
+`telemetry.jsonl`, one line per signal, carrying the measurements each rule was
+derived from.
+
+```yaml
+title: Many DNS lookups for distinct names in one zone, in a short window
+description: >
+  Derived from a real Sh4q scan of example.com, which
+  produced 1065 observable event(s) over 84s (12.69/s).
+  At that rate a 60s window sees about 761; the
+  threshold is half, so a slower scan still trips it.
+logsource:
+  category: dns
+detection:
+  selection:
+    query_type: 'A'
+  timeframe: 60s
+  condition: selection | count(query_name) by src_ip > 380
+```
+
+**The threshold is measured, not guessed.** It comes from what the scan actually
+did, so there is nothing to argue about — the rate is in the description next to
+it. The rate is then projected onto a fixed 60-second window, because the
+measured span is a property of this scan's rate limit, not of the behaviour: a
+scan throttled across 17 hours produced `timeframe: 62813s` with a threshold of
+1887 before that projection, which is a rule that can never fire. Halving the
+projected count is deliberate headroom, so a scan slower than the one measured
+still trips the rule.
+
+Rules are a starting point, not a drop-in. Field names (`query_name`, `src_ip`)
+follow the Sigma DNS and webserver taxonomies and will need mapping to whatever
+your pipeline actually calls them. Like the ledger, this is read from durable
+evidence, so it works on scans already on disk — and `--scan` scopes it to one
+run, where averaging several is misleading.
+
 ### Certificate-transparency sources
 
 Which CT services a scan contacts is declared, not fixed:

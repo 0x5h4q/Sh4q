@@ -9,6 +9,7 @@ from sh4q.storage.scan_runs import ScanRun
 from sh4q.application.results import list_technology_observations
 from sh4q.storage.db import open_sync_database
 from sh4q.application.html_report import render_html_report
+from sh4q.application.detection import summarize_detections
 from sh4q.application.redaction import Redactor
 
 
@@ -258,6 +259,36 @@ def export_scan(
         | ({"endpoint": row[4], "endpoint_attributes": json.loads(row[5])} if alive in ("http", "dns") else {})
         for row in rows
         ]
+
+    if format == "sigma":
+        # The only format whose output is a directory: one rule per detectable
+        # behaviour plus the telemetry they were derived from. Writing them to
+        # a single file would mean a defender had to split it before use.
+        report = summarize_detections(database, target=run.target, scan_id=run.id)
+        # The path given is the directory, verbatim. Deriving one by stripping a
+        # suffix would mean `--output rules.d` quietly wrote to `rules`, and a
+        # surprising output path is worse than an oddly named one.
+        destination = output
+        destination.mkdir(parents=True, exist_ok=True)
+        rules = report.to_sigma_rules()
+        # Re-exporting over an earlier run would otherwise leave that run's
+        # rules behind for any signal this one lacks, and the operator would
+        # ship a rule derived from a scan they did not export. Only files this
+        # exporter names are removed; anything else in the directory is theirs.
+        for stale in destination.glob("sh4q_*.yml"):
+            if stale.name not in rules:
+                stale.unlink()
+        for name, rule in rules.items():
+            (destination / name).write_text(rule, encoding="utf-8")
+        (destination / "telemetry.jsonl").write_text(
+            report.to_telemetry_jsonl(), encoding="utf-8"
+        )
+        return ExportResult(
+            asset_count=len(rules),
+            redaction_enabled=redactor.enabled,
+            fields_considered=redactor.considered,
+            fields_redacted=redactor.redacted,
+        )
 
     if format == "html":
         output.write_text(

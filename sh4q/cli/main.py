@@ -14,6 +14,7 @@ from sh4q.application import run_scan
 from sh4q.adapters import AdapterExecutionError
 from sh4q.events.event_log import DurableEventLog
 from sh4q.storage.scan_runs import count_scans, get_scan, latest_scan, list_scans, scan_asset_count
+from sh4q.application.detection import summarize_detections
 from sh4q.application.disclosure import DECLARED, OBSERVED, summarize_disclosures
 from sh4q.application.results import friendly_technology_source, list_assets, list_response_attributes, summarize_names, list_failures, list_javascript_observations, list_technology_observations, summarize_technology_observations
 from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
@@ -485,6 +486,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Show which third parties this scan told about the target.",
     )
+    results.add_argument(
+        "--detections",
+        action="store_true",
+        help="Show what a defender would have seen, and what they could not.",
+    )
     results.add_argument("--js-kind", choices=["script_url", "style_url", "page_url", "xhr_endpoint", "endpoint_reference", "secret_like_pattern"], help="Filter JavaScript observations by kind")
     results.add_argument("--source-endpoint", help="Filter JavaScript observations by source endpoint")
     scan_selection = results.add_mutually_exclusive_group()
@@ -504,7 +510,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     export = subparsers.add_parser("export", help="Export one scan to JSON or CSV")
     export.add_argument("--database", default="./sh4q-output/sh4q.db")
-    export.add_argument("--format", choices=["json", "csv", "html"], required=True)
+    export.add_argument(
+        "--format", choices=["json", "csv", "html", "sigma"], required=True,
+        help="sigma writes a directory of detection rules plus the telemetry "
+             "they were derived from, rather than a single file.",
+    )
     export.add_argument("--output", type=Path, required=True)
     export.add_argument("--target", help="Select the latest scan for this target")
     export_selection = export.add_mutually_exclusive_group(required=True)
@@ -560,6 +570,53 @@ async def _event_summary(event_log, args) -> tuple[list, int, int]:
         await event_log.count_groups(status=args.status, target=args.target),
         await event_log.count_records(status=args.status, target=args.target),
     )
+
+
+def render_detections(report) -> None:
+    """What the target could have seen, and what it could not."""
+    if not report.detections:
+        print(f"\n  {accent('Detection surface')}")
+        print("    Nothing recorded for this scan.")
+        return
+
+    print(f"\n  {accent('Detection surface')}")
+    print(note("    What a defender would have seen from their own side.\n"))
+
+    headers = (("SIGNAL", 26), ("EVENTS", 8), ("RATE/S", 8), ("LOG SOURCE", 12))
+    print("    " + "".join(column(h, w + 2, accent) for h, w in headers).rstrip())
+    print("    " + "".join(column("-" * w, w + 2, muted) for h, w in headers).rstrip())
+
+    for item in report.detections:
+        style = None if item.visible_to_target else muted
+        print(
+            "    "
+            + column(_fit(item.signal, 26), 28, style)
+            + column(f"{item.observed:>6}", 10, style)
+            + column(f"{item.rate:>6.2f}", 10, style)
+            + (item.log_source if item.visible_to_target else refusal("not visible"))
+        )
+
+    if report.invisible:
+        count = len(report.invisible)
+        if count == 1:
+            lead, records, rule = "One stage never contacts", "records it", "it"
+        else:
+            lead, records, rule = f"{count} stages never contact", "records them", "those"
+        print(note(
+            f"\n    {lead} the target, so nothing on its\n"
+            f"    side {records}. A rule for {rule} could never fire, so\n"
+            "    none is written:"
+        ))
+        for item in report.invisible:
+            print(note(f"      {item.signal}"))
+    if report.scans > 1:
+        print(note(
+            f"\n    Measured across {report.scans} scans. Every rate here is an average,\n"
+            "    not any single run's behaviour -- pass --scan for one run."
+        ))
+    print(note(
+        f"\n    Export the rules with:  sh4q export --format sigma --output detections/"
+    ))
 
 
 def render_disclosures(ledger) -> None:
@@ -984,6 +1041,21 @@ def main() -> None:
         print()
         print("  SH4Q RESULTS")
         print("  ============")
+        if args.detections:
+            scan_id = args.scan
+            if args.latest:
+                latest = latest_scan(str(database), args.target)
+                if latest is None:
+                    print("  No recorded scan run matches this query.\n")
+                    return
+                scan_id = latest.id
+                print(f"  Scan     {latest.id} ({latest.target})")
+            render_detections(summarize_detections(
+                str(database), target=args.target, scan_id=scan_id
+            ))
+            print()
+            return
+
         if args.disclosures:
             scan_id = args.scan
             if args.latest:
@@ -1222,7 +1294,17 @@ def main() -> None:
             parser.error(f"{error}; pass --force to overwrite it")
         except ScanOwnershipUnavailableError as error:
             parser.error(f"{error}; run a new scan before exporting exact assets")
-        print(f"\n  Exported {int(count)} asset(s) from scan {run.id} to {args.output}")
+        if args.format == "sigma":
+            print(
+                f"\n  Wrote {int(count)} detection rule(s) and telemetry.jsonl "
+                f"from scan {run.id} to {args.output}"
+            )
+            print(note(
+                "  Rules are written only for behaviour the target could observe.\n"
+                "  Run `results --detections` to see which stages it could not."
+            ))
+        else:
+            print(f"\n  Exported {int(count)} asset(s) from scan {run.id} to {args.output}")
         # A safety feature that cannot be distinguished from a no-op is a trap:
         # --redact printed nothing of its own, so an export whose URLs happened
         # to carry no query string looked exactly like a working one -- and so
