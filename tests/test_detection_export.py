@@ -26,9 +26,15 @@ import asyncio
 import os
 import sqlite3
 import tempfile
+from dataclasses import replace
 from pathlib import Path
 
-from sh4q.application.detection import summarize_detections
+from sh4q.application.detection import (
+    MINIMUM_THRESHOLD,
+    RULE_WINDOW_SECONDS,
+    DetectionReport,
+    summarize_detections,
+)
 from sh4q.storage.evidence import Evidence, SQLiteEvidenceStore
 
 SCAN = "scan-1"
@@ -113,6 +119,92 @@ async def main() -> None:
         # --- a scan with nothing recorded claims nothing -------------------
         empty = summarize_detections(db_path, scan_id="absent")
         assert empty.detections == () and empty.to_sigma_rules() == {}
+
+        # --- the window is fixed, and the threshold derived from it -------
+        # This is the guard on the defect this module shipped with. The first
+        # version used the measured span as the Sigma `timeframe`, so a
+        # throttled scan produced `timeframe: 62813s` with a threshold of
+        # 1887: a rule that can never fire. The span is a property of the
+        # rate limit, not of the behaviour. Without this assertion a
+        # regression restoring it passes every other check in this file.
+        assert f"timeframe: {RULE_WINDOW_SECONDS}s" in rule, rule
+        assert str(int(dns.window_seconds)) not in rule.split("timeframe:")[1], (
+            "the measured span must not reach the rule as its window"
+        )
+
+        # 40 events over 19s is 2.105/s; a 60s window sees 126, half is 63.
+        expected = int(dns.rate * RULE_WINDOW_SECONDS * 0.5)
+        assert expected == 63, expected
+        assert f"> {expected}" in rule, rule
+        # The rate must be quoted next to the threshold, or the number is
+        # unarguable only to whoever generated it.
+        assert f"{dns.rate:.2f}/s" in rule, rule
+
+        # A rate low enough to project under the floor must still produce a
+        # usable rule. A real scan throttled to a crawl measures a fraction of
+        # an event per second, and `int(0.01 * 60 * 0.5)` is 0 -- a rule that
+        # matches the first DNS query any host makes.
+        crawling = replace(dns, rate=0.01)
+        assert int(crawling.rate * RULE_WINDOW_SECONDS * 0.5) == 0, "pre-condition"
+        floored = DetectionReport(SCAN, TARGET, (crawling,)).to_sigma_rules()
+        body = floored["sh4q_subdomain_enumeration.yml"]
+        assert f"> {MINIMUM_THRESHOLD}" in body, (
+            f"a threshold near zero would alert on ordinary traffic: {body}"
+        )
+
+        # --- the view states what it is showing ---------------------------
+        # Every defect this project has shipped in this class was in rendered
+        # output, not in the model behind it, so the view is asserted too.
+        import contextlib
+        import io
+
+        from sh4q.cli.main import render_detections
+
+        screen = io.StringIO()
+        with contextlib.redirect_stdout(screen):
+            render_detections(report)
+        shown = screen.getvalue()
+
+        for item in report.detections:
+            assert item.signal in shown, f"{item.signal} missing from the view"
+            assert str(item.observed) in shown, f"{item.observed} missing"
+        # An invisible stage must be marked as such on screen, not merely
+        # omitted from the rules -- the gap is the useful part.
+        assert "not visible" in shown, shown
+        assert "certificate_transparency" in shown.split("none is written:")[1], (
+            "the invisible stage must be named where the view explains itself"
+        )
+        assert "One stage never contacts" in shown, shown
+        assert "records it." in shown, "singular case must agree in number"
+
+        # Averaging several scans into one rate is misleading unless said.
+        assert "Measured across" not in shown, (
+            "a single-scan report must not claim an average"
+        )
+        many = DetectionReport(SCAN, TARGET, report.detections, scans=3)
+        multi = io.StringIO()
+        with contextlib.redirect_stdout(multi):
+            render_detections(many)
+        assert "Measured across 3 scans" in multi.getvalue()
+        assert "average" in multi.getvalue()
+
+        # The plural branch of that sentence is reached by a report whose
+        # invisible signals number more than one.
+        pair = DetectionReport(SCAN, TARGET, tuple(
+            d for d in report.detections if not d.visible_to_target
+        ) * 2)
+        plural = io.StringIO()
+        with contextlib.redirect_stdout(plural):
+            render_detections(pair)
+        assert "2 stages never contact" in plural.getvalue(), plural.getvalue()
+        assert "records them." in plural.getvalue()
+
+        # A report with nothing in it says so, rather than printing a header
+        # over an empty table.
+        blank = io.StringIO()
+        with contextlib.redirect_stdout(blank):
+            render_detections(DetectionReport(SCAN, TARGET, ()))
+        assert "Nothing recorded" in blank.getvalue(), blank.getvalue()
 
         # --- the export surface writes a directory, and only its own ------
         # `sigma` is the one format whose --output is a directory, so the
