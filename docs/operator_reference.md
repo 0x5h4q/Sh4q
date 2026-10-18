@@ -289,21 +289,54 @@ have to split a single file before use. Alongside the rules it writes
 `telemetry.jsonl`, one line per signal, carrying the measurements each rule was
 derived from.
 
+Each file is two YAML documents: the events, and a correlation counting them.
+
 ```yaml
-title: Many DNS lookups for distinct names in one zone, in a short window
-description: >
-  Derived from a real Sh4q scan of example.com, which
-  produced 1065 observable event(s) over 84s (12.69/s).
-  At that rate a 60s window sees about 761; the
-  threshold is half, so a slower scan still trips it.
+title: Many DNS lookups for distinct names in one zone (events)
+id: fdac2dad-9fd1-519b-b124-c2b79039a855
+name: sh4q_subdomain_enumeration_events
 logsource:
   category: dns
 detection:
   selection:
     query_type: 'A'
-  timeframe: 60s
-  condition: selection | count(query_name) by src_ip > 380
+  condition: selection
+level: informational
+---
+title: Many DNS lookups for distinct names in one zone, in a short window
+id: 1fb34666-9bbf-584f-8f28-67d9e6da1157
+description: >
+  Derived from a real Sh4q scan of example.com, which
+  produced 1065 observable event(s) over 84s (12.69/s).
+  At that rate a 60s window sees about 761; the
+  threshold is half, so a slower scan still trips it.
+correlation:
+  type: value_count
+  rules:
+    - sh4q_subdomain_enumeration_events
+  group-by:
+    - src_ip
+  timespan: 60s
+  condition:
+    gte: 380
+    field: query_name
+level: medium
 ```
+
+The base rule alone matches ordinary traffic, which is why it is
+`informational`; only the correlation is an alert. `value_count` rather than
+`event_count` because reconnaissance is **breadth** — many distinct names from
+one source — not request volume.
+
+The single-document aggregation form (`condition: selection | count(x) by y >
+n`) is deprecated Sigma and pySigma rejects it, so the first version of this
+exporter produced files no pipeline would load. Rule `id`s are UUIDs derived
+deterministically from the signal name, so re-exporting updates the rule a
+defender already tuned instead of looking like a new one.
+
+Validate the output against Sigma's own parser with `pip install sigma-cli`
+and `sigma check detections/`; `tests/test_detection_sigma_validation.py`
+does the same thing under `run_offline_tests.py --include-integration`.
 
 **The threshold is measured, not guessed.** It comes from what the scan actually
 did, so there is nothing to argue about — the rate is in the description next to

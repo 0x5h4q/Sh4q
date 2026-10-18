@@ -120,6 +120,9 @@ OFFLINE_TESTS = (
 
 OPTIONAL_INTEGRATION_TESTS = (
     "test_scoped_https_integration.py",
+    # Needs pySigma (`pip install sigma-cli`), which is not a project
+    # dependency. It prints a loud SKIPPED and exits 0 when it is absent.
+    "test_detection_sigma_validation.py",
 )
 
 # Tests that contact real DNS resolvers, certificate-transparency providers,

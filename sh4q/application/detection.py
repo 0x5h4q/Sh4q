@@ -24,6 +24,7 @@ already on disk, and so nothing here can influence what a scan does.
 from __future__ import annotations
 
 import json
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -32,6 +33,20 @@ from sh4q.storage.db import open_sync_database
 
 #: The window a generated rule queries over. A defender writes rules against
 #: minutes, not against however long a particular scan happened to run.
+#: Namespace for rule identifiers. The Sigma specification requires `id` to be
+#: a UUID, and pySigma rejects anything else -- `sh4q-subdomain-enumeration`
+#: read fine to a human and was not a valid rule. Deriving it with uuid5 over a
+#: fixed namespace keeps it deterministic: the same signal always exports the
+#: same id, so a defender's tooling tracks one rule across re-exports instead
+#: of seeing a new rule each time. A random uuid4 would validate and break that.
+_ID_NAMESPACE = uuid.UUID("5f4e3d2c-1b0a-4987-8765-432110fedcba")
+
+
+def _rule_id(signal: str) -> uuid.UUID:
+    """The stable UUID for one signal's rule."""
+    return uuid.uuid5(_ID_NAMESPACE, signal)
+
+
 RULE_WINDOW_SECONDS = 60
 
 #: No rule fires below this, whatever the measured rate projects to. A
@@ -48,8 +63,15 @@ class _Signal:
     log_source: str          # empty when the target sees nothing
     attack: tuple[str, ...]
     description: str
-    #: Sigma `detection:` body, formatted with the measured threshold.
-    rule_body: str = ""
+    #: Sigma `detection:` selection for the base event rule. The threshold
+    #: lives in the correlation rule, not here.
+    selection: str = ""
+    #: Field whose *distinct* values are counted. Recon is characterised by
+    #: breadth -- many names, many hosts, many paths -- not by request volume,
+    #: so `value_count` over this field is the shape, not `event_count`.
+    count_field: str = ""
+    #: Field the count is grouped by: the single source doing the looking.
+    group_by: str = ""
 
 
 #: Ordered so the most specific behaviour is reported first. `log_source` is
@@ -63,12 +85,11 @@ SIGNALS = (
         log_source="dns",
         attack=("attack.reconnaissance", "attack.t1590.002"),
         description="Many DNS lookups for distinct names in one zone, in a short window.",
-        rule_body=(
-            "  selection:\n"
+        selection=(
             "    query_type: 'A'\n"
-            "  timeframe: {window}s\n"
-            "  condition: selection | count(query_name) by src_ip > {threshold}\n"
         ),
+        count_field="query_name",
+        group_by="src_ip",
     ),
     _Signal(
         signal="http_probing",
@@ -76,12 +97,11 @@ SIGNALS = (
         log_source="webserver",
         attack=("attack.reconnaissance", "attack.t1595"),
         description="Requests to many distinct hosts in one estate from a single source.",
-        rule_body=(
-            "  selection:\n"
+        selection=(
             "    cs-method: 'GET'\n"
-            "  timeframe: {window}s\n"
-            "  condition: selection | count(cs-host) by c-ip > {threshold}\n"
         ),
+        count_field="cs-host",
+        group_by="c-ip",
     ),
     _Signal(
         signal="virtual_host_probing",
@@ -89,12 +109,11 @@ SIGNALS = (
         log_source="webserver",
         attack=("attack.reconnaissance", "attack.t1595.003"),
         description="Repeated requests to one address with a changing Host header.",
-        rule_body=(
-            "  selection:\n"
+        selection=(
             "    cs-method: 'GET'\n"
-            "  timeframe: {window}s\n"
-            "  condition: selection | count(cs-host) by c-ip > {threshold}\n"
         ),
+        count_field="cs-host",
+        group_by="c-ip",
     ),
     _Signal(
         signal="directory_enumeration",
@@ -102,12 +121,11 @@ SIGNALS = (
         log_source="webserver",
         attack=("attack.reconnaissance", "attack.t1595.003"),
         description="Many distinct paths requested on one host, most of them absent.",
-        rule_body=(
-            "  selection:\n"
+        selection=(
             "    sc-status: 404\n"
-            "  timeframe: {window}s\n"
-            "  condition: selection | count(cs-uri-stem) by c-ip > {threshold}\n"
         ),
+        count_field="cs-uri-stem",
+        group_by="c-ip",
     ),
     # Passive stages. The target is never contacted, so there is nothing for it
     # to log and no rule to write. Reported anyway: the absence is the finding.
@@ -143,7 +161,9 @@ class Detection:
     log_source: str
     attack: tuple[str, ...]
     description: str
-    _rule_body: str = ""
+    _selection: str = ""
+    _count_field: str = ""
+    _group_by: str = ""
 
     @property
     def visible_to_target(self) -> bool:
@@ -193,27 +213,29 @@ class DetectionReport:
     def to_sigma_rules(self) -> dict[str, str]:
         """One rule per behaviour a defender could actually observe.
 
+        Each file is two YAML documents: the base rule matching the individual
+        events, and a correlation rule counting them. The single-document
+        aggregation form -- `condition: selection | count(x) by y > n` -- is
+        deprecated Sigma and pySigma rejects it outright, so the earlier
+        version of this exporter produced files no Sigma pipeline would load.
+
         Nothing is emitted for a passive stage. A rule for an action the
         target never sees would be a rule that can never fire.
         """
         rules: dict[str, str] = {}
         for item in self.visible:
             # The scan's own span is not a detection window. A stage that ran
-            # for 166 seconds would give `timeframe: 166s`, and one read from a
-            # database holding several scans gave `timeframe: 62813s` with a
-            # threshold of 1887 -- a rule that can never fire. Project the
-            # measured rate onto a window a defender would actually query.
+            # for 166 seconds would give `timespan: 166s`, and one read from a
+            # database holding several scans gave 62813s with a threshold of
+            # 1887 -- a rule that can never fire. Project the measured rate
+            # onto a window a defender would actually query.
             window = RULE_WINDOW_SECONDS
             expected = item.rate * window
             # Half the observed rate, so a scan run more slowly than this one
             # still trips it, and never below a floor that noise would clear.
             threshold = max(MINIMUM_THRESHOLD, int(expected * 0.5))
-            body = item._rule_body.format(window=window, threshold=threshold)
-            rules[f"sh4q_{item.signal}.yml"] = (
-                f"title: {item.description.rstrip('.')}\n"
-                f"id: sh4q-{item.signal.replace('_', '-')}\n"
-                "status: experimental\n"
-                f"description: >\n"
+            events_name = f"sh4q_{item.signal}_events"
+            provenance = (
                 f"  Derived from a real Sh4q scan of {self.target or 'a target'}, which\n"
                 f"  produced {item.observed} observable event(s) over "
                 f"{item.window_seconds:.0f}s ({item.rate:.2f}/s).\n"
@@ -224,13 +246,47 @@ class DetectionReport:
                     "average rather\n  than any single run's behaviour.\n"
                     if self.scans > 1 else ""
                 )
-                + f"logsource:\n"
+            )
+            tags = "".join(f"  - {tag}\n" for tag in item.attack)
+            title = item.description.rstrip(".")
+            rules[f"sh4q_{item.signal}.yml"] = (
+                # --- the events the correlation counts --------------------
+                f"title: {title} (events)\n"
+                f"id: {_rule_id(item.signal)}\n"
+                f"name: {events_name}\n"
+                "status: experimental\n"
+                "description: >\n"
+                f"  Individual events the {item.signal} correlation counts. On its\n"
+                "  own this matches ordinary traffic and is not an alert.\n"
+                "logsource:\n"
                 f"  category: {item.log_source}\n"
-                f"detection:\n"
-                f"{body}"
-                f"level: medium\n"
-                f"tags:\n"
-                + "".join(f"  - {tag}\n" for tag in item.attack)
+                "detection:\n"
+                "  selection:\n"
+                f"{item._selection}"
+                "  condition: selection\n"
+                "level: informational\n"
+                f"tags:\n{tags}"
+                "---\n"
+                # --- the correlation that actually alerts -----------------
+                f"title: {title}\n"
+                f"id: {_rule_id(item.signal + ':correlation')}\n"
+                "status: experimental\n"
+                "description: >\n"
+                f"{provenance}"
+                "correlation:\n"
+                # Recon is breadth, not volume: many distinct names from one
+                # source, not many requests. `value_count` is that shape.
+                "  type: value_count\n"
+                "  rules:\n"
+                f"    - {events_name}\n"
+                "  group-by:\n"
+                f"    - {item._group_by}\n"
+                f"  timespan: {window}s\n"
+                "  condition:\n"
+                f"    gte: {threshold}\n"
+                f"    field: {item._count_field}\n"
+                "level: medium\n"
+                f"tags:\n{tags}"
             )
         return rules
 
@@ -286,7 +342,9 @@ def summarize_detections(
             log_source=spec.log_source,
             attack=spec.attack,
             description=spec.description,
-            _rule_body=spec.rule_body,
+            _selection=spec.selection,
+            _count_field=spec.count_field,
+            _group_by=spec.group_by,
         ))
 
     return DetectionReport(

@@ -25,6 +25,7 @@ on scans already on disk.
 import asyncio
 import os
 import sqlite3
+import uuid
 import tempfile
 from dataclasses import replace
 from pathlib import Path
@@ -105,7 +106,9 @@ async def main() -> None:
         rule = rules["sh4q_subdomain_enumeration.yml"]
         assert "title:" in rule and "logsource:" in rule and "detection:" in rule
         assert "attack.t1590.002" in rule.lower(), rule
-        assert "40" in rule, "the measured count must reach the rule"
+        assert "40 observable event(s)" in rule, (
+            "the measured count must reach the rule"
+        )
         assert "level:" in rule
 
         # --- telemetry is one line per signal, machine readable -----------
@@ -120,25 +123,75 @@ async def main() -> None:
         empty = summarize_detections(db_path, scan_id="absent")
         assert empty.detections == () and empty.to_sigma_rules() == {}
 
-        # --- the window is fixed, and the threshold derived from it -------
-        # This is the guard on the defect this module shipped with. The first
-        # version used the measured span as the Sigma `timeframe`, so a
-        # throttled scan produced `timeframe: 62813s` with a threshold of
-        # 1887: a rule that can never fire. The span is a property of the
-        # rate limit, not of the behaviour. Without this assertion a
-        # regression restoring it passes every other check in this file.
-        assert f"timeframe: {RULE_WINDOW_SECONDS}s" in rule, rule
-        assert str(int(dns.window_seconds)) not in rule.split("timeframe:")[1], (
-            "the measured span must not reach the rule as its window"
+        # --- the rule is valid Sigma, not just plausible YAML -------------
+        # Everything here was found by running the real validator (pySigma)
+        # over the exported rules. By eye the first version read fine and was
+        # rejected outright on two counts, so these are structural assertions
+        # a reader cannot talk themselves out of.
+
+        # `id` must be a UUID. `id: sh4q-subdomain-enumeration` is readable
+        # and not a valid Sigma identifier.
+        ids = [
+            line.split("id:", 1)[1].strip()
+            for line in rule.splitlines() if line.startswith("id:")
+        ]
+        assert len(ids) == 2, ids
+        for value in ids:
+            uuid.UUID(value)          # raises if it is not a real UUID
+        assert ids[0] != ids[1], "the two documents need distinct identifiers"
+
+        # And it must be stable, or a defender's tooling sees a brand new rule
+        # on every export instead of a revision of the one they already tuned.
+        again = DetectionReport(
+            report.scan_id, report.target, report.detections, scans=report.scans,
+        ).to_sigma_rules()
+        assert again["sh4q_subdomain_enumeration.yml"] == rule, (
+            "re-exporting the same measurements must reproduce the same rule"
         )
+
+        # The single-document aggregation form is deprecated Sigma and pySigma
+        # refuses it: "the pipe syntax has been deprecated and replaced by
+        # Sigma correlations". A rule using it loads nowhere.
+        assert "|" not in rule, f"deprecated pipe/aggregation syntax: {rule}"
+        assert "timeframe:" not in rule, "timeframe belongs to the old form"
+
+        # The modern form is two documents: the events, and a correlation over
+        # them, joined by `name`.
+        documents = rule.split("\n---\n")
+        assert len(documents) == 2, documents
+        events, correlation = documents
+        assert "correlation:" not in events and "detection:" in events
+        assert "correlation:" in correlation and "detection:" not in correlation
+        assert "name: sh4q_subdomain_enumeration_events" in events
+        assert "    - sh4q_subdomain_enumeration_events" in correlation, (
+            "the correlation must reference the base rule by the name it declares"
+        )
+        # Recon is breadth, not volume -- distinct names, not request count.
+        assert "type: value_count" in correlation, correlation
+        assert "field: query_name" in correlation
+        assert "    - src_ip" in correlation, "the count must be per source"
+        # The base rule alone matches ordinary traffic; only the correlation
+        # is an alert, and the levels have to say so.
+        assert "level: informational" in events, events
+        assert "level: medium" in correlation, correlation
+
+        # --- the window is fixed, and the threshold derived from it -------
+        # The guard on the defect this module shipped with: the first version
+        # used the measured span as the window, so a throttled scan produced
+        # 62813s with a threshold of 1887 -- a rule that can never fire. The
+        # span is a property of the rate limit, not of the behaviour.
+        assert f"timespan: {RULE_WINDOW_SECONDS}s" in correlation, correlation
+        assert str(int(dns.window_seconds)) not in (
+            correlation.split("timespan:")[1]
+        ), "the measured span must not reach the rule as its window"
 
         # 40 events over 19s is 2.105/s; a 60s window sees 126, half is 63.
         expected = int(dns.rate * RULE_WINDOW_SECONDS * 0.5)
         assert expected == 63, expected
-        assert f"> {expected}" in rule, rule
-        # The rate must be quoted next to the threshold, or the number is
+        assert f"gte: {expected}" in correlation, correlation
+        # The rate must be quoted beside the threshold, or the number is
         # unarguable only to whoever generated it.
-        assert f"{dns.rate:.2f}/s" in rule, rule
+        assert f"{dns.rate:.2f}/s" in correlation, correlation
 
         # A rate low enough to project under the floor must still produce a
         # usable rule. A real scan throttled to a crawl measures a fraction of
@@ -148,7 +201,7 @@ async def main() -> None:
         assert int(crawling.rate * RULE_WINDOW_SECONDS * 0.5) == 0, "pre-condition"
         floored = DetectionReport(SCAN, TARGET, (crawling,)).to_sigma_rules()
         body = floored["sh4q_subdomain_enumeration.yml"]
-        assert f"> {MINIMUM_THRESHOLD}" in body, (
+        assert f"gte: {MINIMUM_THRESHOLD}" in body, (
             f"a threshold near zero would alert on ordinary traffic: {body}"
         )
 
