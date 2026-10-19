@@ -262,17 +262,34 @@ sh4q results --latest --target example.com --detections
 ```text
     SIGNAL                      EVENTS    RATE/S    LOG SOURCE
     --------------------------  --------  --------  ------------
-    subdomain_enumeration         1065     12.69    dns
-    http_probing                   191      0.26    webserver
-    certificate_transparency      1513      9.09    not visible
+    subdomain_enumeration          781      4.28    dns
+    http_probing                   121      1.01    webserver
+    directory_enumeration            6      0.19    webserver
+    certificate_transparency      1750      8.04    not visible
+    passive_subdomain_adapter     1211      9.32    not visible
+    historical_url_retrieval      5000    108.99    not visible
 
-    One stage never contacts the target, so nothing on its
-    side records it. A rule for it could never fire, so
+    3 stages never contact the target, so nothing on its
+    side records them. A rule for those could never fire, so
     none is written:
       certificate_transparency
+      passive_subdomain_adapter
+      historical_url_retrieval
 ```
 
-The third row is the useful one. Certificate transparency, Subfinder and URL
+**The rate is events over each stage's own recorded duration**, read from the
+`stage_metrics` evidence every run writes — not the span between evidence rows,
+and not the whole scan. Both of those were tried and both were wrong. Evidence
+`captured_at` records when a row was *written*: the directory stage probes every
+candidate with a 1s pause, then returns them together, so six rows landed within
+0.195s of each other and the span gave **30.89 requests per second for six
+requests over 31 seconds**, which projected to a threshold of 926. The whole-scan
+span fails the other way, counting the minutes between stages as time the target
+spent being probed. A rate shown as `?` means the stage left no duration in the
+record, so none could be measured — those rules carry the floor threshold and
+say so in their description.
+
+The invisible rows are the useful ones. Certificate transparency, Subfinder and URL
 history retrieve their answers from third parties, so no log on the target's
 side records them — a detection artifact claiming coverage of passive
 reconnaissance would be false. You cannot detect the stage that found your

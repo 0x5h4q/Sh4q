@@ -592,7 +592,12 @@ def render_detections(report) -> None:
             "    "
             + column(_fit(item.signal, 26), 28, style)
             + column(f"{item.observed:>6}", 10, style)
-            + column(f"{item.rate:>6.2f}", 10, style)
+            # An unmeasurable rate must not print as 0.00: a stage that left
+            # no duration behind is unknown, not idle.
+            + column(
+                f"{item.rate:>6.2f}" if item.rate_measured else "     ?",
+                10, style,
+            )
             + (item.log_source if item.visible_to_target else refusal("not visible"))
         )
 
@@ -614,6 +619,17 @@ def render_detections(report) -> None:
             f"\n    Measured across {report.scans} scans. Every rate here is an average,\n"
             "    not any single run's behaviour -- pass --scan for one run."
         ))
+    if any(not d.rate_measured for d in report.detections):
+        print(note(
+            "\n    A rate shown as ? means the stage left no duration in the\n"
+            "    record, so none could be measured -- those rules carry the\n"
+            "    floor threshold and say so. Tune them before use."
+        ))
+    print(note(
+        "\n    Rates are events over each stage's own recorded duration, not\n"
+        "    over the whole scan: the gaps between stages are not time the\n"
+        "    target spent being probed."
+    ))
     print(note(
         f"\n    Export the rules with:  sh4q export --format sigma --output detections/"
     ))

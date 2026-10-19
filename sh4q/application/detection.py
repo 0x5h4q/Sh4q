@@ -26,7 +26,6 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
 
 from sh4q.storage.db import open_sync_database
 
@@ -60,6 +59,12 @@ class _Signal:
 
     signal: str
     kinds: tuple[str, ...]
+    #: Plugins whose evidence counts toward this signal. `subdomain_found` is
+    #: emitted by both `ct` and `subfinder`, so matching on kind alone made
+    #: the certificate-transparency row absorb 1211 Subfinder names and call
+    #: them certificate transparency. It also names the stages whose recorded
+    #: duration is this signal's window.
+    plugins: tuple[str, ...]
     log_source: str          # empty when the target sees nothing
     attack: tuple[str, ...]
     description: str
@@ -81,6 +86,7 @@ class _Signal:
 SIGNALS = (
     _Signal(
         signal="subdomain_enumeration",
+        plugins=("discovered-dns",),
         kinds=("discovered_dns_resolution", "discovered_dns_error"),
         log_source="dns",
         attack=("attack.reconnaissance", "attack.t1590.002"),
@@ -93,6 +99,7 @@ SIGNALS = (
     ),
     _Signal(
         signal="http_probing",
+        plugins=("http", "discovered-http"),
         kinds=("http_probe",),
         log_source="webserver",
         attack=("attack.reconnaissance", "attack.t1595"),
@@ -105,6 +112,7 @@ SIGNALS = (
     ),
     _Signal(
         signal="virtual_host_probing",
+        plugins=("vhost-discovery",),
         kinds=("vhost_observation", "vhost_baseline"),
         log_source="webserver",
         attack=("attack.reconnaissance", "attack.t1595.003"),
@@ -117,6 +125,7 @@ SIGNALS = (
     ),
     _Signal(
         signal="directory_enumeration",
+        plugins=("directory-discovery",),
         kinds=("directory_observation",),
         log_source="webserver",
         attack=("attack.reconnaissance", "attack.t1595.003"),
@@ -131,6 +140,7 @@ SIGNALS = (
     # to log and no rule to write. Reported anyway: the absence is the finding.
     _Signal(
         signal="certificate_transparency",
+        plugins=("ct",),
         kinds=("subdomain_found",),
         log_source="",
         attack=("attack.reconnaissance", "attack.t1596.003"),
@@ -140,7 +150,19 @@ SIGNALS = (
         ),
     ),
     _Signal(
+        signal="passive_subdomain_adapter",
+        kinds=("subdomain_found",),
+        plugins=("subfinder",),
+        log_source="",
+        attack=("attack.reconnaissance", "attack.t1590.002"),
+        description=(
+            "Names supplied by an external passive adapter. Its own providers "
+            "are contacted, never the target, which sees nothing."
+        ),
+    ),
+    _Signal(
         signal="historical_url_retrieval",
+        plugins=("url-history",),
         kinds=("url_history_batch", "url_history_found"),
         log_source="",
         attack=("attack.reconnaissance", "attack.t1596"),
@@ -164,6 +186,16 @@ class Detection:
     _selection: str = ""
     _count_field: str = ""
     _group_by: str = ""
+
+    @property
+    def rate_measured(self) -> bool:
+        """Whether a rate could be derived at all.
+
+        False when the stage left no duration in `stage_metrics` -- an
+        interrupted run, or a scan recorded before that evidence existed.
+        A rate of zero and an unmeasurable rate are different claims.
+        """
+        return self.window_seconds > 0
 
     @property
     def visible_to_target(self) -> bool:
@@ -230,17 +262,24 @@ class DetectionReport:
             # 1887 -- a rule that can never fire. Project the measured rate
             # onto a window a defender would actually query.
             window = RULE_WINDOW_SECONDS
-            expected = item.rate * window
+            expected = item.rate * window if item.rate_measured else 0.0
             # Half the observed rate, so a scan run more slowly than this one
             # still trips it, and never below a floor that noise would clear.
             threshold = max(MINIMUM_THRESHOLD, int(expected * 0.5))
             events_name = f"sh4q_{item.signal}_events"
             provenance = (
                 f"  Derived from a real Sh4q scan of {self.target or 'a target'}, which\n"
-                f"  produced {item.observed} observable event(s) over "
-                f"{item.window_seconds:.0f}s ({item.rate:.2f}/s).\n"
-                f"  At that rate a {window}s window sees about {expected:.0f}; the\n"
-                f"  threshold is half, so a slower scan still trips it.\n"
+                f"  produced {item.observed} observable event(s)"
+                + (
+                    f" over {item.window_seconds:.0f}s "
+                    f"({item.rate:.2f}/s).\n"
+                    f"  At that rate a {window}s window sees about {expected:.0f}; the\n"
+                    f"  threshold is half, so a slower scan still trips it.\n"
+                    if item.rate_measured else
+                    ".\n  That scan left no stage duration behind, so no rate could be\n"
+                    f"  measured and this threshold is the floor of {MINIMUM_THRESHOLD},\n"
+                    "  not a measurement. Tune it before use.\n"
+                )
                 + (
                     "  Measured across more than one scan, so the rate is an "
                     "average rather\n  than any single run's behaviour.\n"
@@ -291,11 +330,37 @@ class DetectionReport:
         return rules
 
 
-def _parsed(value: str) -> datetime | None:
-    try:
-        return datetime.fromisoformat(value)
-    except (TypeError, ValueError):
-        return None
+
+def _stage_durations(db, where: str, params: list[object]) -> dict[str, float]:
+    """Seconds each stage spent running, from its own durable record.
+
+    This is the denominator the rate needs. Evidence `captured_at` records
+    when a row was *written*, not when the request happened: the directory
+    stage probes every candidate, returns them together, and the handler
+    appends all six rows inside 0.2s of each other. Dividing by that span
+    measured the speed of a SQLite write loop and reported 30.89 requests
+    per second for a stage that made six requests in 31 seconds -- which
+    projected to a threshold of 926 and would never have fired.
+
+    Summed across scans when several are in view, so events and seconds
+    cover the same runs.
+    """
+    totals: dict[str, float] = {}
+    rows = db.execute(
+        f"SELECT content FROM evidence{where}"
+        + (" AND " if where else " WHERE ") + "kind = 'stage_metrics'",
+        params,
+    ).fetchall()
+    for (content,) in rows:
+        try:
+            stages = json.loads(content).get("stages", [])
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            continue
+        for stage in stages:
+            name, seconds = stage.get("name"), stage.get("duration_seconds")
+            if isinstance(name, str) and isinstance(seconds, (int, float)):
+                totals[name] = totals.get(name, 0.0) + float(seconds)
+    return totals
 
 
 def summarize_detections(
@@ -314,31 +379,41 @@ def summarize_detections(
 
     with open_sync_database(database) as db:
         rows = db.execute(
-            f"SELECT kind, captured_at FROM evidence{where}", params
+            f"SELECT kind, plugin, content FROM evidence{where}", params
         ).fetchall()
         scans = db.execute(
             f"SELECT COUNT(DISTINCT scan_run_id) FROM evidence{where}", params
         ).fetchone()[0]
+        durations = _stage_durations(db, where, list(params))
 
-    seen: dict[str, list[datetime]] = {}
-    for kind, captured_at in rows:
-        moment = _parsed(captured_at)
-        if moment is not None:
-            seen.setdefault(kind, []).append(moment)
+    # Keyed on (kind, plugin): `subdomain_found` is emitted by both `ct` and
+    # `subfinder`, and matching on kind alone reported 1211 Subfinder names
+    # as certificate transparency.
+    counts: dict[tuple[str, str], int] = {}
+    subjects: dict[tuple[str, str], int] = {}
+    for kind, plugin, content in rows:
+        key = (kind, plugin)
+        counts[key] = counts.get(key, 0) + 1
+        subjects[key] = subjects.get(key, 0) + _subject_count(content)
 
     detections: list[Detection] = []
     for spec in SIGNALS:
-        moments = sorted(m for kind in spec.kinds for m in seen.get(kind, []))
-        if not moments:
+        keys = [(kind, plugin) for kind in spec.kinds for plugin in spec.plugins]
+        records = sum(counts.get(key, 0) for key in keys)
+        if not records:
             continue
-        window = (moments[-1] - moments[0]).total_seconds()
+        # One batched record can stand for thousands of observations, so the
+        # record count alone understated url-history as "1 event" beside the
+        # 4996 URLs it had just saved.
+        observed = max(records, sum(subjects.get(key, 0) for key in keys))
+        window = sum(durations.get(name, 0.0) for name in spec.plugins)
         detections.append(Detection(
             signal=spec.signal,
-            observed=len(moments),
+            observed=observed,
+            # 0.0 means the stage left no duration behind, and the rate is
+            # unknown rather than zero. `rate_measured` is what reads it.
             window_seconds=round(window, 3),
-            # A single event has no window; report its rate as the count so a
-            # threshold derived from it is not a division by zero.
-            rate=(len(moments) / window) if window else float(len(moments)),
+            rate=(observed / window) if window > 0 else 0.0,
             log_source=spec.log_source,
             attack=spec.attack,
             description=spec.description,
@@ -351,3 +426,17 @@ def summarize_detections(
         scan_id=scan_id, target=target, detections=tuple(detections),
         scans=max(1, scans),
     )
+
+
+def _subject_count(content: str | None) -> int:
+    """How many observations one evidence record actually stands for."""
+    try:
+        payload = json.loads(content or "{}")
+    except (json.JSONDecodeError, TypeError):
+        return 1
+    if isinstance(payload, dict):
+        for field in ("urls", "names", "paths"):
+            value = payload.get(field)
+            if isinstance(value, list) and value:
+                return len(value)
+    return 1

@@ -39,14 +39,37 @@ from sh4q.application.detection import (
 from sh4q.storage.evidence import Evidence, SQLiteEvidenceStore
 
 SCAN = "scan-1"
+BURST = "scan-burst"
+SPLIT = "scan-split"
+BATCH = "scan-batch"
 TARGET = "example.com"
 
 
-def record(kind, plugin, index, second):
+def stage_metrics(stages, scan=None):
+    """The record every stage leaves behind, and the detection denominator.
+
+    Without this the fixture could not express the defect it now guards:
+    `captured_at` is when a row was *written*, so a stage that batches its
+    discoveries looks instantaneous. The real pipeline always writes this.
+    """
+    scan = scan or SCAN
     return Evidence(
-        id=f"{kind}-{index}", target=TARGET, plugin=plugin, kind=kind,
+        id=f"stage-metrics-{scan}", target=TARGET, plugin="sh4q", kind="stage_metrics",
+        content={"stages": [
+            {"name": name, "duration_seconds": seconds, "status": "completed"}
+            for name, seconds in stages.items()
+        ]},
+        scan_run_id=scan,
+        captured_at="2026-10-08T12:01:00+00:00",
+    )
+
+
+def record(kind, plugin, index, second, scan=None):
+    return Evidence(
+        id=f"{kind}-{plugin}-{index}-{scan or SCAN}", target=TARGET,
+        plugin=plugin, kind=kind,
         content={"domain": f"h{index}.{TARGET}"},
-        scan_run_id=SCAN,
+        scan_run_id=scan or SCAN,
         captured_at=f"2026-10-08T12:00:{second:02d}+00:00",
     )
 
@@ -59,7 +82,9 @@ async def main() -> None:
         store = SQLiteEvidenceStore(db_path)
         await store.init()
 
-        # 40 DNS lookups across 20 seconds, and 10 HTTP probes across 10.
+        # 40 DNS lookups and 10 HTTP probes. Every `captured_at` below is a
+        # burst -- which is exactly what the real directory stage does -- so
+        # the rate can only come from the recorded stage durations.
         for index in range(40):
             await store.append(record("discovered_dns_resolution", "discovered-dns", index, index // 2))
         for index in range(10):
@@ -67,6 +92,9 @@ async def main() -> None:
         # Passive stages: real, and invisible from the target's side.
         for index in range(5):
             await store.append(record("subdomain_found", "ct", index, 0))
+        await store.append(stage_metrics({
+            "discovered-dns": 19.0, "discovered-http": 9.901, "ct": 0.55,
+        }))
 
         report = summarize_detections(db_path, scan_id=SCAN)
         by_signal = {d.signal: d for d in report.detections}
@@ -74,7 +102,10 @@ async def main() -> None:
         # --- thresholds come from the scan, not a template ----------------
         dns = by_signal["subdomain_enumeration"]
         assert dns.observed == 40, dns
+        # The window is the stage's own recorded duration, not the span
+        # between evidence rows. Those rows were written in a burst.
         assert dns.window_seconds == 19.0, dns.window_seconds
+        assert dns.rate_measured is True
         assert 2.0 < dns.rate < 2.2, dns.rate
         assert dns.visible_to_target is True
         assert dns.log_source == "dns"
@@ -84,6 +115,8 @@ async def main() -> None:
 
         http = by_signal["http_probing"]
         assert http.observed == 10 and http.visible_to_target is True
+        # Two stages feed this signal, so the window is the sum of both.
+        assert http.window_seconds == 9.901, http.window_seconds
         assert http.log_source == "webserver"
 
         # --- what a defender cannot see is stated, not omitted ------------
@@ -122,6 +155,102 @@ async def main() -> None:
         # --- a scan with nothing recorded claims nothing -------------------
         empty = summarize_detections(db_path, scan_id="absent")
         assert empty.detections == () and empty.to_sigma_rules() == {}
+
+        # --- the rate is of requests, not of database writes --------------
+        # Found by reading a real scan. The directory stage probes every
+        # candidate with a 1s sleep between them, then returns them together,
+        # so the handler appended all six evidence rows inside 0.195s. The
+        # span between `captured_at` values gave 30.89 requests per second
+        # for six requests over 31 seconds -- inflated 162x -- which
+        # projected to a threshold of 926 on a stage that made six requests.
+        # An unfireable rule, which is the exact defect this module was
+        # already supposed to have fixed once.
+        for index in range(6):
+            await store.append(record(
+                "directory_observation", "directory-discovery", index, 0, scan=BURST))
+        await store.append(stage_metrics({"directory-discovery": 31.574}, scan=BURST))
+        burst_report = summarize_detections(db_path, scan_id=BURST)
+        directory = {d.signal: d for d in burst_report.detections}["directory_enumeration"]
+        assert directory.observed == 6, directory
+        assert directory.window_seconds == 31.574, (
+            "the window must be the stage's recorded duration, not the span "
+            f"between evidence rows: {directory.window_seconds}"
+        )
+        assert 0.18 < directory.rate < 0.20, (
+            f"six requests over 31.574s is ~0.19/s, not {directory.rate}"
+        )
+        # And the threshold that falls out of it has to be reachable.
+        floor_rule = burst_report.to_sigma_rules()["sh4q_directory_enumeration.yml"]
+        assert f"gte: {MINIMUM_THRESHOLD}" in floor_rule, floor_rule
+
+        # --- one kind, two sources, two different third parties -----------
+        # `subdomain_found` is emitted by both `ct` and `subfinder`. Matching
+        # on kind alone made the certificate-transparency row report 2961
+        # names on a real scan, 1211 of which came from Subfinder and had
+        # nothing to do with certificate transparency.
+        for index in range(5):
+            await store.append(record("subdomain_found", "ct", index, 0, scan=SPLIT))
+        for index in range(7):
+            await store.append(record("subdomain_found", "subfinder", index, 0, scan=SPLIT))
+        await store.append(stage_metrics({"ct": 0.55, "subfinder": 3.0}, scan=SPLIT))
+        split = {d.signal: d for d in summarize_detections(db_path, scan_id=SPLIT).detections}
+        assert split["certificate_transparency"].observed == 5, (
+            f"CT must count only its own evidence: {split['certificate_transparency']}"
+        )
+        assert split["passive_subdomain_adapter"].observed == 7, split
+        # Neither is visible, so neither may produce a rule.
+        assert not split["passive_subdomain_adapter"].visible_to_target
+        assert "sh4q_passive_subdomain_adapter.yml" not in (
+            summarize_detections(db_path, scan_id=SPLIT).to_sigma_rules()
+        )
+
+        # --- one record can stand for thousands of observations -----------
+        # url-history writes a single batch row. Counting rows reported
+        # "1 event" next to the 4996 URLs it had just saved.
+        await store.append(Evidence(
+            id="batch-1", target=TARGET, plugin="url-history",
+            kind="url_history_batch",
+            content={"domain": TARGET, "urls": [f"https://h{n}.{TARGET}/" for n in range(2500)]},
+            scan_run_id=BATCH, captured_at="2026-10-08T12:00:30+00:00",
+        ))
+        await store.append(stage_metrics({"url-history": 50.0}, scan=BATCH))
+        batched = {d.signal: d for d in summarize_detections(db_path, scan_id=BATCH).detections}
+        history = batched["historical_url_retrieval"]
+        assert history.observed == 2500, (
+            f"a batch of 2500 URLs is not one observation: {history.observed}"
+        )
+        assert history.visible_to_target is False
+
+        # --- an unmeasurable rate is not a rate of zero -------------------
+        # A scan interrupted before it wrote stage_metrics, or one recorded
+        # before that evidence existed, leaves no denominator. Reporting
+        # 0.00/s and a floor threshold as though they were measured would be
+        # the same lie in a quieter voice.
+        handle2, bare_path = tempfile.mkstemp(prefix="sh4q_detection_bare_", suffix=".db")
+        os.close(handle2)
+        os.remove(bare_path)
+        try:
+            bare = SQLiteEvidenceStore(bare_path)
+            await bare.init()
+            for index in range(9):
+                await bare.append(record(
+                    "discovered_dns_resolution", "discovered-dns", index, index))
+            unmeasured = summarize_detections(bare_path, scan_id=SCAN).detections[0]
+            assert unmeasured.observed == 9
+            assert unmeasured.window_seconds == 0.0
+            assert unmeasured.rate_measured is False, (
+                "no stage duration means the rate is unknown, not zero"
+            )
+            text = summarize_detections(bare_path, scan_id=SCAN).to_sigma_rules()[
+                "sh4q_subdomain_enumeration.yml"]
+            assert f"gte: {MINIMUM_THRESHOLD}" in text, text
+            assert "no rate could be" in text, (
+                f"the rule must admit the threshold is not a measurement: {text}"
+            )
+            assert "/s)" not in text, "it must not quote a rate it never measured"
+        finally:
+            if os.path.exists(bare_path):
+                os.remove(bare_path)
 
         # --- the rule is valid Sigma, not just plausible YAML -------------
         # Everything here was found by running the real validator (pySigma)
