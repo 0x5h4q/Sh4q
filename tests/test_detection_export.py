@@ -31,8 +31,10 @@ from dataclasses import replace
 from pathlib import Path
 
 from sh4q.application.detection import (
+    MINIMUM_OBSERVATIONS,
     MINIMUM_THRESHOLD,
     RULE_WINDOW_SECONDS,
+    Detection,
     DetectionReport,
     summarize_detections,
 )
@@ -155,6 +157,80 @@ async def main() -> None:
         # --- a scan with nothing recorded claims nothing -------------------
         empty = summarize_detections(db_path, scan_id="absent")
         assert empty.detections == () and empty.to_sigma_rules() == {}
+
+        # --- a rate from two events is not a measurement ------------------
+        # A real scan probed two endpoints in 4.85s. The rate came out at
+        # 0.41/s, read identically to the 302-event measurement beside it,
+        # and projected to a threshold of 12 distinct hosts a minute --
+        # which ordinary CDN or proxy traffic clears.
+        assert dns.rate_well_sampled is True, dns.observed
+        thin = replace(dns, observed=2, window_seconds=4.85, rate=2 / 4.85)
+        assert thin.rate_measured is True
+        assert thin.rate_well_sampled is False, (
+            f"{MINIMUM_OBSERVATIONS} events is the floor for extrapolating"
+        )
+        thin_rule = DetectionReport(SCAN, TARGET, (thin,)).to_sigma_rules()[
+            "sh4q_subdomain_enumeration.yml"]
+        assert "too few for the" in thin_rule, thin_rule
+        assert "tune it" in thin_rule
+
+        # --- two stages, one observable, one rule -------------------------
+        # `http_probing` and `virtual_host_probing` generate byte-identical
+        # Sigma: nothing in the webserver taxonomy separates fuzzing a Host
+        # header from probing many hosts. Exported separately they were two
+        # rules over the same events with thresholds of 12 and 16, so the
+        # lower always fired first and the other could never contribute.
+        from sh4q.application.detection import SIGNALS
+
+        by_name = {s.signal: s for s in SIGNALS}
+        http_spec, vhost_spec = by_name["http_probing"], by_name["virtual_host_probing"]
+        assert (
+            http_spec.log_source == vhost_spec.log_source
+            and http_spec.selection == vhost_spec.selection
+            and http_spec.count_field == vhost_spec.count_field
+            and http_spec.group_by == vhost_spec.group_by
+        ), "if these diverge the merge is no longer correct and must be revisited"
+
+        pair = DetectionReport(SCAN, TARGET, (
+            Detection(
+                signal="http_probing", observed=2, window_seconds=4.85,
+                rate=2 / 4.85, log_source=http_spec.log_source,
+                attack=http_spec.attack, description=http_spec.description,
+                _selection=http_spec.selection,
+                _count_field=http_spec.count_field,
+                _group_by=http_spec.group_by,
+            ),
+            Detection(
+                signal="virtual_host_probing", observed=302,
+                window_seconds=555.78, rate=302 / 555.78,
+                log_source=vhost_spec.log_source, attack=vhost_spec.attack,
+                description=vhost_spec.description,
+                _selection=vhost_spec.selection,
+                _count_field=vhost_spec.count_field,
+                _group_by=vhost_spec.group_by,
+            ),
+        ))
+        merged = pair.to_sigma_rules()
+        assert set(merged) == {
+            "sh4q_http_probing_and_virtual_host_probing.yml"
+        }, sorted(merged)
+        text = merged["sh4q_http_probing_and_virtual_host_probing.yml"]
+        # Summed, so the thin stage is measured with what shares its logic.
+        assert "304 observable event(s)" in text, text
+        assert "over 561s" in text, text
+        assert "too few for the" not in text, (
+            "304 events is a measurement; the caveat must not survive the merge"
+        )
+        assert "Covers http_probing, virtual_host_probing." in text, text
+        # One threshold, from the combined measurement.
+        assert text.count("gte:") == 1, text
+        assert "gte: 16" in text, text
+        # The telemetry still reports each signal, because they are distinct
+        # sh4q behaviours even where they are one detection.
+        import json as _json
+
+        signals = [_json.loads(l)["signal"] for l in pair.to_telemetry_jsonl().splitlines()]
+        assert signals == ["http_probing", "virtual_host_probing"], signals
 
         # --- the rate is of requests, not of database writes --------------
         # Found by reading a real scan. The directory stage probes every

@@ -364,6 +364,23 @@ scan throttled across 17 hours produced `timeframe: 62813s` with a threshold of
 projected count is deliberate headroom, so a scan slower than the one measured
 still trips the rule.
 
+**Two stages can be one detection.** `http_probing` and `virtual_host_probing`
+generate byte-identical Sigma — `category: webserver`, `cs-method: GET`,
+distinct `cs-host` per `c-ip` — because nothing in that taxonomy separates
+fuzzing a Host header from probing many hosts. Exported separately they were two
+rules over the same events with thresholds of 12 and 16, so the lower always
+fired first and the other could never contribute anything. They are now one
+rule, from the combined measurement, in a file named for both signals. The
+`telemetry.jsonl` still reports each signal separately, because they remain
+distinct Sh4q behaviours even where they are one detection.
+
+**A rate needs enough events to be a rate.** Below 30 observations the view
+marks it `~` and the rule says what it rests on. A real scan probed two
+endpoints in 4.85s; 0.41/s read identically to the 302-event measurement beside
+it and projected to a threshold of 12 distinct hosts a minute, which ordinary
+CDN or proxy traffic clears. Merging also resolves this where it applies: the
+thin stage is measured together with whatever shares its detection logic.
+
 Rules are a starting point, not a drop-in. Field names (`query_name`, `src_ip`)
 follow the Sigma DNS and webserver taxonomies and will need mapping to whatever
 your pipeline actually calls them. Like the ledger, this is read from durable

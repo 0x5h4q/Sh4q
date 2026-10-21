@@ -14,7 +14,7 @@ from sh4q.application import run_scan
 from sh4q.adapters import AdapterExecutionError
 from sh4q.events.event_log import DurableEventLog
 from sh4q.storage.scan_runs import count_scans, get_scan, latest_scan, list_scans, scan_asset_count
-from sh4q.application.detection import summarize_detections
+from sh4q.application.detection import MINIMUM_OBSERVATIONS, summarize_detections
 from sh4q.application.disclosure import DECLARED, OBSERVED, summarize_disclosures
 from sh4q.application.results import friendly_technology_source, list_assets, list_response_attributes, summarize_names, list_failures, list_javascript_observations, list_technology_observations, summarize_technology_observations
 from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
@@ -594,8 +594,11 @@ def render_detections(report) -> None:
             + column(f"{item.observed:>6}", 10, style)
             # An unmeasurable rate must not print as 0.00: a stage that left
             # no duration behind is unknown, not idle.
+            # A rate from too few events is marked, not hidden: it is a real
+            # measurement of almost nothing, and reads identically otherwise.
             + column(
-                f"{item.rate:>6.2f}" if item.rate_measured else "     ?",
+                (f"{item.rate:>6.2f}" + ("" if item.rate_well_sampled else "~"))
+                if item.rate_measured else "     ?",
                 10, style,
             )
             + (item.log_source if item.visible_to_target else refusal("not visible"))
@@ -618,6 +621,14 @@ def render_detections(report) -> None:
         print(note(
             f"\n    Measured across {report.scans} scans. Every rate here is an average,\n"
             "    not any single run's behaviour -- pass --scan for one run."
+        ))
+    thin = [d for d in report.detections if d.rate_measured and not d.rate_well_sampled]
+    if thin:
+        print(note(
+            f"\n    A rate marked ~ rests on fewer than {MINIMUM_OBSERVATIONS} events, which is too\n"
+            "    few to extrapolate from: "
+            + ", ".join(f"{d.signal} ({d.observed})" for d in thin) + ".\n"
+            "    Those rules say so, and their thresholds need tuning."
         ))
     if any(not d.rate_measured for d in report.detections):
         print(note(
@@ -1317,7 +1328,9 @@ def main() -> None:
             )
             print(note(
                 "  Rules are written only for behaviour the target could observe.\n"
-                "  Run `results --detections` to see which stages it could not."
+                "  Run `results --detections` to see which stages it could not.\n"
+                "  A filename joining two signals is one rule covering both,\n"
+                "  because they are indistinguishable in the log they target."
             ))
         else:
             print(f"\n  Exported {int(count)} asset(s) from scan {run.id} to {args.output}")

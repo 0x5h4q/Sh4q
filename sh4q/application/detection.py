@@ -52,6 +52,14 @@ RULE_WINDOW_SECONDS = 60
 #: threshold of two would alert on ordinary traffic.
 MINIMUM_THRESHOLD = 5
 
+#: Below this many observations a rate is arithmetic on noise, not a
+#: measurement. A real scan probed two endpoints in 4.85s and the rate came
+#: out at 0.41/s -- indistinguishable in the output from the 302-event
+#: measurement beside it, and extrapolated to a threshold of 12 distinct
+#: hosts a minute, which ordinary CDN or proxy traffic clears. The rate is
+#: still reported; what changes is that the rule says what it rests on.
+MINIMUM_OBSERVATIONS = 30
+
 
 @dataclass(frozen=True)
 class _Signal:
@@ -198,6 +206,15 @@ class Detection:
         return self.window_seconds > 0
 
     @property
+    def rate_well_sampled(self) -> bool:
+        """Whether enough events were seen for the rate to mean anything.
+
+        A measured rate and a well-measured rate are different claims, and
+        two observations produce the first without the second.
+        """
+        return self.rate_measured and self.observed >= MINIMUM_OBSERVATIONS
+
+    @property
     def visible_to_target(self) -> bool:
         """Whether the target could see this at all.
 
@@ -242,6 +259,24 @@ class DetectionReport:
             for d in self.detections
         )
 
+    def _detection_groups(self) -> list[tuple[Detection, ...]]:
+        """Visible detections grouped by the rule they would generate.
+
+        `http_probing` and `virtual_host_probing` produce byte-identical
+        Sigma -- `category: webserver`, `cs-method: GET`, distinct `cs-host`
+        per `c-ip` -- because in a webserver log they *are* the same
+        observable: nothing in that taxonomy separates fuzzing a Host header
+        from probing many hosts. Exported separately they became two rules
+        over the same events with thresholds of 12 and 16, so the lower one
+        always fired first and the other could never contribute. One
+        behaviour, one rule, one threshold from the combined measurement.
+        """
+        grouped: dict[tuple[str, str, str, str], list[Detection]] = {}
+        for item in self.visible:
+            key = (item.log_source, item._selection, item._count_field, item._group_by)
+            grouped.setdefault(key, []).append(item)
+        return [tuple(members) for members in grouped.values()]
+
     def to_sigma_rules(self) -> dict[str, str]:
         """One rule per behaviour a defender could actually observe.
 
@@ -255,7 +290,8 @@ class DetectionReport:
         target never sees would be a rule that can never fire.
         """
         rules: dict[str, str] = {}
-        for item in self.visible:
+        for group in self._detection_groups():
+            item = _merged(group)
             # The scan's own span is not a detection window. A stage that ran
             # for 166 seconds would give `timespan: 166s`, and one read from a
             # database holding several scans gave 62813s with a threshold of
@@ -267,6 +303,13 @@ class DetectionReport:
             # still trips it, and never below a floor that noise would clear.
             threshold = max(MINIMUM_THRESHOLD, int(expected * 0.5))
             events_name = f"sh4q_{item.signal}_events"
+            contributors = (
+                ""
+                if len(group) == 1 else
+                "  Covers " + ", ".join(d.signal for d in group) + ".\n"
+                "  Those stages are one behaviour in a webserver log, so this is\n"
+                "  one rule rather than two firing on the same events.\n"
+            )
             provenance = (
                 f"  Derived from a real Sh4q scan of {self.target or 'a target'}, which\n"
                 f"  produced {item.observed} observable event(s)"
@@ -275,11 +318,19 @@ class DetectionReport:
                     f"({item.rate:.2f}/s).\n"
                     f"  At that rate a {window}s window sees about {expected:.0f}; the\n"
                     f"  threshold is half, so a slower scan still trips it.\n"
+                    + (
+                        ""
+                        if item.rate_well_sampled else
+                        f"  That rests on only {item.observed} event(s), too few for the\n"
+                        "  rate to be reliable, so treat this threshold as a starting\n"
+                        "  point and tune it against your own traffic.\n"
+                    )
                     if item.rate_measured else
                     ".\n  That scan left no stage duration behind, so no rate could be\n"
                     f"  measured and this threshold is the floor of {MINIMUM_THRESHOLD},\n"
                     "  not a measurement. Tune it before use.\n"
                 )
+                + contributors
                 + (
                     "  Measured across more than one scan, so the rate is an "
                     "average rather\n  than any single run's behaviour.\n"
@@ -288,7 +339,11 @@ class DetectionReport:
             )
             tags = "".join(f"  - {tag}\n" for tag in item.attack)
             title = item.description.rstrip(".")
-            rules[f"sh4q_{item.signal}.yml"] = (
+            # Named for every signal it covers. Called after the primary
+            # alone, the listing would show no virtual-host rule and a
+            # defender would reasonably conclude none was written.
+            filename = "sh4q_" + "_and_".join(d.signal for d in group) + ".yml"
+            rules[filename] = (
                 # --- the events the correlation counts --------------------
                 f"title: {title} (events)\n"
                 f"id: {_rule_id(item.signal)}\n"
@@ -425,6 +480,33 @@ def summarize_detections(
     return DetectionReport(
         scan_id=scan_id, target=target, detections=tuple(detections),
         scans=max(1, scans),
+    )
+
+
+def _merged(group: tuple[Detection, ...]) -> Detection:
+    """One detection standing for a group that generates the same rule.
+
+    Events and seconds are summed so the rate covers the same work, which
+    also means a thinly-sampled stage is measured together with whatever
+    shares its detection logic instead of extrapolating from a handful of
+    events on its own.
+    """
+    first = group[0]
+    if len(group) == 1:
+        return first
+    observed = sum(d.observed for d in group)
+    window = round(sum(d.window_seconds for d in group), 3)
+    return Detection(
+        signal=first.signal,
+        observed=observed,
+        window_seconds=window,
+        rate=(observed / window) if window > 0 else 0.0,
+        log_source=first.log_source,
+        attack=tuple(sorted({tag for d in group for tag in d.attack})),
+        description=first.description,
+        _selection=first._selection,
+        _count_field=first._count_field,
+        _group_by=first._group_by,
     )
 
 

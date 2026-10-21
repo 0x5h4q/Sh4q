@@ -60,8 +60,17 @@ report = DetectionReport(
 )
 
 rules = report.to_sigma_rules()
+# One rule per distinct detection, not per signal: signals whose generated
+# Sigma is identical are merged, so every visible signal must appear in some
+# rule's filename without each one getting a file of its own.
 visible = [spec for spec in SIGNALS if spec.log_source]
-assert len(rules) == len(visible), (sorted(rules), len(visible))
+covered = {name for spec in visible for name in rules if spec.signal in name}
+assert len(covered) == len(rules), (sorted(rules), sorted(covered))
+for spec in visible:
+    assert any(spec.signal in name for name in rules), (
+        f"{spec.signal} is visible but appears in no exported rule: {sorted(rules)}"
+    )
+assert len(rules) <= len(visible), (sorted(rules), len(visible))
 
 parsed = []
 for name, text in sorted(rules.items()):
