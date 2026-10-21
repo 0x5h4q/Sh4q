@@ -62,3 +62,6 @@ tools/update_architecture_review.py
 
 # Local lab target and its scan output
 local/
+
+# Exported Sigma rule directories from `export --format sigma`
+detections/

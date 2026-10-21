@@ -9,7 +9,7 @@
   <a href="https://github.com/0x5h4q/Sh4q/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-167d76.svg" alt="MIT License"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.11%2B-3776ab.svg" alt="Python 3.11+"></a>
   <a href="https://github.com/0x5h4q/Sh4q"><img src="https://img.shields.io/badge/platform-Linux-lightgrey.svg" alt="Linux"></a>
-  <img src="https://img.shields.io/badge/offline%20suite-104%20checks-2ea043.svg" alt="104 offline checks">
+  <img src="https://img.shields.io/badge/offline%20suite-105%20checks-2ea043.svg" alt="105 offline checks">
 </p>
 
 <p align="center"><strong>Know what you touched. Know why. Know it was authorised.</strong></p>
@@ -408,6 +408,10 @@ Generate a self-contained, offline-filterable HTML asset report:
 
 ```bash
 sh4q export --latest --target your-domain.example --format html --output report.html
+
+# What a defender would have seen, and the rules for it
+sh4q results --latest --target your-domain.example --detections
+sh4q export --latest --target your-domain.example --format sigma --output detections/
 ```
 
 Before sharing a report, use opt-in redaction to mask secret-like query values
@@ -472,6 +476,10 @@ The default database is `./sh4q-output/sh4q.db`. It may contain sensitive target
   target, separated into what Sh4q observed and what an external tool declares.
 - Configurable certificate-transparency sources, so which parties a scan
   contacts is declared rather than fixed.
+- A detection surface: what a defender would have seen from their own side,
+  and which stages they could not have seen at all. Exports Sigma correlation
+  rules whose thresholds come from the scan's measured rate over each stage's
+  recorded duration, validated against pySigma.
 - Every listing states how much of the matching set it is showing, and a stage
   cut off at its deadline keeps its work and says it was cut off.
 - Quiet/verbose scan output and machine-readable JSON Lines progress events.

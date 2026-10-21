@@ -250,6 +250,143 @@ tells whichever resolver the host uses about 1210 hostnames, one at a time.
 The ledger is read from durable evidence rather than recorded separately, so it
 also answers the question for scans already on disk.
 
+### What a defender would have seen
+
+The disclosure ledger answers *who did this tell about my target*. The detection
+view answers the other half, from the target's side:
+
+```bash
+sh4q results --latest --target example.com --detections
+```
+
+```text
+    SIGNAL                      EVENTS    RATE/S    LOG SOURCE
+    --------------------------  --------  --------  ------------
+    subdomain_enumeration          781      4.28    dns
+    http_probing                   121      1.01    webserver
+    directory_enumeration            6      0.19    webserver
+    certificate_transparency      1750      8.04    not visible
+    passive_subdomain_adapter     1211      9.32    not visible
+    historical_url_retrieval      5000    108.99    not visible
+
+    3 stages never contact the target, so nothing on its
+    side records them. A rule for those could never fire, so
+    none is written:
+      certificate_transparency
+      passive_subdomain_adapter
+      historical_url_retrieval
+```
+
+**The rate is events over each stage's own recorded duration**, read from the
+`stage_metrics` evidence every run writes — not the span between evidence rows,
+and not the whole scan. Both of those were tried and both were wrong. Evidence
+`captured_at` records when a row was *written*: the directory stage probes every
+candidate with a 1s pause, then returns them together, so six rows landed within
+0.195s of each other and the span gave **30.89 requests per second for six
+requests over 31 seconds**, which projected to a threshold of 926. The whole-scan
+span fails the other way, counting the minutes between stages as time the target
+spent being probed. A rate shown as `?` means the stage left no duration in the
+record, so none could be measured — those rules carry the floor threshold and
+say so in their description.
+
+The invisible rows are the useful ones. Certificate transparency, Subfinder and URL
+history retrieve their answers from third parties, so no log on the target's
+side records them — a detection artifact claiming coverage of passive
+reconnaissance would be false. You cannot detect the stage that found your
+subdomains, only the stage that probed them.
+
+Exporting writes one Sigma rule per detectable signal:
+
+```bash
+sh4q export --latest --target example.com --format sigma --output detections/
+```
+
+`sigma` is the only format whose `--output` is a directory: a defender would
+have to split a single file before use. Alongside the rules it writes
+`telemetry.jsonl`, one line per signal, carrying the measurements each rule was
+derived from.
+
+Each file is two YAML documents: the events, and a correlation counting them.
+
+```yaml
+title: Many DNS lookups for distinct names in one zone (events)
+id: fdac2dad-9fd1-519b-b124-c2b79039a855
+name: sh4q_subdomain_enumeration_events
+logsource:
+  category: dns
+detection:
+  selection:
+    query_type: 'A'
+  condition: selection
+level: informational
+---
+title: Many DNS lookups for distinct names in one zone, in a short window
+id: 1fb34666-9bbf-584f-8f28-67d9e6da1157
+description: >
+  Derived from a real Sh4q scan of example.com, which
+  produced 1065 observable event(s) over 84s (12.69/s).
+  At that rate a 60s window sees about 761; the
+  threshold is half, so a slower scan still trips it.
+correlation:
+  type: value_count
+  rules:
+    - sh4q_subdomain_enumeration_events
+  group-by:
+    - src_ip
+  timespan: 60s
+  condition:
+    gte: 380
+    field: query_name
+level: medium
+```
+
+The base rule alone matches ordinary traffic, which is why it is
+`informational`; only the correlation is an alert. `value_count` rather than
+`event_count` because reconnaissance is **breadth** — many distinct names from
+one source — not request volume.
+
+The single-document aggregation form (`condition: selection | count(x) by y >
+n`) is deprecated Sigma and pySigma rejects it, so the first version of this
+exporter produced files no pipeline would load. Rule `id`s are UUIDs derived
+deterministically from the signal name, so re-exporting updates the rule a
+defender already tuned instead of looking like a new one.
+
+Validate the output against Sigma's own parser with `pip install sigma-cli`
+and `sigma check detections/`; `tests/test_detection_sigma_validation.py`
+does the same thing under `run_offline_tests.py --include-integration`.
+
+**The threshold is measured, not guessed.** It comes from what the scan actually
+did, so there is nothing to argue about — the rate is in the description next to
+it. The rate is then projected onto a fixed 60-second window, because the
+measured span is a property of this scan's rate limit, not of the behaviour: a
+scan throttled across 17 hours produced `timeframe: 62813s` with a threshold of
+1887 before that projection, which is a rule that can never fire. Halving the
+projected count is deliberate headroom, so a scan slower than the one measured
+still trips the rule.
+
+**Two stages can be one detection.** `http_probing` and `virtual_host_probing`
+generate byte-identical Sigma — `category: webserver`, `cs-method: GET`,
+distinct `cs-host` per `c-ip` — because nothing in that taxonomy separates
+fuzzing a Host header from probing many hosts. Exported separately they were two
+rules over the same events with thresholds of 12 and 16, so the lower always
+fired first and the other could never contribute anything. They are now one
+rule, from the combined measurement, in a file named for both signals. The
+`telemetry.jsonl` still reports each signal separately, because they remain
+distinct Sh4q behaviours even where they are one detection.
+
+**A rate needs enough events to be a rate.** Below 30 observations the view
+marks it `~` and the rule says what it rests on. A real scan probed two
+endpoints in 4.85s; 0.41/s read identically to the 302-event measurement beside
+it and projected to a threshold of 12 distinct hosts a minute, which ordinary
+CDN or proxy traffic clears. Merging also resolves this where it applies: the
+thin stage is measured together with whatever shares its detection logic.
+
+Rules are a starting point, not a drop-in. Field names (`query_name`, `src_ip`)
+follow the Sigma DNS and webserver taxonomies and will need mapping to whatever
+your pipeline actually calls them. Like the ledger, this is read from durable
+evidence, so it works on scans already on disk — and `--scan` scopes it to one
+run, where averaging several is misleading.
+
 ### Certificate-transparency sources
 
 Which CT services a scan contacts is declared, not fixed:
