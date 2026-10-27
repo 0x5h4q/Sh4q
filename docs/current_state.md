@@ -170,6 +170,15 @@ Stable current capabilities:
   malformed name is not granted subdomain inheritance;
 - `scope.ports` gates inventory as well as contact: a URL on an unauthorised
   port is recorded as refused and does not become an asset.
+- a third-party disclosure ledger (`results --disclosures`) and a detection
+  surface (`results --detections`, `export --format sigma`). Both read durable
+  evidence rather than adding instrumentation, so they work on scans already on
+  disk. Detection thresholds are measured from each stage's own recorded
+  duration, no rule is written for a stage the target cannot see, and a stage
+  that left no duration behind reports an unknown rate rather than a zero.
+  Exported rules are validated against pySigma's parser and its validators,
+  including the MITRE ATT&CK taxonomy when pySigma's cached bundle is available;
+  an optional backend test converts them to a Splunk query.
 
 Implemented explicit capabilities, never enabled by a profile:
 
@@ -213,6 +222,53 @@ The current workflow-foundations milestone proceeds in this order:
 Do not add another discovery adapter merely because one is available. Add one
 only when it solves a defined operator workflow and retains scope, evidence,
 provenance, bounds, and offline coverage.
+
+### Near-term order, verified against source on 2026-10-19
+
+The milestone list above is the roadmap's order. This is the working order,
+with each count re-derived from the source rather than carried forward:
+
+1. **Inventory history** — the last unshipped v1 roadmap item (step 6).
+   Cheaper than it looks: `first_seen` / `last_seen` already exist on `nodes`,
+   are correctly maintained (`first_seen` preserved on conflict, `last_seen`
+   updated), and **nothing reads them** — zero references in `application/` or
+   `cli/`. This is a view, not a schema migration, and it works retroactively
+   on every scan already on disk.
+2. **Delete `LoggingConfig`** — parsed, wired into `Sh4qConfig`, never
+   consumed; `import logging` appears nowhere in the package. The config
+   surface currently advertises a knob that does nothing.
+3. **Storage hardening** — 30 unguarded `json.loads` (11 in
+   `application/results.py`, 5 in `exporter.py`, the rest spread), and **zero**
+   `sqlite3` error handlers anywhere. There is no `StorageError` to wrap them
+   in: sh4q defines eight exception classes and none of them is for storage.
+   Deliberately not first — every one of those `json.loads` reads a row sh4q
+   itself wrote, so this is real debt, not a live hazard.
+4. **Template stage disclosure + dry-run** — one job, not two. Both answer
+   "what will this run do before it does it" (backlog 0.2 and 4.2).
+5. **Execution identity** — roadmap step 3, and a genuine schema migration.
+6. **v1.5.0.**
+7. **Read seam** — 59 raw `.execute()` calls across 12 modules outside
+   `storage/` (15 in `events/event_log.py`, 14 in `application/results.py`, 10
+   in `exporter.py`). `StorageRepository` covers only write methods. Worth
+   doing on its own merits, not as PostgreSQL preparation: there is no single
+   place enforcing that `limit=None` means every row, which *is* the reporting
+   invariant; no single place to add the storage wrapping from item 3; nothing
+   testable against a fake; and a schema change ripples into 12 files. → v1.6.0.
+
+On Platform v2: `architecture_overview.md` words PostgreSQL as being for
+"larger or shared deployments", and only *shared* holds. Data volume is not a
+driver — the largest database here holds 8,658 evidence rows, which SQLite does
+not notice. The four things that genuinely break are concurrent writers, a file
+not being network-reachable, per-operator access control (both gates authorise
+*destinations*, nothing authorises operators), and auditing reads. All four
+require a second operator to exist, so this is a product decision rather than a
+technical inevitability — and a shared deployment rewrites `threat_model.md`,
+which assumes `0o700`/`0o600` files on the operator's own machine. That is the
+larger change, not the database swap.
+
+`BACKLOG.md` is **stale** — it was written against `v1.3.0` at `964cdc3` and
+still reports an 85-test suite. Its item *specifications* are still good; its
+status table and counts are not. Trust this section over it.
 
 ## Post-Merge Acceptance Checklist
 

@@ -62,3 +62,13 @@ tools/update_architecture_review.py
 
 # Local lab target and its scan output
 local/
+
+# Exported Sigma rule directories from `export --format sigma`
+detections/
+
+# FYP supervisor material: carries shared institutional credentials
+Mendeley and Database mail.docx
+fyp-topic-verifier.zip
+fyp-topic-verifier/
+*fyp*
+Sh4q_Project_Proposal.docx

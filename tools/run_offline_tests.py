@@ -29,6 +29,7 @@ OFFLINE_TESTS = (
     "test_ct_reporting.py",
     "test_ct_opt_out.py",
     "test_crt_name_connector.py",
+    "test_detection_export.py",
     "test_disclosure_ledger.py",
     "test_discovered_dns_plugin.py",
     "test_discovered_name_sources.py",
@@ -119,6 +120,13 @@ OFFLINE_TESTS = (
 
 OPTIONAL_INTEGRATION_TESTS = (
     "test_scoped_https_integration.py",
+    # Needs pySigma (`pip install sigma-cli`), which is not a project
+    # dependency. It prints a loud SKIPPED and exits 0 when it is absent.
+    "test_detection_sigma_validation.py",
+    # Needs a pySigma backend (`pip install pysigma-backend-splunk`), which is
+    # not a project dependency. It prints a loud SKIPPED and exits 0 when it
+    # is absent.
+    "test_detection_sigma_backend.py",
 )
 
 # Tests that contact real DNS resolvers, certificate-transparency providers,
