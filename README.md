@@ -479,7 +479,8 @@ The default database is `./sh4q-output/sh4q.db`. It may contain sensitive target
 - A detection surface: what a defender would have seen from their own side,
   and which stages they could not have seen at all. Exports Sigma correlation
   rules whose thresholds come from the scan's measured rate over each stage's
-  recorded duration, validated against pySigma.
+  recorded duration, validated against pySigma's parser and its ATT&CK
+  taxonomy, with an optional backend-conversion test.
 - Every listing states how much of the matching set it is showing, and a stage
   cut off at its deadline keeps its work and says it was cut off.
 - Quiet/verbose scan output and machine-readable JSON Lines progress events.

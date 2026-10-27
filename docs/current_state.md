@@ -176,6 +176,9 @@ Stable current capabilities:
   disk. Detection thresholds are measured from each stage's own recorded
   duration, no rule is written for a stage the target cannot see, and a stage
   that left no duration behind reports an unknown rate rather than a zero.
+  Exported rules are validated against pySigma's parser and its validators,
+  including the MITRE ATT&CK taxonomy when pySigma's cached bundle is available;
+  an optional backend test converts them to a Splunk query.
 
 Implemented explicit capabilities, never enabled by a profile:
 

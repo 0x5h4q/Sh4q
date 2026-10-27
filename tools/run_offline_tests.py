@@ -123,6 +123,10 @@ OPTIONAL_INTEGRATION_TESTS = (
     # Needs pySigma (`pip install sigma-cli`), which is not a project
     # dependency. It prints a loud SKIPPED and exits 0 when it is absent.
     "test_detection_sigma_validation.py",
+    # Needs a pySigma backend (`pip install pysigma-backend-splunk`), which is
+    # not a project dependency. It prints a loud SKIPPED and exits 0 when it
+    # is absent.
+    "test_detection_sigma_backend.py",
 )
 
 # Tests that contact real DNS resolvers, certificate-transparency providers,

@@ -353,7 +353,25 @@ defender already tuned instead of looking like a new one.
 
 Validate the output against Sigma's own parser with `pip install sigma-cli`
 and `sigma check detections/`; `tests/test_detection_sigma_validation.py`
-does the same thing under `run_offline_tests.py --include-integration`.
+does the same under `run_offline_tests.py --include-integration`.
+
+Parsing is not conversion. To prove a backend can turn a rule into a query,
+install its backend package and convert it. The Splunk CLI needs
+`--without-pipeline` here because these rules carry no processing pipeline:
+
+```bash
+pip install pysigma-backend-splunk
+sigma convert -t splunk --without-pipeline detections/sh4q_*.yml
+```
+
+`tests/test_detection_sigma_backend.py` performs the same conversion and
+asserts that the distinct count, fixed window, grouping and threshold survive.
+It is skipped loudly when no backend is installed.
+
+ATT&CK tags are checked as well. pySigma downloads the enterprise ATT&CK
+bundle on first use and caches it under `~/.cache/pysigma/mitre_attack`; once
+cached, validation runs offline. If the data cannot be loaded, the test names
+that one unchecked item rather than passing silently.
 
 **The threshold is measured, not guessed.** It comes from what the scan actually
 did, so there is nothing to argue about — the rate is in the description next to

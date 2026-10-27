@@ -14,10 +14,11 @@ Optional because it needs pySigma, which is not a project dependency:
 `pip install sigma-cli`. Registered in OPTIONAL_INTEGRATION_TESTS and run
 with `--include-integration`.
 
-The `attacktag` validator is excluded deliberately: it resolves the MITRE
-taxonomy over the network, and this suite must not reach out to anyone.
-That leaves the ATT&CK tags themselves unverified here -- see the note at
-the end.
+The `attacktag` validator is included when pySigma's ATT&CK data is available.
+pySigma downloads the enterprise ATT&CK bundle on first use and caches it under
+`~/.cache/pysigma/mitre_attack`, so once cached this check runs without the
+network. When the data cannot be loaded, only that one check is skipped, with a
+loud line naming it; the rest of the validation still runs.
 """
 
 import sqlite3
@@ -84,12 +85,27 @@ for name, text in sorted(rules.items()):
     )
     parsed.extend(collection.rules)
 
-# The non-network validators: unknown fields, duplicate ids, title length,
-# dangling correlation references, and the rest.
-offline = {
-    cls for name, cls in core_validators.items() if name != "attacktag"
-}
-validator = SigmaValidator(offline)
+# All validators, including ATT&CK. pySigma loads the ATT&CK taxonomy from a
+# disk cache when it is warm; a cold cache needs the network once. If it cannot
+# be loaded, drop that one validator and say so -- a skipped check must not read
+# like a pass.
+validators = dict(core_validators)
+attack_checked = True
+try:
+    from sigma.data import mitre_attack
+
+    mitre_attack.mitre_attack_techniques  # noqa: B018 - triggers the load
+except Exception as error:  # noqa: BLE001
+    validators.pop("attacktag", None)
+    attack_checked = False
+    print(
+        "SKIPPED: MITRE ATT&CK tag validation -- the taxonomy could not be\n"
+        "         loaded (pySigma caches it under ~/.cache/pysigma). The rules'\n"
+        "         tags are syntactically valid but were NOT checked against\n"
+        f"         MITRE's IDs. Reason: {error}"
+    )
+
+validator = SigmaValidator(set(validators.values()))
 issues = list(validator.validate_rules(parsed)) + list(validator.finalize())
 assert not issues, "\n".join(
     f"[{issue.severity.name}] {type(issue).__name__}: {issue}" for issue in issues
@@ -97,6 +113,5 @@ assert not issues, "\n".join(
 
 print(f"detection sigma validation test passed "
       f"({len(rules)} rule file(s), {len(parsed)} documents, "
-      f"{len(offline)} validators, 0 issues)")
-print("  NOTE: ATT&CK tag values are not checked here -- the validator that "
-      "would\n        check them resolves the MITRE taxonomy over the network.")
+      f"{len(validators)} validators, 0 issues, "
+      f"ATT&CK tags {'checked' if attack_checked else 'NOT checked'})")
