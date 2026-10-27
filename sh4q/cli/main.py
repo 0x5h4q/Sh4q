@@ -7,6 +7,7 @@ import json
 import csv
 import shutil
 import sys
+from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
@@ -16,7 +17,7 @@ from sh4q.events.event_log import DurableEventLog
 from sh4q.storage.scan_runs import count_scans, get_scan, latest_scan, list_scans, scan_asset_count
 from sh4q.application.detection import MINIMUM_OBSERVATIONS, summarize_detections
 from sh4q.application.disclosure import DECLARED, OBSERVED, summarize_disclosures
-from sh4q.application.results import friendly_technology_source, list_assets, list_response_attributes, summarize_names, list_failures, list_javascript_observations, list_technology_observations, summarize_technology_observations
+from sh4q.application.results import friendly_technology_source, list_assets, list_inventory_history, list_response_attributes, summarize_names, list_failures, list_javascript_observations, list_technology_observations, summarize_technology_observations
 from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
 from sh4q.application.scan_report import build_scan_report
 from sh4q.application.diff import build_scan_diff, diff_document
@@ -119,6 +120,69 @@ def render_asset_results(rows) -> None:
                 for value, (_, width) in zip((row.type, row.value), columns)
             )
         )
+
+
+def _format_history_timestamp(value: str) -> str:
+    """Readable timestamp for the history table; exports keep full precision."""
+    if not value:
+        return ""
+    try:
+        parsed = datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return value
+    if parsed.tzinfo is None:
+        return parsed.isoformat(timespec="seconds")
+    return (
+        parsed.astimezone(timezone.utc)
+        .isoformat(timespec="seconds")
+        .replace("+00:00", "Z")
+    )
+
+
+def _render_history_note(scan_selected: bool) -> None:
+    print()
+    print(note("  First and last seen are graph-wide timestamps. A scan owns the"))
+    print(note("  assets it discovered, not when those assets first existed."))
+    if scan_selected:
+        print(note("  'new' means first seen inside this scan; 'returning' predates it."))
+
+
+def render_inventory_history(rows, *, scan_selected: bool = False) -> None:
+    if not rows:
+        print("  No assets recorded.\n")
+        return
+    if _terminal_is_narrow(120):
+        for row in rows:
+            print(f"  {row.type:<10}  {_narrow_value(row.value, 14)}")
+            print(f"    First seen  {_format_history_timestamp(row.first_seen) or '-'}")
+            print(f"    Last seen   {_format_history_timestamp(row.last_seen) or '-'}")
+            if scan_selected:
+                print(f"    Origin      {row.origin or '-'}")
+        _render_history_note(scan_selected)
+        return
+    columns = [("TYPE", 10), ("VALUE", 46), ("FIRST SEEN", 20), ("LAST SEEN", 20)]
+    if scan_selected:
+        columns.append(("ORIGIN", 10))
+    print()
+    print("  " + "  ".join(label.ljust(width) for label, width in columns))
+    print("  " + "  ".join("-" * width for _, width in columns))
+    for row in rows:
+        values = [
+            row.type,
+            row.value,
+            _format_history_timestamp(row.first_seen),
+            _format_history_timestamp(row.last_seen),
+        ]
+        if scan_selected:
+            values.append(row.origin)
+        print(
+            "  "
+            + "  ".join(
+                _fit(value, width).ljust(width)
+                for value, (_, width) in zip(values, columns)
+            )
+        )
+    _render_history_note(scan_selected)
 
 
 def render_event_results(records) -> None:
@@ -491,6 +555,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Show what a defender would have seen, and what they could not.",
     )
+    results.add_argument(
+        "--history",
+        action="store_true",
+        help="Show first-seen and last-seen for each stored asset.",
+    )
     results.add_argument("--js-kind", choices=["script_url", "style_url", "page_url", "xhr_endpoint", "endpoint_reference", "secret_like_pattern"], help="Filter JavaScript observations by kind")
     results.add_argument("--source-endpoint", help="Filter JavaScript observations by source endpoint")
     scan_selection = results.add_mutually_exclusive_group()
@@ -858,6 +927,11 @@ def main() -> None:
         value is not None for value in (args.js_kind, args.source_endpoint)
     ) and args.type != "javascript":
         parser.error("--js-kind and --source-endpoint require --type javascript")
+    if args.command == "results" and args.history:
+        if args.type == "javascript":
+            parser.error("--history does not apply to JavaScript observations")
+        if any(value is not None for value in (args.category, args.status)):
+            parser.error("--category and --status do not apply to --history")
 
     if args.command != "scan" and hasattr(args, "database"):
         database = Path(args.database)
@@ -1096,6 +1170,23 @@ def main() -> None:
                 str(database), target=args.target, scan_id=scan_id
             )
             render_disclosures(ledger)
+            print()
+            return
+
+        if args.history:
+            scan_id = args.scan
+            if args.latest:
+                latest = latest_scan(str(database), args.target)
+                if latest is None:
+                    print("  No recorded scan run matches this query.\n")
+                    return
+                scan_id = latest.id
+                print(f"  Scan     {latest.id} ({latest.target})")
+            history = list_inventory_history(
+                str(database), asset_type=args.type, target=args.target,
+                scan_id=scan_id, source=args.source, limit=args.limit,
+            )
+            render_inventory_history(history, scan_selected=bool(scan_id))
             print()
             return
 

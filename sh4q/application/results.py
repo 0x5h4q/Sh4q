@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 import sqlite3
 from dataclasses import dataclass
+from datetime import datetime
 from urllib.parse import urlsplit
-from sh4q.storage.db import open_sync_database
+from sh4q.storage.db import node_timestamp_columns, open_sync_database
 
 
 @dataclass(frozen=True)
@@ -12,6 +13,22 @@ class ResultRow:
     type: str
     value: str
     attributes: dict
+    #: Graph-wide timestamps. A scan owns the row it discovered, but it does
+    #: not own when the asset first existed; these are not per-scan values.
+    first_seen: str = ""
+    last_seen: str = ""
+
+
+@dataclass(frozen=True)
+class InventoryHistoryRow:
+    type: str
+    value: str
+    first_seen: str
+    last_seen: str
+    #: Relative to the selected scan, empty when no scan was selected.
+    #: "returning" means the asset predates this scan; "new" means it was
+    #: first recorded inside it. The timestamps remain graph-wide either way.
+    origin: str = ""
 
 
 @dataclass(frozen=True)
@@ -24,6 +41,8 @@ class TechnologyObservation:
     status: int | None
     signal: str
     source: str
+    first_seen: str = ""
+    last_seen: str = ""
 
 
 @dataclass(frozen=True)
@@ -165,7 +184,8 @@ def list_technology_observations(
     status: int | None = None,
     limit: int | None = 100,
 ) -> list[TechnologyObservation]:
-    query = """SELECT endpoint.value, technology.value, r.attributes
+    query = """SELECT endpoint.value, technology.value, r.attributes,
+        {first_seen}, {last_seen}
         FROM relationships r
         JOIN nodes endpoint ON endpoint.id = r.from_id
         JOIN nodes technology ON technology.id = r.to_id"""
@@ -179,9 +199,13 @@ def list_technology_observations(
     query += " ORDER BY endpoint.value, technology.value"
     normalized = target.lower().rstrip(".") if target else None
     with open_sync_database(database) as db:
-        rows = db.execute(query, params).fetchall()
+        first_seen_expr, last_seen_expr = node_timestamp_columns(db, "technology")
+        rows = db.execute(
+            query.format(first_seen=first_seen_expr, last_seen=last_seen_expr),
+            params,
+        ).fetchall()
     observations = []
-    for endpoint, technology, raw_attributes in rows:
+    for endpoint, technology, raw_attributes, first_seen, last_seen in rows:
         if normalized and not _matches_target(ResultRow("url", endpoint, {}), normalized):
             continue
         attributes = json.loads(raw_attributes)
@@ -201,6 +225,8 @@ def list_technology_observations(
             status=attributes.get("status"),
             signal=attributes.get("raw_observation", ""),
             source=attributes.get("source", ""),
+            first_seen=first_seen,
+            last_seen=last_seen,
         ))
         if limit is not None and len(observations) >= max(1, limit):
             break
@@ -228,7 +254,13 @@ def list_assets(
     source: str | None = None,
     limit: int | None = 100,
 ) -> list[ResultRow]:
-    query = "SELECT DISTINCT n.type, n.value, n.attributes FROM nodes n"
+    with open_sync_database(database) as timestamp_db:
+        first_seen_expr, last_seen_expr = node_timestamp_columns(timestamp_db)
+        ip_first_seen, ip_last_seen = node_timestamp_columns(timestamp_db, "ip")
+        technology_first_seen, technology_last_seen = node_timestamp_columns(
+            timestamp_db, "technology"
+        )
+    query = f"SELECT DISTINCT n.type, n.value, n.attributes, {first_seen_expr}, {last_seen_expr} FROM nodes n"
     params: list[object] = []
     conditions: list[str] = []
     if scan_id and source:
@@ -255,30 +287,40 @@ def list_assets(
                 source_clause = " AND sa.source_plugin = ?"
                 source_params = (source,)
             scan_rows = db.execute(
-                """SELECT DISTINCT n.type, n.value, n.attributes
+                f"""SELECT DISTINCT n.type, n.value, n.attributes, {first_seen_expr}, {last_seen_expr}
                 FROM scan_assets sa JOIN nodes n ON n.id = sa.asset_id
                 WHERE sa.scan_run_id = ? AND (? IS NULL OR n.type = ?)
                 """ + source_clause + """
                 ORDER BY n.type, n.value LIMIT ?""",
                 (scan_id, asset_type, asset_type, *source_params, _row_cap(limit)),
             ).fetchall()
-            return [ResultRow(row[0], row[1], json.loads(row[2])) for row in scan_rows]
+            return [
+                ResultRow(row[0], row[1], json.loads(row[2]), row[3], row[4])
+                for row in scan_rows
+            ]
         if normalized and asset_type == "url":
             # SQLite has no built-in URL hostname parser, so filter URLs before
             # applying the user-visible limit.
             url_rows = db.execute(
-                "SELECT type, value, attributes FROM nodes WHERE type = 'url' ORDER BY value"
+                f"SELECT n.type, n.value, n.attributes, {first_seen_expr}, {last_seen_expr} "
+                "FROM nodes n WHERE n.type = 'url' ORDER BY n.value"
             ).fetchall()
-            assets = [ResultRow(row[0], row[1], json.loads(row[2])) for row in url_rows]
+            assets = [
+                ResultRow(row[0], row[1], json.loads(row[2]), row[3], row[4])
+                for row in url_rows
+            ]
             return _capped(
                 [asset for asset in assets if _matches_target(asset, normalized)], limit
             )
         rows = db.execute(query, params).fetchall()
-        assets = [ResultRow(row[0], row[1], json.loads(row[2])) for row in rows]
+        assets = [
+            ResultRow(row[0], row[1], json.loads(row[2]), row[3], row[4])
+            for row in rows
+        ]
         if target and asset_type == "ip":
             ip_rows = db.execute(
-                """
-                SELECT DISTINCT ip.type, ip.value, ip.attributes
+                f"""
+                SELECT DISTINCT ip.type, ip.value, ip.attributes, {ip_first_seen}, {ip_last_seen}
                 FROM relationships r
                 JOIN nodes domain ON domain.id = r.from_id
                 JOIN nodes ip ON ip.id = r.to_id
@@ -289,11 +331,15 @@ def list_assets(
                 """,
                 (normalized, f"%.{normalized}", _row_cap(limit)),
             ).fetchall()
-            return [ResultRow(row[0], row[1], json.loads(row[2])) for row in ip_rows]
+            return [
+                ResultRow(row[0], row[1], json.loads(row[2]), row[3], row[4])
+                for row in ip_rows
+            ]
         if target and asset_type == "technology":
             technology_rows = db.execute(
-                """
-                SELECT DISTINCT technology.type, technology.value, technology.attributes
+                f"""
+                SELECT DISTINCT technology.type, technology.value, technology.attributes,
+                  {technology_first_seen}, {technology_last_seen}
                 FROM relationships r
                 JOIN nodes endpoint ON endpoint.id = r.from_id
                 JOIN nodes technology ON technology.id = r.to_id
@@ -303,7 +349,7 @@ def list_assets(
                 """
             ).fetchall()
             technologies = [
-                ResultRow(row[0], row[1], json.loads(row[2]))
+                ResultRow(row[0], row[1], json.loads(row[2]), row[3], row[4])
                 for row in technology_rows
             ]
             return _capped([
@@ -314,6 +360,80 @@ def list_assets(
                 )
             ], limit)
     return assets
+
+
+def list_inventory_history(
+    database: str,
+    *,
+    asset_type: str | None = None,
+    target: str | None = None,
+    scan_id: str | None = None,
+    source: str | None = None,
+    limit: int | None = 100,
+) -> list[InventoryHistoryRow]:
+    """First-seen and last-seen per asset, newest first.
+
+    The timestamps are graph-wide. Selecting a scan restricts the rows to the
+    assets that scan owns, but it does not reset when an asset was first seen:
+    that is the distinction `scan_assets` exists to preserve. `origin` says
+    whether the asset predates the selected scan.
+    """
+    assets = list_assets(
+        database,
+        asset_type=asset_type,
+        target=target,
+        scan_id=scan_id,
+        source=source,
+        limit=None,
+    )
+    started_at = _scan_started_at(database, scan_id) if scan_id else ""
+    history = [
+        InventoryHistoryRow(
+            type=row.type,
+            value=row.value,
+            first_seen=row.first_seen,
+            last_seen=row.last_seen,
+            origin=_origin(row.first_seen, started_at) if scan_id else "",
+        )
+        for row in assets
+    ]
+    history.sort(key=lambda row: _timestamp_key(row.first_seen), reverse=True)
+    return _capped(history, limit)
+
+
+def _timestamp_key(value: str) -> float:
+    """Sort key for ISO timestamps; unrecorded history sorts last."""
+    try:
+        return datetime.fromisoformat(value).timestamp()
+    except (TypeError, ValueError):
+        return float("-inf")
+
+
+def _scan_started_at(database: str, scan_id: str) -> str:
+    with open_sync_database(database) as db:
+        table = db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'scan_runs'"
+        ).fetchone()
+        if table is None:
+            return ""
+        row = db.execute(
+            "SELECT started_at FROM scan_runs WHERE id = ?", (scan_id,)
+        ).fetchone()
+    return row[0] if row else ""
+
+
+def _origin(first_seen: str, started_at: str) -> str:
+    """Whether an asset predates the selected scan, from its graph timestamps."""
+    if not started_at:
+        return "unknown"
+    try:
+        return (
+            "new"
+            if datetime.fromisoformat(first_seen) >= datetime.fromisoformat(started_at)
+            else "returning"
+        )
+    except (TypeError, ValueError):
+        return "unknown"
 
 
 def _technology_endpoints(db: sqlite3.Connection, technology: str) -> list[ResultRow]:

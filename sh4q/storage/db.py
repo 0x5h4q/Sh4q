@@ -29,6 +29,23 @@ def _columns_exist(db: sqlite3.Connection, table: str, columns: tuple[str, ...])
     return all(column in available for column in columns)
 
 
+def node_timestamp_columns(
+    db: sqlite3.Connection, prefix: str = "n"
+) -> tuple[str, str]:
+    """SQL expressions for a node's first/last seen timestamps.
+
+    Databases created before these columns existed (and narrow test fixtures)
+    must still be readable. Empty literals say the history was never recorded,
+    which is true, and keep every result and export query working.
+    """
+    available = {
+        row[1] for row in db.execute("PRAGMA table_info(nodes)").fetchall()
+    }
+    if {"first_seen", "last_seen"}.issubset(available):
+        return f"{prefix}.first_seen", f"{prefix}.last_seen"
+    return "''", "''"
+
+
 def _migration_1(db: sqlite3.Connection) -> None:
     """Baseline migration for databases created before numbered migrations."""
     db.execute(

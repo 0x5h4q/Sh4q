@@ -7,7 +7,7 @@ from pathlib import Path
 
 from sh4q.storage.scan_runs import ScanRun
 from sh4q.application.results import list_technology_observations
-from sh4q.storage.db import open_sync_database
+from sh4q.storage.db import node_timestamp_columns, open_sync_database
 from sh4q.application.html_report import render_html_report
 from sh4q.application.detection import summarize_detections
 from sh4q.application.redaction import Redactor
@@ -49,9 +49,10 @@ def _javascript_observations(db, scan_id: str) -> list[dict]:
 
 
 def _http_inventory(db, scan_id: str) -> list[dict]:
+    endpoint_first_seen, endpoint_last_seen = node_timestamp_columns(db, "endpoint")
     endpoint_rows = db.execute(
-        """SELECT DISTINCT domain.id, domain.value, endpoint.id, endpoint.value,
-        endpoint.attributes
+        f"""SELECT DISTINCT domain.id, domain.value, endpoint.id, endpoint.value,
+        endpoint.attributes, {endpoint_first_seen}, {endpoint_last_seen}
         FROM scan_assets sa
         JOIN relationships serves ON serves.id = sa.relationship_id
         JOIN nodes domain ON domain.id = serves.from_id
@@ -62,7 +63,10 @@ def _http_inventory(db, scan_id: str) -> list[dict]:
         (scan_id,),
     ).fetchall()
     inventory = []
-    for domain_id, domain, endpoint_id, endpoint, raw_endpoint_attributes in endpoint_rows:
+    for (
+        domain_id, domain, endpoint_id, endpoint, raw_endpoint_attributes,
+        first_seen, last_seen,
+    ) in endpoint_rows:
         address_rows = db.execute(
             """SELECT DISTINCT address.value
             FROM scan_assets sa
@@ -113,6 +117,8 @@ def _http_inventory(db, scan_id: str) -> list[dict]:
             "resolved_addresses": [row[0] for row in address_rows],
             "technologies": technologies,
             "sources": sorted(sources),
+            "first_seen": first_seen,
+            "last_seen": last_seen,
         })
     return inventory
 
@@ -181,14 +187,17 @@ def export_scan(
     if alive and asset_type:
         raise ValueError("--alive and --type cannot be combined")
     with open_sync_database(database) as db:
+        n_first_seen, n_last_seen = node_timestamp_columns(db, "n")
+        domain_first_seen, domain_last_seen = node_timestamp_columns(db, "domain")
         inventory_assets = _http_inventory(db, run.id) if asset_type == "http-inventory" else None
         javascript_observations = _javascript_observations(db, run.id)
         if alive in ("http", "dns"):
             relationship_type = "SERVES" if alive == "http" else "RESOLVES_TO"
             endpoint_type = "url" if alive == "http" else "ip"
             rows = db.execute(
-                """SELECT domain.type, domain.value, domain.attributes,
-                group_concat(DISTINCT sa.source_plugin), endpoint.value, endpoint.attributes
+                f"""SELECT domain.type, domain.value, domain.attributes,
+                group_concat(DISTINCT sa.source_plugin), endpoint.value, endpoint.attributes,
+                {domain_first_seen}, {domain_last_seen}
                 FROM scan_assets sa
                 JOIN relationships r ON r.id = sa.relationship_id
                 JOIN nodes domain ON domain.id = r.from_id
@@ -196,20 +205,22 @@ def export_scan(
                 WHERE sa.scan_run_id = ? AND r.type = ?
                   AND domain.type = 'domain' AND endpoint.type = ?
                 GROUP BY domain.id, domain.type, domain.value, domain.attributes,
-                  endpoint.id, endpoint.value, endpoint.attributes
+                  endpoint.id, endpoint.value, endpoint.attributes,
+                  {domain_first_seen}, {domain_last_seen}
                 ORDER BY domain.value, endpoint.value""",
                 (run.id, relationship_type, endpoint_type),
             ).fetchall()
         else:
             rows = db.execute(
-                """SELECT n.type, n.value, n.attributes,
+                f"""SELECT n.type, n.value, n.attributes,
                 group_concat(DISTINCT sa.source_plugin),
                 MAX(CASE WHEN r.type = 'HISTORICAL_URL' THEN 1 ELSE 0 END),
-                MAX(CASE WHEN r.type = 'SERVES' THEN 1 ELSE 0 END)
+                MAX(CASE WHEN r.type = 'SERVES' THEN 1 ELSE 0 END),
+                {n_first_seen}, {n_last_seen}
                 FROM scan_assets sa JOIN nodes n ON n.id = sa.asset_id
                 LEFT JOIN relationships r ON r.id = sa.relationship_id
                 WHERE sa.scan_run_id = ?
-                GROUP BY n.id, n.type, n.value, n.attributes
+                GROUP BY n.id, n.type, n.value, n.attributes, {n_first_seen}, {n_last_seen}
                 ORDER BY n.type, n.value""",
                 (run.id,),
             ).fetchall()
@@ -245,6 +256,8 @@ def export_scan(
                 "http_status": item.status,
                 "signal": item.signal,
                 "source": item.source,
+                "first_seen": item.first_seen,
+                "last_seen": item.last_seen,
             }
             for item in observations
         ]
@@ -255,6 +268,8 @@ def export_scan(
             "value": row[1],
             "attributes": json.loads(row[2]),
             "sources": sorted((row[3] or "").split(",")),
+            "first_seen": row[6],
+            "last_seen": row[7],
         }
         | ({"endpoint": row[4], "endpoint_attributes": json.loads(row[5])} if alive in ("http", "dns") else {})
         for row in rows
@@ -320,17 +335,20 @@ def export_scan(
                 fieldnames = [
                     "scan_id", "target", "endpoint", "technology", "category",
                     "version", "confidence", "http_status", "signal",
-                    "source",
+                    "source", "first_seen", "last_seen",
                 ]
             elif asset_type == "http-inventory":
                 fieldnames = [
                     "scan_id", "target", "domain", "endpoint", "http_status",
                     "resolved_addresses", "technologies", "technology_categories",
                     "technology_versions", "technology_confidences",
-                    "technology_signals", "sources",
+                    "technology_signals", "sources", "first_seen", "last_seen",
                 ]
             else:
-                fieldnames = ["scan_id", "target", "type", "value", "sources", "attributes"]
+                fieldnames = [
+                    "scan_id", "target", "type", "value", "sources", "attributes",
+                    "first_seen", "last_seen",
+                ]
                 if alive == "http":
                     fieldnames.extend(["endpoint", "http_status"])
                 elif alive == "dns":
@@ -353,6 +371,8 @@ def export_scan(
                         "http_status": item["http_status"],
                         "signal": item["signal"],
                         "source": item["source"],
+                        "first_seen": item["first_seen"],
+                        "last_seen": item["last_seen"],
                     })
                 elif asset_type == "http-inventory":
                     observations = item["technologies"]
@@ -369,6 +389,8 @@ def export_scan(
                         "technology_confidences": ";".join(value["confidence"] for value in observations),
                         "technology_signals": ";".join(value["signal"] for value in observations),
                         "sources": ";".join(item["sources"]),
+                        "first_seen": item["first_seen"],
+                        "last_seen": item["last_seen"],
                     })
                 else:
                     item = _redact_asset(item, redactor)
@@ -381,6 +403,8 @@ def export_scan(
                         "value": item["value"],
                         "sources": ",".join(item["sources"]),
                         "attributes": json.dumps(item["attributes"], sort_keys=True),
+                        "first_seen": item["first_seen"],
+                        "last_seen": item["last_seen"],
                         **({"endpoint": item["endpoint"], "http_status": item["endpoint_attributes"].get("status")} if alive == "http" else {"resolved_address": item["endpoint"]} if alive == "dns" else {}),
                     })
     else:

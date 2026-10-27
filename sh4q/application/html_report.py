@@ -6,7 +6,7 @@ import base64
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from sh4q.storage.db import open_sync_database
+from sh4q.storage.db import node_timestamp_columns, open_sync_database
 from sh4q.storage.scan_runs import ScanRun
 from sh4q.application.redaction import Redactor
 from sh4q.application.triage import classify_historical_url, classify_javascript_reference
@@ -29,15 +29,17 @@ def _banner_data_uri() -> str | None:
 
 def _owned_rows(database: str, run: ScanRun, *, redactor: Redactor | None = None) -> list[dict]:
     with open_sync_database(database) as db:
+        first_seen_expr, last_seen_expr = node_timestamp_columns(db, "n")
         rows = db.execute(
-            """SELECT n.type, n.value, n.attributes,
+            f"""SELECT n.type, n.value, n.attributes,
             group_concat(DISTINCT sa.source_plugin),
             MAX(CASE WHEN r.type = 'HISTORICAL_URL' THEN 1 ELSE 0 END),
-            MAX(CASE WHEN r.type = 'SERVES' THEN 1 ELSE 0 END)
+            MAX(CASE WHEN r.type = 'SERVES' THEN 1 ELSE 0 END),
+            {first_seen_expr}, {last_seen_expr}
             FROM scan_assets sa JOIN nodes n ON n.id = sa.asset_id
             LEFT JOIN relationships r ON r.id = sa.relationship_id
             WHERE sa.scan_run_id = ?
-            GROUP BY n.id, n.type, n.value, n.attributes
+            GROUP BY n.id, n.type, n.value, n.attributes, {first_seen_expr}, {last_seen_expr}
             ORDER BY n.type, n.value""",
             (run.id,),
         ).fetchall()
@@ -60,7 +62,10 @@ def _owned_rows(database: str, run: ScanRun, *, redactor: Redactor | None = None
             "status": json.loads(raw_attributes).get("status", ""),
         })
     assets = []
-    for asset_type, value, raw_attributes, raw_sources, has_history, has_live in rows:
+    for (
+        asset_type, value, raw_attributes, raw_sources, has_history, has_live,
+        first_seen, last_seen,
+    ) in rows:
         attributes = json.loads(raw_attributes)
         host = value
         status = attributes.get("status", "")
@@ -88,6 +93,8 @@ def _owned_rows(database: str, run: ScanRun, *, redactor: Redactor | None = None
             "confidence": attributes.get("confidence", ""),
             "sources": sorted(source for source in (raw_sources or "").split(",") if source),
             "bucket": classify_historical_url(display_value)[0] if display_type == "historical-url" else "",
+            "first_seen": first_seen,
+            "last_seen": last_seen,
         })
     return assets
 
@@ -425,7 +432,7 @@ pre {{ overflow-x: auto; margin: 0; padding: 14px; background: var(--surface-2);
 <label>Source<select id="source"><option value="">All</option></select></label>
 <div class="filter-actions"><button id="reset" type="button">Reset filters</button></div>
 </section><div class="chips" id="chips" aria-live="polite"></div><div class="count" id="count"></div>
-<div class="table-wrap"><table><thead><tr><th><button class="sort" data-sort="type" type="button">Type</button></th><th><button class="sort" data-sort="value" type="button">Value</button></th><th><button class="sort" data-sort="host" type="button">Host / target</button></th><th><button class="sort" data-sort="status" type="button">Status</button></th><th><button class="sort" data-sort="technology" type="button">Technology</button></th><th><button class="sort" data-sort="category" type="button">Category</button></th><th><button class="sort" data-sort="source" type="button">Source</button></th><th><button class="sort" data-sort="bucket" type="button">Bucket</button></th></tr></thead>
+<div class="table-wrap"><table><thead><tr><th><button class="sort" data-sort="type" type="button">Type</button></th><th><button class="sort" data-sort="value" type="button">Value</button></th><th><button class="sort" data-sort="host" type="button">Host / target</button></th><th><button class="sort" data-sort="status" type="button">Status</button></th><th><button class="sort" data-sort="technology" type="button">Technology</button></th><th><button class="sort" data-sort="category" type="button">Category</button></th><th><button class="sort" data-sort="source" type="button">Source</button></th><th><button class="sort" data-sort="bucket" type="button">Bucket</button></th><th><button class="sort" data-sort="first_seen" type="button">First seen</button></th><th><button class="sort" data-sort="last_seen" type="button">Last seen</button></th></tr></thead>
 <tbody id="rows"></tbody></table></div>
 <div class="pagination"><button id="prev" type="button">Previous</button><span id="page"></span><button id="next" type="button">Next</button></div>
 <details open><summary>Failures</summary><section><div class="table-wrap"><table><thead><tr><th>Count</th><th>Stage</th><th>Reason</th><th>Affected</th></tr></thead><tbody>{''.join(f'<tr><td><strong>{item["count"]}</strong></td><td>{html.escape(item["plugin"])}<br><small>{html.escape(item["kind"])}</small></td><td>{html.escape(item["detail"])}</td><td>{"<br>".join(f"<code>{html.escape(example)}</code>" for example in item["examples"])}{f"<br><small>and {item[chr(34)+chr(34)] if False else item["more"]} more</small>" if item["more"] else ""}</td></tr>' for item in grouped_failures) or '<tr><td colspan="4">No recorded failures.</td></tr>'}</tbody></table></div><p>Identical failures are grouped. Every individual record is retained in evidence.</p></section></details>
@@ -459,7 +466,7 @@ function render() {{
  document.querySelector('#chips').innerHTML = Object.entries(fields).filter(([key, input]) => input.value && key !== 'search').map(([key, input]) => `<button class="chip" data-clear="${{key}}" type="button">${{esc(key)}}: ${{esc(input.value)}} x</button>`).join('');
  const shown = value => value === '' || value == null ? '-' : value;
  const statusBadge = value => {{ const code = String(value ?? ''); const family = code.slice(0, 1); return code === '-' ? '-' : `<span class="status status-${{family}}">${{esc(code)}}</span>`; }};
- document.querySelector('#rows').innerHTML = visible.map(a => `<tr><td>${{esc(a.type)}}</td><td><code>${{esc(a.value)}}</code><button class="copy" data-copy="${{esc(a.value)}}" type="button" title="Copy value">Copy</button></td><td>${{esc(shown(a.host))}}</td><td>${{statusBadge(a.status)}}</td><td>${{esc(shown(a.technology))}}</td><td>${{esc(shown(a.category))}}</td><td>${{esc(a.sources.length ? a.sources.join(', ') : '-')}}</td><td>${{esc(shown(a.bucket))}}</td></tr>`).join('') || '<tr><td colspan="8">No assets match these filters.</td></tr>';
+ document.querySelector('#rows').innerHTML = visible.map(a => `<tr><td>${{esc(a.type)}}</td><td><code>${{esc(a.value)}}</code><button class="copy" data-copy="${{esc(a.value)}}" type="button" title="Copy value">Copy</button></td><td>${{esc(shown(a.host))}}</td><td>${{statusBadge(a.status)}}</td><td>${{esc(shown(a.technology))}}</td><td>${{esc(shown(a.category))}}</td><td>${{esc(a.sources.length ? a.sources.join(', ') : '-')}}</td><td>${{esc(shown(a.bucket))}}</td><td>${{esc(shown(a.first_seen))}}</td><td>${{esc(shown(a.last_seen))}}</td></tr>`).join('') || '<tr><td colspan="10">No assets match these filters.</td></tr>';
 }}
 Object.values(fields).forEach(input => input.addEventListener('input', () => {{ pageNumber = 1; render(); }}));
 document.querySelectorAll('.sort').forEach(button => button.addEventListener('click', () => {{ const next = button.dataset.sort; sortDirection = sortKey === next ? sortDirection * -1 : 1; sortKey = next; render(); }}));

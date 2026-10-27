@@ -136,6 +136,7 @@ sh4q scans
 sh4q show --latest --target target.example
 sh4q results --latest --target target.example --type domain
 sh4q results --latest --target target.example --type url
+sh4q results --latest --target target.example --history
 sh4q results --latest --target target.example --failures
 ```
 
@@ -179,6 +180,12 @@ Stable current capabilities:
   Exported rules are validated against pySigma's parser and its validators,
   including the MITRE ATT&CK taxonomy when pySigma's cached bundle is available;
   an optional backend test converts them to a Splunk query.
+- first-seen and last-seen inventory history (`results --history`). The
+  timestamps are graph-wide; selecting a scan restricts the rows to the assets
+  that scan owns and marks each as `new` or `returning` relative to the scan's
+  start. JSON/CSV exports carry both timestamps, and the HTML report adds
+  First seen and Last seen columns. This is a view over existing columns, so it
+  works on scans already on disk.
 
 Implemented explicit capabilities, never enabled by a profile:
 
@@ -223,36 +230,32 @@ Do not add another discovery adapter merely because one is available. Add one
 only when it solves a defined operator workflow and retains scope, evidence,
 provenance, bounds, and offline coverage.
 
-### Near-term order, verified against source on 2026-10-19
+### Near-term order, verified against source on 2026-10-27
 
-The milestone list above is the roadmap's order. This is the working order,
-with each count re-derived from the source rather than carried forward:
+Inventory history, v1 roadmap step 6, is complete. It is a view over the
+existing `first_seen` / `last_seen` columns, not a schema migration, and it
+works retroactively on every scan already on disk. The rest of the working
+order is:
 
-1. **Inventory history** — the last unshipped v1 roadmap item (step 6).
-   Cheaper than it looks: `first_seen` / `last_seen` already exist on `nodes`,
-   are correctly maintained (`first_seen` preserved on conflict, `last_seen`
-   updated), and **nothing reads them** — zero references in `application/` or
-   `cli/`. This is a view, not a schema migration, and it works retroactively
-   on every scan already on disk.
-2. **Delete `LoggingConfig`** — parsed, wired into `Sh4qConfig`, never
+1. **Delete `LoggingConfig`** — parsed, wired into `Sh4qConfig`, never
    consumed; `import logging` appears nowhere in the package. The config
    surface currently advertises a knob that does nothing.
-3. **Storage hardening** — 30 unguarded `json.loads` (11 in
+2. **Storage hardening** — 30 unguarded `json.loads` (11 in
    `application/results.py`, 5 in `exporter.py`, the rest spread), and **zero**
    `sqlite3` error handlers anywhere. There is no `StorageError` to wrap them
    in: sh4q defines eight exception classes and none of them is for storage.
    Deliberately not first — every one of those `json.loads` reads a row sh4q
    itself wrote, so this is real debt, not a live hazard.
-4. **Template stage disclosure + dry-run** — one job, not two. Both answer
+3. **Template stage disclosure + dry-run** — one job, not two. Both answer
    "what will this run do before it does it" (backlog 0.2 and 4.2).
-5. **Execution identity** — roadmap step 3, and a genuine schema migration.
-6. **v1.5.0.**
-7. **Read seam** — 59 raw `.execute()` calls across 12 modules outside
+4. **Execution identity** — roadmap step 3, and a genuine schema migration.
+5. **v1.5.0.**
+6. **Read seam** — 59 raw `.execute()` calls across 12 modules outside
    `storage/` (15 in `events/event_log.py`, 14 in `application/results.py`, 10
    in `exporter.py`). `StorageRepository` covers only write methods. Worth
    doing on its own merits, not as PostgreSQL preparation: there is no single
    place enforcing that `limit=None` means every row, which *is* the reporting
-   invariant; no single place to add the storage wrapping from item 3; nothing
+   invariant; no single place to add the storage wrapping from item 2; nothing
    testable against a fake; and a schema change ripples into 12 files. → v1.6.0.
 
 On Platform v2: `architecture_overview.md` words PostgreSQL as being for
