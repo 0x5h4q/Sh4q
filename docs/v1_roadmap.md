@@ -88,8 +88,10 @@ silent inclusion in a general profile.
 5. **Scheduled execution:** document or integrate repeatable cron/systemd jobs
    using stable templates and explicit output handling. A long-running Sh4q
    daemon is not required for the local v1 product.
-6. **Inventory history:** expose useful first-seen and last-seen metadata in
-   supported exports without confusing global asset history with scan ownership.
+6. **Inventory history:** shipped in this cycle. `results --history` exposes
+   graph-wide first-seen and last-seen timestamps, marks scan-owned assets as
+   `new` or `returning`, and JSON/CSV/HTML exports carry both timestamps
+   without conflating global asset history with per-scan ownership.
 
 ## Later Milestone: Platform v2
 

@@ -574,6 +574,36 @@ flag missing on a host that serves both; a missing `Content-Security-Policy`
 on a static page is not the same as one on an application. The record is
 factual and the judgement is the reader's.
 
+### Inventory history
+
+`first_seen` and `last_seen` are graph-wide timestamps on each asset. They are
+not scan timestamps: selecting a scan restricts the rows to the assets that
+scan owns, but it does not reset when those assets first existed. That
+distinction is what `scan_assets` preserves.
+
+```bash
+sh4q results --latest --target example.com --history
+```
+
+```text
+  Scan     be2174b5...
+  TYPE        VALUE                                           FIRST SEEN            LAST SEEN             ORIGIN
+  ----------  ----------------------------------------------  --------------------  --------------------  ----------
+  domain      api.example.com                                2025-12-31T12:00:00Z  2026-02-10T12:00:00Z  returning
+  domain      new.example.com                                2026-02-01T00:00:01Z  2026-02-10T12:00:00Z  new
+```
+
+`new` means the asset was first recorded at or after the selected scan started;
+`returning` means it predates that scan. Without `--latest` or `--scan`, the
+view shows every asset for the target and omits the origin column. A database
+that predates the timestamp columns shows `-` rather than inventing a date,
+and `unknown` for the origin.
+
+JSON and CSV asset exports carry `first_seen` and `last_seen`. The technology
+CSV carries the technology node's timestamps; the HTTP-inventory CSV carries
+the endpoint's. The HTML report adds First seen and Last seen columns to its
+asset table. `--history` is read-only and changes no ownership.
+
 ## Export and Comparison
 
 ```bash

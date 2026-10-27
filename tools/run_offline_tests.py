@@ -45,6 +45,7 @@ OFFLINE_TESTS = (
     "test_event_lifecycle.py",
     "test_event_retry.py",
     "test_export.py",
+    "test_inventory_history.py",
     "test_fingerprint_inputs.py",
     "test_fingerprint_output_pipeline.py",
     "test_http_reporting.py",
