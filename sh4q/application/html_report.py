@@ -6,7 +6,9 @@ import base64
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from sh4q.storage.db import node_timestamp_columns, open_sync_database
+from sh4q.storage.db import node_timestamp_columns, open_sync_database, row_identifier
+from sh4q.storage.errors import CorruptRecordError
+from sh4q.storage.json_fields import MALFORMED, decode_object
 from sh4q.storage.scan_runs import ScanRun
 from sh4q.application.redaction import Redactor
 from sh4q.application.triage import classify_historical_url, classify_javascript_reference
@@ -27,7 +29,13 @@ def _banner_data_uri() -> str | None:
     return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode("ascii")
 
 
-def _owned_rows(database: str, run: ScanRun, *, redactor: Redactor | None = None) -> list[dict]:
+def _owned_rows(
+    database: str,
+    run: ScanRun,
+    *,
+    redactor: Redactor | None = None,
+    skipped: list[CorruptRecordError] | None = None,
+) -> list[dict]:
     with open_sync_database(database) as db:
         first_seen_expr, last_seen_expr = node_timestamp_columns(db, "n")
         rows = db.execute(
@@ -44,7 +52,7 @@ def _owned_rows(database: str, run: ScanRun, *, redactor: Redactor | None = None
             (run.id,),
         ).fetchall()
         endpoint_rows = db.execute(
-            """SELECT DISTINCT technology.id, endpoint.value, endpoint.attributes
+            """SELECT DISTINCT technology.id, endpoint.value, endpoint.attributes, endpoint.id
             FROM scan_assets sa
             JOIN relationships r ON r.id = sa.relationship_id
             JOIN nodes technology ON technology.id = r.to_id
@@ -55,18 +63,33 @@ def _owned_rows(database: str, run: ScanRun, *, redactor: Redactor | None = None
             (run.id,),
         ).fetchall()
     tech_endpoints = {}
-    for technology_id, endpoint, raw_attributes in endpoint_rows:
+    for technology_id, endpoint, raw_attributes, endpoint_id in endpoint_rows:
+        attributes = decode_object(
+            raw_attributes,
+            field="attributes",
+            record_id=endpoint_id,
+            skipped=skipped,
+        )
+        if attributes is MALFORMED:
+            continue
         tech_endpoints.setdefault(technology_id, []).append({
             "endpoint": endpoint,
             "host": urlsplit(endpoint).hostname or endpoint,
-            "status": json.loads(raw_attributes).get("status", ""),
+            "status": attributes.get("status", ""),
         })
     assets = []
     for (
         asset_type, value, raw_attributes, raw_sources, has_history, has_live,
         first_seen, last_seen,
     ) in rows:
-        attributes = json.loads(raw_attributes)
+        attributes = decode_object(
+            raw_attributes,
+            field="attributes",
+            record_id=value,
+            skipped=skipped,
+        )
+        if attributes is MALFORMED:
+            continue
         host = value
         status = attributes.get("status", "")
         if asset_type == "url":
@@ -99,7 +122,13 @@ def _owned_rows(database: str, run: ScanRun, *, redactor: Redactor | None = None
     return assets
 
 
-def _report_metadata(database: str, run: ScanRun, *, redactor: Redactor | None = None) -> dict:
+def _report_metadata(
+    database: str,
+    run: ScanRun,
+    *,
+    redactor: Redactor | None = None,
+    skipped: list[CorruptRecordError] | None = None,
+) -> dict:
     evidence = []
     failures = []
     stages = []
@@ -128,11 +157,19 @@ def _report_metadata(database: str, run: ScanRun, *, redactor: Redactor | None =
         ).fetchone()
         if table:
             rows = db.execute(
-                "SELECT plugin, kind, content, captured_at FROM evidence "
+                f"SELECT {row_identifier(db, 'evidence')} AS record_id, plugin, "
+                "kind, content, captured_at FROM evidence "
                 "WHERE scan_run_id = ? ORDER BY captured_at", (run.id,)
             ).fetchall()
-            for plugin, kind, raw_content, captured_at in rows:
-                content = json.loads(raw_content)
+            for record_id, plugin, kind, raw_content, captured_at in rows:
+                content = decode_object(
+                    raw_content,
+                    field="content",
+                    record_id=record_id,
+                    skipped=skipped,
+                )
+                if content is MALFORMED:
+                    continue
                 record = {"plugin": plugin, "kind": kind, "captured_at": captured_at}
                 if kind == "request_metrics":
                     request_metrics = content
@@ -234,9 +271,15 @@ def _grouped_failures(failures: list[dict]) -> list[dict]:
     return sorted(rows, key=lambda row: (-row["count"], row["plugin"], row["detail"]))
 
 
-def render_html_report(database: str, run: ScanRun, *, redactor: Redactor | None = None) -> str:
-    assets = _owned_rows(database, run, redactor=redactor)
-    metadata = _report_metadata(database, run, redactor=redactor)
+def render_html_report(
+    database: str,
+    run: ScanRun,
+    *,
+    redactor: Redactor | None = None,
+    skipped: list[CorruptRecordError] | None = None,
+) -> str:
+    assets = _owned_rows(database, run, redactor=redactor, skipped=skipped)
+    metadata = _report_metadata(database, run, redactor=redactor, skipped=skipped)
     banner_uri = _banner_data_uri()
     grouped_failures = _grouped_failures(metadata["failures"])
     payload = {

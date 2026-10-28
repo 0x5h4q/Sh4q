@@ -8,15 +8,17 @@ import aiosqlite
 
 from .event import Event
 from sh4q.storage.db import open_database
+from sh4q.storage.errors import CorruptRecordError
+from sh4q.storage.json_fields import MALFORMED, decode_object
 
 
 # The grouping the summary view aggregates by. Named once so the summary and
 # its total cannot describe different sets: a hand-written COUNT beside a
 # hand-written SELECT is two sources of truth, and they drift.
 _GROUP_EXPRESSIONS = (
-    "COALESCE(json_extract(payload, '$.scan_target'), '')",
-    "COALESCE(json_extract(payload, '$.source_plugin'), '')",
-    "COALESCE(json_extract(payload, '$.kind'), type)",
+    "CASE WHEN json_valid(payload) THEN COALESCE(json_extract(payload, '$.scan_target'), '') ELSE '' END",
+    "CASE WHEN json_valid(payload) THEN COALESCE(json_extract(payload, '$.source_plugin'), '') ELSE '' END",
+    "CASE WHEN json_valid(payload) THEN COALESCE(json_extract(payload, '$.kind'), type) ELSE type END",
     "status",
 )
 
@@ -29,7 +31,10 @@ def _event_filter(status: str | None, target: str | None) -> tuple[str, list[obj
         conditions.append("status = ?")
         parameters.append(status.upper())
     if target:
-        conditions.append("json_extract(payload, '$.scan_target') = ?")
+        conditions.append(
+            "CASE WHEN json_valid(payload) "
+            "THEN json_extract(payload, '$.scan_target') END = ?"
+        )
         parameters.append(target)
     clause = (" WHERE " + " AND ".join(conditions)) if conditions else ""
     return clause, parameters
@@ -69,9 +74,11 @@ class EventLogSummary:
 class DurableEventLog:
     def __init__(self, db_path: str):
         self._db_path = db_path
+        #: Rows `list_records` skipped because their payload was corrupt.
+        self.skipped: list[CorruptRecordError] = []
 
     async def init(self) -> None:
-        async with open_database(self._db_path) as db:
+        async with open_database(self._db_path, "event log") as db:
             await db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS event_log (
@@ -101,7 +108,7 @@ class DurableEventLog:
             await db.commit()
 
     async def record_pending(self, event: Event) -> None:
-        async with open_database(self._db_path) as db:
+        async with open_database(self._db_path, "event log") as db:
             await db.execute(
                 "INSERT INTO event_log (id, type, payload, status, created_at, updated_at) "
                 "VALUES (?, ?, ?, 'PENDING', ?, ?)",
@@ -117,7 +124,7 @@ class DurableEventLog:
 
     async def mark_failed(self, event_id: str, error: str, *, max_attempts: int = 3, retry_delay: float = 0.0) -> bool:
         next_attempt = datetime.now(timezone.utc).timestamp() + max(0.0, retry_delay)
-        async with open_database(self._db_path) as db:
+        async with open_database(self._db_path, "event log") as db:
             row = await (await db.execute("SELECT attempts FROM event_log WHERE id = ?", (event_id,))).fetchone()
             attempts = (row[0] if row else 0) + 1
             status = "DEAD_LETTER" if attempts >= max_attempts else "FAILED"
@@ -129,7 +136,7 @@ class DurableEventLog:
         return status == "FAILED"
 
     async def _set_status(self, event_id: str, status: str, error: str | None = None) -> None:
-        async with open_database(self._db_path) as db:
+        async with open_database(self._db_path, "event log") as db:
             await db.execute(
                 "UPDATE event_log SET status = ?, updated_at = ?, error = ? WHERE id = ?",
                 (status, _iso_now(), error, event_id),
@@ -137,17 +144,44 @@ class DurableEventLog:
             await db.commit()
 
     async def recover_unfinished(self) -> list[Event]:
-        async with open_database(self._db_path) as db:
+        """Return events that are safe to replay.
+
+        A payload that cannot be decoded can never be replayed, so retrying it
+        on every scan only delays the next real event. Dead-letter it with the
+        decode error and keep recovering the rest of the queue.
+        """
+        async with open_database(self._db_path, "recover unfinished events") as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 "SELECT * FROM event_log WHERE status IN ('PENDING', 'PROCESSING', 'FAILED') AND (next_attempt_at IS NULL OR next_attempt_at <= ?) ORDER BY created_at ASC",
                 (_iso_now(),),
             )
             rows = await cursor.fetchall()
-            return [
-                Event(id=row["id"], type=row["type"], payload=json.loads(row["payload"]), timestamp=row["created_at"])
-                for row in rows
-            ]
+            events: list[Event] = []
+            dead_lettered = False
+            for row in rows:
+                try:
+                    payload = decode_object(
+                        row["payload"], field="payload", record_id=row["id"]
+                    )
+                except CorruptRecordError as error:
+                    await db.execute(
+                        "UPDATE event_log SET status = 'DEAD_LETTER', updated_at = ?, "
+                        "error = ?, attempts = attempts + 1, next_attempt_at = NULL "
+                        "WHERE id = ?",
+                        (_iso_now(), str(error), row["id"]),
+                    )
+                    dead_lettered = True
+                    continue
+                events.append(Event(
+                    id=row["id"],
+                    type=row["type"],
+                    payload=payload,
+                    timestamp=row["created_at"],
+                ))
+            if dead_lettered:
+                await db.commit()
+        return events
 
     async def list_records(
         self,
@@ -161,12 +195,20 @@ class DurableEventLog:
         query += _limit_clause(limit)
         if limit is not None:
             parameters.append(max(1, limit))
-        async with open_database(self._db_path) as db:
+        async with open_database(self._db_path, "list event records") as db:
             db.row_factory = aiosqlite.Row
             rows = await (await db.execute(query, parameters)).fetchall()
         records = []
+        self.skipped = []
         for row in rows:
-            payload = json.loads(row["payload"])
+            payload = decode_object(
+                row["payload"],
+                field="payload",
+                record_id=row["id"],
+                skipped=self.skipped,
+            )
+            if payload is MALFORMED:
+                continue
             records.append(EventLogRecord(
                 id=row["id"],
                 type=row["type"],
@@ -189,6 +231,7 @@ class DurableEventLog:
         target: str | None = None,
         limit: int | None = 50,
     ) -> list[EventLogSummary]:
+        self.skipped = []
         clause, parameters = _event_filter(status, target)
         target_expression, plugin_expression, kind_expression, _ = _GROUP_EXPRESSIONS
         query = f"""SELECT
@@ -204,7 +247,7 @@ class DurableEventLog:
         query += _limit_clause(limit)
         if limit is not None:
             parameters.append(max(1, limit))
-        async with open_database(self._db_path) as db:
+        async with open_database(self._db_path, "event log") as db:
             rows = await (await db.execute(query, parameters)).fetchall()
         return [EventLogSummary(*row) for row in rows]
 
@@ -217,7 +260,7 @@ class DurableEventLog:
         database and said nothing about the other 7169.
         """
         clause, parameters = _event_filter(status, target)
-        async with open_database(self._db_path) as db:
+        async with open_database(self._db_path, "event log") as db:
             row = await (
                 await db.execute(f"SELECT COUNT(*) FROM event_log{clause}", parameters)
             ).fetchone()
@@ -229,7 +272,7 @@ class DurableEventLog:
         """How many summary rows match, built from the same grouping."""
         clause, parameters = _event_filter(status, target)
         grouping = ", ".join(_GROUP_EXPRESSIONS)
-        async with open_database(self._db_path) as db:
+        async with open_database(self._db_path, "event log") as db:
             row = await (
                 await db.execute(
                     f"SELECT COUNT(*) FROM (SELECT 1 FROM event_log{clause} "

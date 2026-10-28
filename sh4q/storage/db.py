@@ -1,7 +1,10 @@
 import sqlite3
+import sys
 from contextlib import asynccontextmanager, contextmanager
 
 import aiosqlite
+
+from .errors import StorageError
 
 
 CURRENT_SCHEMA_VERSION = 4
@@ -27,6 +30,17 @@ def _columns_exist(db: sqlite3.Connection, table: str, columns: tuple[str, ...])
         row[1] for row in db.execute(f"PRAGMA table_info({table})").fetchall()
     }
     return all(column in available for column in columns)
+
+
+def row_identifier(db: sqlite3.Connection, table: str) -> str:
+    """SQL expression for a row's identifier, tolerating narrow fixtures.
+
+    Production tables have an `id` column. Older databases and test fixtures
+    sometimes predate it; SQLite always provides `rowid`, so diagnostics can
+    still name the row that failed to parse.
+    """
+    columns = {row[1] for row in db.execute(f"PRAGMA table_info({table})").fetchall()}
+    return "id" if "id" in columns else "rowid"
 
 
 def node_timestamp_columns(
@@ -128,17 +142,46 @@ MIGRATIONS = {1: _migration_1, 2: _migration_2, 3: _migration_3, 4: _migration_4
 
 
 @contextmanager
-def open_sync_database(path: str):
-    db = sqlite3.connect(path, timeout=10)
+def open_sync_database(path: str, operation: str = "database operation"):
+    """Open a synchronous connection, translating sqlite errors.
+
+    Every SQL statement inside the `with` block is covered: sqlite raises from
+    the statement, the exception leaves the block, and this wrapper names the
+    database and the operation before re-raising it as `StorageError`.
+    """
+    try:
+        db = sqlite3.connect(path, timeout=10)
+    except sqlite3.Error as error:
+        raise StorageError(
+            f"cannot open database {path}: {error}",
+            database=path,
+            operation="open",
+        ) from error
     try:
         _configure_sync(db)
         yield db
+    except sqlite3.Error as error:
+        raise StorageError(
+            f"{operation} failed on {path}: {error}",
+            database=path,
+            operation=operation,
+        ) from error
     finally:
-        db.close()
+        # Do not let a close failure replace the error that caused the close.
+        active_error = sys.exc_info()[0] is not None
+        try:
+            db.close()
+        except sqlite3.Error as error:
+            if not active_error:
+                raise StorageError(
+                    f"closing {path} failed: {error}",
+                    database=path,
+                    operation="close",
+                ) from error
 
 
 def ensure_schema_version(path: str) -> int:
-    with open_sync_database(path) as db:
+    with open_sync_database(path, "initialize schema") as db:
         db.execute("PRAGMA journal_mode=WAL")
         db.execute("BEGIN IMMEDIATE")
         _migration_1(db)
@@ -169,11 +212,39 @@ def ensure_schema_version(path: str) -> int:
 
 
 @asynccontextmanager
-async def open_database(path: str):
-    db = await aiosqlite.connect(path, timeout=10)
+async def open_database(path: str, operation: str = "database operation"):
+    """Open an async connection, translating sqlite errors.
+
+    The same contract as `open_sync_database`: every awaited statement runs
+    inside the translated block, so callers receive `StorageError` rather than
+    an aiosqlite traceback.
+    """
+    try:
+        db = await aiosqlite.connect(path, timeout=10)
+    except sqlite3.Error as error:
+        raise StorageError(
+            f"cannot open database {path}: {error}",
+            database=path,
+            operation="open",
+        ) from error
     try:
         await db.execute("PRAGMA busy_timeout=10000")
         await db.execute("PRAGMA foreign_keys=ON")
         yield db
+    except sqlite3.Error as error:
+        raise StorageError(
+            f"{operation} failed on {path}: {error}",
+            database=path,
+            operation=operation,
+        ) from error
     finally:
-        await db.close()
+        active_error = sys.exc_info()[0] is not None
+        try:
+            await db.close()
+        except sqlite3.Error as error:
+            if not active_error:
+                raise StorageError(
+                    f"closing {path} failed: {error}",
+                    database=path,
+                    operation="close",
+                ) from error

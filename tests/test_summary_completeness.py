@@ -105,13 +105,16 @@ asyncio.run(main())
 # read on screen; an export is handed to someone else, and a silently
 # shortened one is worse than none.
 import inspect  # noqa: E402
+import re  # noqa: E402
 
 from sh4q.application import exporter  # noqa: E402
 from sh4q.application.results import list_technology_observations  # noqa: E402
 
 _source = inspect.getsource(exporter)
 assert "limit=1000" not in _source, "the export must not carry a row cap"
-assert "list_technology_observations(database, scan_id=run.id, limit=None)" in _source
+assert re.search(
+    r"list_technology_observations\([^)]*limit=None", _source, re.S
+), "the export must ask for every technology observation"
 
 _listing = inspect.getsource(list_technology_observations)
 assert "min(limit, 1000)" not in _listing, (

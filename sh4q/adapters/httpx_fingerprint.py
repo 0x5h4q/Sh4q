@@ -36,7 +36,14 @@ class HttpxFingerprintAdapter(ExternalToolAdapter):
             line = line.strip()
             if not line:
                 continue
-            record = json.loads(line)
+            try:
+                record = json.loads(line)
+            except (json.JSONDecodeError, TypeError):
+                # httpx emits one JSON object per line; a stray diagnostic
+                # line must not take down the stage. Other lines still parse.
+                continue
+            if not isinstance(record, dict):
+                continue
             endpoint = record.get("url") or record.get("input") or target
             technologies = record.get("tech") or []
             if isinstance(technologies, str):

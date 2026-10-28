@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-import json
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
 from urllib.parse import urlsplit
-from sh4q.storage.db import node_timestamp_columns, open_sync_database
+from sh4q.storage.db import node_timestamp_columns, open_sync_database, row_identifier
+from sh4q.storage.errors import CorruptRecordError
+from sh4q.storage.json_fields import MALFORMED, decode_object
 
 
 @dataclass(frozen=True)
@@ -112,8 +113,9 @@ def list_javascript_observations(
     kind: str | None = None,
     source_filter: str | None = None,
     limit: int | None = 100,
+    skipped: list[CorruptRecordError] | None = None,
 ) -> list[JavaScriptObservation]:
-    query = "SELECT kind, content, captured_at FROM evidence WHERE kind LIKE 'javascript_%'"
+    query = "SELECT {record_id} AS record_id, kind, content, captured_at FROM evidence WHERE kind LIKE 'javascript_%'"
     params: list[object] = []
     if scan_id:
         query += " AND scan_run_id = ?"
@@ -124,11 +126,20 @@ def list_javascript_observations(
     query += " ORDER BY captured_at, kind LIMIT ?"
     params.append(_row_cap(limit))
     with open_sync_database(database) as db:
-        rows = db.execute(query, params).fetchall()
+        rows = db.execute(
+            query.format(record_id=row_identifier(db, "evidence")), params
+        ).fetchall()
     observations = []
     seen: set[tuple[str, str, str]] = set()
-    for kind, raw_content, captured_at in rows:
-        content = json.loads(raw_content)
+    for record_id, kind, raw_content, captured_at in rows:
+        content = decode_object(
+            raw_content,
+            field="content",
+            record_id=record_id,
+            skipped=skipped,
+        )
+        if content is MALFORMED:
+            continue
         value = content.get("value", "")
         source_endpoint = content.get("source_endpoint", "")
         if source_filter and source_filter.lower() not in source_endpoint.lower():
@@ -183,8 +194,9 @@ def list_technology_observations(
     category: str | None = None,
     status: int | None = None,
     limit: int | None = 100,
+    skipped: list[CorruptRecordError] | None = None,
 ) -> list[TechnologyObservation]:
-    query = """SELECT endpoint.value, technology.value, r.attributes,
+    query = """SELECT r.id, endpoint.value, technology.value, r.attributes,
         {first_seen}, {last_seen}
         FROM relationships r
         JOIN nodes endpoint ON endpoint.id = r.from_id
@@ -205,10 +217,17 @@ def list_technology_observations(
             params,
         ).fetchall()
     observations = []
-    for endpoint, technology, raw_attributes, first_seen, last_seen in rows:
+    for relationship_id, endpoint, technology, raw_attributes, first_seen, last_seen in rows:
+        attributes = decode_object(
+            raw_attributes,
+            field="attributes",
+            record_id=relationship_id,
+            skipped=skipped,
+        )
+        if attributes is MALFORMED:
+            continue
         if normalized and not _matches_target(ResultRow("url", endpoint, {}), normalized):
             continue
-        attributes = json.loads(raw_attributes)
         resolved_source = SOURCE_ALIASES.get(source, source) if source else None
         if resolved_source and attributes.get("source") != resolved_source:
             continue
@@ -253,14 +272,15 @@ def list_assets(
     scan_id: str | None = None,
     source: str | None = None,
     limit: int | None = 100,
+    skipped: list[CorruptRecordError] | None = None,
 ) -> list[ResultRow]:
-    with open_sync_database(database) as timestamp_db:
+    with open_sync_database(database, "read asset types") as timestamp_db:
         first_seen_expr, last_seen_expr = node_timestamp_columns(timestamp_db)
         ip_first_seen, ip_last_seen = node_timestamp_columns(timestamp_db, "ip")
         technology_first_seen, technology_last_seen = node_timestamp_columns(
             timestamp_db, "technology"
         )
-    query = f"SELECT DISTINCT n.type, n.value, n.attributes, {first_seen_expr}, {last_seen_expr} FROM nodes n"
+    query = f"SELECT DISTINCT n.type, n.value, n.attributes, {first_seen_expr}, {last_seen_expr}, n.id FROM nodes n"
     params: list[object] = []
     conditions: list[str] = []
     if scan_id and source:
@@ -287,40 +307,53 @@ def list_assets(
                 source_clause = " AND sa.source_plugin = ?"
                 source_params = (source,)
             scan_rows = db.execute(
-                f"""SELECT DISTINCT n.type, n.value, n.attributes, {first_seen_expr}, {last_seen_expr}
+                f"""SELECT DISTINCT n.type, n.value, n.attributes, {first_seen_expr}, {last_seen_expr}, n.id
                 FROM scan_assets sa JOIN nodes n ON n.id = sa.asset_id
                 WHERE sa.scan_run_id = ? AND (? IS NULL OR n.type = ?)
                 """ + source_clause + """
                 ORDER BY n.type, n.value LIMIT ?""",
                 (scan_id, asset_type, asset_type, *source_params, _row_cap(limit)),
             ).fetchall()
-            return [
-                ResultRow(row[0], row[1], json.loads(row[2]), row[3], row[4])
-                for row in scan_rows
-            ]
+            assets = []
+            for row in scan_rows:
+                attributes = decode_object(
+                    row[2], field="attributes", record_id=row[5], skipped=skipped
+                )
+                if attributes is MALFORMED:
+                    continue
+                assets.append(ResultRow(row[0], row[1], attributes, row[3], row[4]))
+            return assets
         if normalized and asset_type == "url":
             # SQLite has no built-in URL hostname parser, so filter URLs before
             # applying the user-visible limit.
             url_rows = db.execute(
-                f"SELECT n.type, n.value, n.attributes, {first_seen_expr}, {last_seen_expr} "
+                f"SELECT n.type, n.value, n.attributes, {first_seen_expr}, {last_seen_expr}, n.id "
                 "FROM nodes n WHERE n.type = 'url' ORDER BY n.value"
             ).fetchall()
-            assets = [
-                ResultRow(row[0], row[1], json.loads(row[2]), row[3], row[4])
-                for row in url_rows
-            ]
+            assets = []
+            for row in url_rows:
+                attributes = decode_object(
+                    row[2], field="attributes", record_id=row[5], skipped=skipped
+                )
+                if attributes is MALFORMED:
+                    continue
+                assets.append(ResultRow(row[0], row[1], attributes, row[3], row[4]))
             return _capped(
                 [asset for asset in assets if _matches_target(asset, normalized)], limit
             )
         rows = db.execute(query, params).fetchall()
-        assets = [
-            ResultRow(row[0], row[1], json.loads(row[2]), row[3], row[4])
-            for row in rows
-        ]
+        assets = []
+        for row in rows:
+            attributes = decode_object(
+                row[2], field="attributes", record_id=row[5], skipped=skipped
+            )
+            if attributes is MALFORMED:
+                continue
+            assets.append(ResultRow(row[0], row[1], attributes, row[3], row[4]))
         if target and asset_type == "ip":
             ip_rows = db.execute(
                 f"""
-                SELECT DISTINCT ip.type, ip.value, ip.attributes, {ip_first_seen}, {ip_last_seen}
+                SELECT DISTINCT ip.type, ip.value, ip.attributes, {ip_first_seen}, {ip_last_seen}, ip.id
                 FROM relationships r
                 JOIN nodes domain ON domain.id = r.from_id
                 JOIN nodes ip ON ip.id = r.to_id
@@ -331,15 +364,20 @@ def list_assets(
                 """,
                 (normalized, f"%.{normalized}", _row_cap(limit)),
             ).fetchall()
-            return [
-                ResultRow(row[0], row[1], json.loads(row[2]), row[3], row[4])
-                for row in ip_rows
-            ]
+            assets = []
+            for row in ip_rows:
+                attributes = decode_object(
+                    row[2], field="attributes", record_id=row[5], skipped=skipped
+                )
+                if attributes is MALFORMED:
+                    continue
+                assets.append(ResultRow(row[0], row[1], attributes, row[3], row[4]))
+            return assets
         if target and asset_type == "technology":
             technology_rows = db.execute(
                 f"""
                 SELECT DISTINCT technology.type, technology.value, technology.attributes,
-                  {technology_first_seen}, {technology_last_seen}
+                  {technology_first_seen}, {technology_last_seen}, technology.id
                 FROM relationships r
                 JOIN nodes endpoint ON endpoint.id = r.from_id
                 JOIN nodes technology ON technology.id = r.to_id
@@ -348,15 +386,19 @@ def list_assets(
                 ORDER BY technology.value
                 """
             ).fetchall()
-            technologies = [
-                ResultRow(row[0], row[1], json.loads(row[2]), row[3], row[4])
-                for row in technology_rows
-            ]
+            technologies = []
+            for row in technology_rows:
+                attributes = decode_object(
+                    row[2], field="attributes", record_id=row[5], skipped=skipped
+                )
+                if attributes is MALFORMED:
+                    continue
+                technologies.append(ResultRow(row[0], row[1], attributes, row[3], row[4]))
             return _capped([
                 item for item in technologies
                 if any(
                     _matches_target(url, normalized)
-                    for url in _technology_endpoints(db, item.value)
+                    for url in _technology_endpoints(db, item.value, skipped=skipped)
                 )
             ], limit)
     return assets
@@ -370,6 +412,7 @@ def list_inventory_history(
     scan_id: str | None = None,
     source: str | None = None,
     limit: int | None = 100,
+    skipped: list[CorruptRecordError] | None = None,
 ) -> list[InventoryHistoryRow]:
     """First-seen and last-seen per asset, newest first.
 
@@ -385,6 +428,7 @@ def list_inventory_history(
         scan_id=scan_id,
         source=source,
         limit=None,
+        skipped=skipped,
     )
     started_at = _scan_started_at(database, scan_id) if scan_id else ""
     history = [
@@ -436,16 +480,29 @@ def _origin(first_seen: str, started_at: str) -> str:
         return "unknown"
 
 
-def _technology_endpoints(db: sqlite3.Connection, technology: str) -> list[ResultRow]:
+def _technology_endpoints(
+    db: sqlite3.Connection,
+    technology: str,
+    *,
+    skipped: list[CorruptRecordError] | None = None,
+) -> list[ResultRow]:
     rows = db.execute(
-        """SELECT endpoint.type, endpoint.value, endpoint.attributes
+        """SELECT endpoint.type, endpoint.value, endpoint.attributes, endpoint.id
         FROM relationships r
         JOIN nodes endpoint ON endpoint.id = r.from_id
         JOIN nodes technology_node ON technology_node.id = r.to_id
         WHERE r.type = 'DETECTED_TECHNOLOGY' AND technology_node.value = ?""",
         (technology,),
     ).fetchall()
-    return [ResultRow(row[0], row[1], json.loads(row[2])) for row in rows]
+    assets = []
+    for row in rows:
+        attributes = decode_object(
+            row[2], field="attributes", record_id=row[3], skipped=skipped
+        )
+        if attributes is MALFORMED:
+            continue
+        assets.append(ResultRow(row[0], row[1], attributes))
+    return assets
 
 
 def _matches_target(asset: ResultRow, target: str) -> bool:
@@ -464,8 +521,9 @@ def list_failures(
     target: str | None = None,
     scan_id: str | None = None,
     limit: int | None = 100,
+    skipped: list[CorruptRecordError] | None = None,
 ) -> list[tuple[str, str, str]]:
-    query = "SELECT plugin, kind, content FROM evidence WHERE (kind LIKE '%error%' OR kind IN ('adapter_execution', 'ct_provider_status'))"
+    query = "SELECT {record_id} AS record_id, plugin, kind, content FROM evidence WHERE (kind LIKE '%error%' OR kind IN ('adapter_execution', 'ct_provider_status'))"
     params: list[object] = []
     if target:
         query += " AND target = ?"
@@ -478,10 +536,16 @@ def list_failures(
     # exceed 1000 however many failures a scan actually recorded.
     query += " ORDER BY captured_at DESC"
     with open_sync_database(database) as db:
-        rows = db.execute(query, params).fetchall()
+        rows = db.execute(
+            query.format(record_id=row_identifier(db, "evidence")), params
+        ).fetchall()
     failures: list[tuple[str, str, str]] = []
-    for plugin, kind, content in rows:
-        details = json.loads(content)
+    for record_id, plugin, kind, content in rows:
+        details = decode_object(
+            content, field="content", record_id=record_id, skipped=skipped
+        )
+        if details is MALFORMED:
+            continue
         if kind == "adapter_execution" and not (
             details.get("returncode") not in (None, 0)
             or details.get("timed_out")
@@ -515,6 +579,7 @@ def list_response_attributes(
     target: str | None = None,
     scan_id: str | None = None,
     limit: int | None = None,
+    skipped: list[CorruptRecordError] | None = None,
 ) -> list[ResponseAttributes]:
     """Endpoints that set a cookie or were checked for review headers.
 
@@ -526,10 +591,17 @@ def list_response_attributes(
     values = _all_asset_values(database, "url", target=target, scan_id=scan_id)
     with open_sync_database(database) as db:
         attribute_rows = dict(db.execute("SELECT value, attributes FROM nodes WHERE type = 'url'").fetchall())
-    rows = [
-        ResultRow("url", value, json.loads(attribute_rows.get(value) or "{}"))
-        for value in values
-    ]
+    rows = []
+    for value in values:
+        attributes = decode_object(
+            attribute_rows.get(value) or "{}",
+            field="attributes",
+            record_id=value,
+            skipped=skipped,
+        )
+        if attributes is MALFORMED:
+            continue
+        rows.append(ResultRow("url", value, attributes))
     if limit is not None:
         rows = rows[: max(1, limit)]
     found: list[ResponseAttributes] = []
@@ -605,6 +677,7 @@ def summarize_names(
     *,
     target: str | None = None,
     scan_id: str | None = None,
+    skipped: list[CorruptRecordError] | None = None,
 ) -> NameComposition:
     """Break a scan's hostnames down by resolution outcome and leftmost label.
 
@@ -618,17 +691,24 @@ def summarize_names(
     resolved: set[str] = set()
     failed: set[str] = set()
     with open_sync_database(database) as db:
-        for kind, content in db.execute(
-            "SELECT kind, content FROM evidence WHERE kind IN "
+        rows = db.execute(
+            f"SELECT {row_identifier(db, 'evidence')} AS record_id, kind, content "
+            "FROM evidence WHERE kind IN "
             "('dns_resolution', 'discovered_dns_resolution', 'discovered_dns_error')"
-        ):
-            try:
-                name = json.loads(content).get("domain", "")
-            except (TypeError, ValueError):
-                continue
-            if not name:
-                continue
-            (failed if kind == "discovered_dns_error" else resolved).add(name.lower())
+        ).fetchall()
+    for record_id, kind, raw_content in rows:
+        content = decode_object(
+            raw_content,
+            field="content",
+            record_id=record_id,
+            skipped=skipped,
+        )
+        if content is MALFORMED:
+            continue
+        name = content.get("domain", "")
+        if not name:
+            continue
+        (failed if kind == "discovered_dns_error" else resolved).add(name.lower())
     failed -= resolved
 
     labels: dict[str, int] = {}

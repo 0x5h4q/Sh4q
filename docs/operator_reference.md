@@ -499,6 +499,21 @@ Sh4q suggests at the end of such a scan already carry the flag. Copy them
 rather than retyping, or a read command will quietly inspect a different
 database -- or an empty one.
 
+### Malformed records and storage errors
+
+A stored JSON field that cannot be decoded is reported, not fatal. `results`
+and `show` skip the affected row, print how many were skipped, and name up to
+three record identifiers where the table provides one. `export` reports the
+same count and still writes the rows it could read. Event recovery moves an
+undecodable payload to `DEAD_LETTER` with the decode error instead of retrying
+it on every scan.
+
+A database that cannot be opened or read produces one actionable line naming
+the path and the operation, not a traceback. The prefix depends on where it
+happens: `sh4q: error:` when the schema check fails, `Scan failed` during a
+scan, or `Storage error` from a read command that fails later. A schema-version
+failure is reported at the same point and in the same form as before.
+
 List recorded scans and inspect one overview:
 
 ```bash
