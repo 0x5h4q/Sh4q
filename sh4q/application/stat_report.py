@@ -432,14 +432,17 @@ _SECTION = {
     "scope": "┐(･_･)┌",
     "plan": "(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧",
     "disclosures": "(づ｡◕‿‿◕｡)づ",
-    "done": "(;´༎ຶД༎ຶ`)",
+    "done": "¯\\_(ツ)_/¯",
 }
 
 # Risk level -> branding status used for colour-coding table rows.
+# External stages are NOT errors — they just use external tools — so they
+# share the same status as passive stages. The risk label text does the
+# differentiating, not red text.
 _RISK_STYLE = {
     "passive": "ok",
     "active-low": "muted",
-    "external": "error",
+    "external": "ok",
 }
 
 from sh4q.cli.branding import (
