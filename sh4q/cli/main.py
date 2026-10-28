@@ -446,12 +446,12 @@ def build_parser() -> argparse.ArgumentParser:
         "Generate additional traffic against the target. Never enabled by a profile.",
     )
     scan_setup.add_argument(
-        "--config",
+        "-c", "--config",
         default=None,
         help="Path to a YAML config file. If omitted, scope defaults to just the target itself (and its subdomains) on ports 80/443.",
     )
     scan_setup.add_argument(
-        "--template",
+        "-t", "--template",
         help="Path to a versioned YAML scan template that selects stages and configuration.",
     )
     scan_setup.add_argument(
@@ -461,39 +461,25 @@ def build_parser() -> argparse.ArgumentParser:
         "planned disclosures without making any network request.",
     )
     scan_setup.add_argument(
-        "--profile",
+        "-p", "--profile",
         choices=["web", "full"],
         help="Enable a tested bundle of passive stages. web: resolve and probe discovered names, then extract JavaScript -- needs no external tools. full: web plus Subfinder, HTTPX, and URL history. Neither enables katana, vhosts, or directories -- those stay explicit because they are active.",
     )
-    output_modes = scan_output.add_mutually_exclusive_group()
-    output_modes.add_argument(
-        "-q", "--quiet", action="store_true",
-        help="Suppress live scan progress and print only the final summary.",
-    )
     scan_output.add_argument(
-        "--progress", choices=["human", "jsonl"], default="human",
-        help="Select human-readable or JSON Lines progress output.",
-    )
-    output_modes.add_argument(
-        "-v", "--verbose", action="store_true",
-        help="Show detailed live scan progress (the default).",
+        "--progress", choices=["human", "jsonl", "quiet"], default="human",
+        help="Select human-readable, JSON Lines, or quiet progress output. quiet suppresses live scan progress and prints only the final summary.",
     )
     scan_passive.add_argument(
-        "--sub",
+        "-s", "--sub",
         action="store_true",
-        help="Run the optional passive Subfinder adapter.",
+        help="Run the optional passive Subfinder adapter. Implies resolution.",
     )
     scan_passive.add_argument(
         "--hosts-file",
         help="Resolve and probe a supplied list of hostnames, in addition to anything the scan discovers. Each is authorised before contact.",
     )
     scan_passive.add_argument(
-        "--resolve",
-        action="store_true",
-        help="Resolve subdomain names found during the scan and probe the ones that answer. Implied by --sub.",
-    )
-    scan_passive.add_argument(
-        "--httpx",
+        "-H", "--httpx",
         action="store_true",
         help="Run optional httpx technology enrichment on approved HTTP endpoints.",
     )
@@ -503,12 +489,12 @@ def build_parser() -> argparse.ArgumentParser:
         help=argparse.SUPPRESS,  # retired; see the error raised when it is used
     )
     scan_passive.add_argument(
-        "--url-history",
+        "-u", "--url-history",
         action="store_true",
         help="Run the opt-in passive Wayback URL-history adapter.",
     )
     scan_passive.add_argument(
-        "--js",
+        "-j", "--js",
         action="store_true",
         help="Run bounded passive extraction on authorised HTTP response samples.",
     )
@@ -518,27 +504,25 @@ def build_parser() -> argparse.ArgumentParser:
         help="Fetch and passively parse a bounded set of same-scope JavaScript bundles.",
     )
     scan_active.add_argument(
-        "--katana",
+        "-k", "--katana",
         action="store_true",
         help="Run the opt-in bounded Katana crawler for same-scope runtime URLs and XHR references.",
     )
     scan_active.add_argument(
-        "-vh",
-        "--vhosts",
-        action="store_true",
-        help="Explicitly enable bounded virtual-host discovery.",
-    )
-    scan_active.add_argument(
-        "--vhosts-file",
-        help="Candidate hostname file for --vhosts (maximum 500 unique candidates).",
+        "-V", "--vhosts",
+        metavar="CANDIDATES_FILE",
+        help="Explicitly enable bounded virtual-host discovery, using CANDIDATES_FILE as the candidate list (maximum 500 unique candidates).",
     )
     scan_active.add_argument(
         "--vhosts-from-scan",
         metavar="SCAN_ID",
         help="Use domain assets from a prior scan as bounded vhost candidates.",
     )
-    scan_active.add_argument("--directories", action="store_true", help="Enable bounded directory discovery.")
-    scan_active.add_argument("--directories-file", help="Relative path wordlist for --directories (maximum 200 paths).")
+    scan_active.add_argument(
+        "-d", "--directories",
+        metavar="WORDLIST_FILE",
+        help="Enable bounded directory discovery, using WORDLIST_FILE as the candidate wordlist (maximum 200 paths).",
+    )
 
     events = subparsers.add_parser("events", help="Inspect durable event state")
     events.add_argument(
@@ -834,7 +818,7 @@ def next_steps(
     names = summary.ct_names + summary.adapter_names
     if names and not resolved_stage_ran:
         if template is not None:
-            # A template owns stage selection, so `--template X --resolve` is
+            # A template owns stage selection, so `--template X --sub` is
             # refused by design. The change belongs in the template.
             steps.append(
                 f"{names} hostname(s) were found but not checked. Add \"resolve\" to the\n"
@@ -843,7 +827,7 @@ def next_steps(
         else:
             steps.append(
                 f"{names} hostname(s) were found but not checked. Resolve and probe them:\n"
-                f"    sh4q scan {target} {scope_flags}--resolve"
+                f"    sh4q scan {target} {scope_flags}--sub"
             )
     if names:
         steps.append(
@@ -999,12 +983,10 @@ def _main() -> None:
             args.js = "js" in selected
             args.js_bundles = "js-bundles" in selected
             args.katana = "katana" in selected
-            args.vhosts = "vhosts" in selected
-            args.directories = "directories" in selected
+            args.vhosts = template.vhosts_file if "vhosts" in selected else None
+            args.directories = template.directories_file if "directories" in selected else None
             args.hosts_file = template.hosts_file
-            args.vhosts_file = template.vhosts_file
-            args.directories_file = template.directories_file
-            if not args.quiet and args.progress == "human":
+            if args.progress == "human":
                 print(f"  TEMPLATE {template.name}")
                 print(f"  STAGES   {', '.join(template.stages) or 'native'}")
         if args.amass:
@@ -1014,15 +996,9 @@ def _main() -> None:
                 "-names' reads back, so this adapter observed nothing and reported an "
                 "empty stage. Use --sub for passive subdomain discovery."
             )
-        if args.vhosts_file and not args.vhosts:
-            parser.error("--vhosts-file requires --vhosts")
-        if args.vhosts_file and args.vhosts_from_scan:
-            parser.error("--vhosts-file and --vhosts-from-scan cannot be combined")
-        if args.vhosts_from_scan and not args.vhosts:
-            parser.error("--vhosts-from-scan requires --vhosts")
-        if args.directories_file and not args.directories:
-            parser.error("--directories-file requires --directories")
-        if not args.quiet and args.progress == "human":
+        if args.vhosts and args.vhosts_from_scan:
+            parser.error("--vhosts and --vhosts-from-scan cannot be combined")
+        if args.progress == "human":
             render_identity()
         web_profile = args.profile in {"web", "full"}
         full_profile = args.profile == "full"
@@ -1034,13 +1010,13 @@ def _main() -> None:
         plan = plan_scan(
             target=args.target,
             sub=args.sub or full_profile,
-            resolve=args.resolve or web_profile,
+            resolve=web_profile,
             httpx=args.httpx or full_profile,
             url_history=args.url_history or full_profile,
             js=args.js or web_profile,
             js_bundles=args.js_bundles or web_profile,
             katana=args.katana,
-            vhosts=args.vhosts,
+            vhosts=args.vhosts or args.vhosts_from_scan,
             directories=args.directories,
             dry_run=args.dry_run,
         )
@@ -1049,7 +1025,7 @@ def _main() -> None:
         if plan.missing_tools:
             print(render_missing_tools(plan.missing_tools))
             sys.exit(2)
-        if not args.quiet and args.progress == "human" and not args.dry_run:
+        if args.progress == "human" and not args.dry_run:
             print(render_scan_plan(plan))
         if args.dry_run:
             # Dry run: perform Gate 1, print the resolved scope, stage plan,
@@ -1062,7 +1038,7 @@ def _main() -> None:
                 })
             scope = ScopeEngine(config)
             decision = scope.authorize(args.target)
-            if not args.quiet:
+            if args.progress != "quiet":
                 print(render_dry_run(plan, decision))
             else:
                 print(f"  Gate 1: {'ALLOW' if decision.allowed else 'DENY'} ({decision.reason})")
@@ -1073,33 +1049,33 @@ def _main() -> None:
             def progress_callback(record):
                 print(json.dumps(record, sort_keys=True), file=sys.__stdout__, flush=True)
         try:
-            if args.quiet or args.progress == "jsonl":
+            if args.progress in ("quiet", "jsonl"):
                 with contextlib.redirect_stdout(io.StringIO()):
                     summary = asyncio.run(run_scan(
                         args.target, args.config,
                         include_subfinder=args.sub or full_profile,
-                        include_resolve=args.resolve or web_profile, hosts_file=args.hosts_file,
+                        include_resolve=web_profile, hosts_file=args.hosts_file,
                         include_httpx=args.httpx or full_profile,
                         include_url_history=args.url_history or full_profile,
                         include_javascript=args.js or web_profile,
                         include_javascript_bundles=args.js_bundles or web_profile,
-                        include_katana=args.katana, include_vhosts=args.vhosts,
-                        vhosts_file=args.vhosts_file, vhosts_scan_id=args.vhosts_from_scan,
-                        include_directories=args.directories, directories_file=args.directories_file,
+                        include_katana=args.katana, include_vhosts=bool(args.vhosts) or bool(args.vhosts_from_scan),
+                        vhosts_file=args.vhosts, vhosts_scan_id=args.vhosts_from_scan,
+                        include_directories=bool(args.directories), directories_file=args.directories,
                         progress_callback=progress_callback,
                     ))
             else:
                 summary = asyncio.run(run_scan(
                     args.target, args.config,
                     include_subfinder=args.sub or full_profile,
-                    include_resolve=args.resolve or web_profile, hosts_file=args.hosts_file,
+                    include_resolve=web_profile, hosts_file=args.hosts_file,
                     include_httpx=args.httpx or full_profile,
                     include_url_history=args.url_history or full_profile,
                     include_javascript=args.js or web_profile,
                     include_javascript_bundles=args.js_bundles or web_profile,
-                    include_katana=args.katana, include_vhosts=args.vhosts,
-                    vhosts_file=args.vhosts_file, vhosts_scan_id=args.vhosts_from_scan,
-                    include_directories=args.directories, directories_file=args.directories_file,
+                    include_katana=args.katana, include_vhosts=bool(args.vhosts) or bool(args.vhosts_from_scan),
+                    vhosts_file=args.vhosts, vhosts_scan_id=args.vhosts_from_scan,
+                    include_directories=bool(args.directories), directories_file=args.directories,
                 ))
         except KeyboardInterrupt:
             print()
@@ -1120,7 +1096,7 @@ def _main() -> None:
             render_summary(
                 summary,
                 resolved_stage_ran=bool(
-                    args.resolve or web_profile or args.sub or full_profile or args.hosts_file
+                    web_profile or args.sub or full_profile or args.hosts_file
                 ),
                 scope_flags=scope_flags,
                 template=args.template,
@@ -1292,7 +1268,7 @@ def _main() -> None:
                 if c.resolved or c.unresolved:
                     print(f"    {muted('beyond the bound')}         {c.unchecked}")
                 else:
-                    print(f"    {muted('not checked')}              {c.unchecked}   {note('(run with --resolve)')}")
+                    print(f"    {muted('not checked')}              {c.unchecked}   {note('(run with --sub)')}")
             if c.unchecked and (c.resolved or c.unresolved):
                 print()
                 print(note(resolution_bound_note(c.unchecked, c.resolved, c.unresolved)))

@@ -12,13 +12,11 @@ sh4q scan example.com
 
 The default scan runs native DNS, HTTP, and certificate-transparency discovery.
 
-Progress output is detailed by default. Use `-q` for scripts or scheduled jobs
-when only the final scan summary is needed; `-v` explicitly selects the
-detailed stream.
+Progress output is detailed by default. Use `--progress quiet` for scripts or
+scheduled jobs when only the final scan summary is needed.
 
 ```bash
-sh4q scan example.com -q
-sh4q scan example.com -v
+sh4q scan example.com --progress quiet
 ```
 
 For automation, emit one JSON object per lifecycle update:
@@ -33,21 +31,24 @@ remain available through the database and normal result commands.
 
 Directory/content discovery is not enabled by any profile. It is available as
 a separately bounded, operator-supplied wordlist stage and requires explicit
-opt-in with `--directories --directories-file`.
+opt-in with `--directories <wordlist-file>`.
 
 Certificate transparency runs by default and often returns the largest set of
 names a scan finds, but those names are only names. Resolving them and probing
 the ones that answer is a large traffic increase, so it is opt-in:
 
 ```bash
-sh4q scan example.com --resolve
+sh4q scan example.com --sub
 ```
 
-If the first scan used `--config`, repeat it on the follow-up. Without it the
-second run falls back to a target-only scope on ports 80/443, which for a
-private-address lab scope refuses every address the first run resolved. The
-command printed under **Next** at the end of a scan already carries whichever
-scope selector that run used, so running it as printed is safest.
+`--sub` runs Subfinder and then resolves and probes the discovered names. To
+resolve names found by certificate transparency without Subfinder, use a
+template that lists only the `resolve` stage. If the first scan used
+`--config`, repeat it on the follow-up. Without it the second run falls back
+to a target-only scope on ports 80/443, which for a private-address lab scope
+refuses every address the first run resolved. The command printed under
+**Next** at the end of a scan already carries whichever scope selector that
+run used, so running it as printed is safest.
 
 A list you already hold -- from a prior scan, a client inventory, or a
 certificate dump -- can be checked the same way:
@@ -61,12 +62,12 @@ trailing dots, and `#` comments are all accepted and normalised; at most 500
 names are allowed and an oversized file is refused rather than truncated.
 Every name is authorised before it is contacted, so a list may safely contain
 out-of-scope entries -- they are refused at Gate 2 and recorded. Supplying a
-list enables resolution on its own; `--resolve` is not also required.
+list enables resolution on its own.
 
-`--resolve` takes the subdomain names found during the scan, from certificate
+`--sub` takes the subdomain names found during the scan, from certificate
 transparency or Subfinder, resolves up to 500 of them, and probes up to 200
-that answer. `--sub` implies it. Both stages draw on the same shared request
-budget, so a large name list may exhaust it; the refusals are recorded.
+that answer. Both stages draw on the same shared request budget, so a large
+name list may exhaust it; the refusals are recorded.
 
 Profiles enable tested passive bundles:
 
@@ -98,7 +99,7 @@ active:
 
 ```bash
 sh4q scan example.com --katana
-sh4q scan example.com -vh --vhosts-file candidates.txt
+sh4q scan example.com --vhosts candidates.txt
 ```
 
 Virtual-host and directory discovery both probe at most one request per second,
@@ -106,12 +107,12 @@ are capped at 500 and 200 candidates respectively, and draw on the same
 `rate_limit.budget` as every other stage. Exhausting that budget stops further
 probes and records the refusal rather than failing the scan.
 
-Virtual-host discovery requires either `--vhosts-file` or
-`--vhosts-from-scan SCAN_ID`. A prior scan can provide bounded domain
-candidates:
+Virtual-host discovery requires `--vhosts <candidates-file>` or
+`--vhosts-from-scan SCAN_ID` (which implies the stage). A prior scan can
+provide bounded domain candidates:
 
 ```bash
-sh4q scan example.com -vh --vhosts-from-scan SCAN_ID
+sh4q scan example.com --vhosts-from-scan SCAN_ID
 ```
 
 ## Scan Templates
@@ -604,7 +605,7 @@ sh4q results --latest --target example.com --names
   Hostnames                  908
     resolved                 172
     did not resolve          329
-    not checked              407   (run with --resolve)
+    not checked              407   (run with --sub)
 
   Service-prefix names       524 (58% of the total)
     of those, resolved       0
@@ -613,7 +614,7 @@ sh4q results --latest --target example.com --names
 A prefix is a hint, not a verdict -- an organisation may genuinely run
 `mail.example.com`, and a service-prefix name that resolves is counted as
 resolved rather than dismissed. The figure that settles it is how many of them
-answered, which requires `--resolve` or `--hosts-file`; names nothing tried are
+answered, which requires `--sub` or `--hosts-file`; names nothing tried are
 reported as not checked rather than as failures.
 
 ### Response attributes

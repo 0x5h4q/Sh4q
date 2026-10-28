@@ -49,7 +49,7 @@ Certificate transparency returns names, not verified hosts. Resolve them and
 probe the ones that answer:
 
 ```bash
-sh4q scan your-domain.example --resolve
+sh4q scan your-domain.example --sub
 ```
 
 Then see what those names actually were:
@@ -129,18 +129,17 @@ it requires the optional external tools used by those stages. Experimental
 Passive subdomain discovery is not included; request it explicitly with `--sub`.
 
 Virtual-host discovery is a separate active opt-in. Supply a reviewed
-candidate file and both flags; candidates are bounded and scope-checked before
-any request:
+candidate file:
 
 ```bash
-sh4q scan your-domain.example --vhosts --vhosts-file candidates.txt
+sh4q scan your-domain.example --vhosts candidates.txt
 ```
 
-With `--profile full`, `--vhosts` can instead use names discovered earlier in
-that same scan; no candidate file or second scan is required:
+With `--profile full`, `--vhosts-from-scan` can instead use names discovered
+earlier in that same scan; no candidate file or second scan is required:
 
 ```bash
-sh4q scan your-domain.example --profile full --vhosts
+sh4q scan your-domain.example --profile full --vhosts-from-scan <earlier-scan-id>
 ```
 
 To explicitly reuse domain assets from an earlier scan, provide its scan ID:

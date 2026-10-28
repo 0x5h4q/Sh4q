@@ -117,7 +117,7 @@ useful or useless when it is not. Nothing stops you scanning
   outright, reporting the apex it would accept.
 - `--sub` has the same shape: Subfinder enumerates beneath the name it is
   given.
-- `--resolve` then has little to resolve, since it consumes what those stages
+- `--sub` then has little to resolve, since it consumes what those stages
   produced.
 - What still works normally: DNS, HTTP probing, technology observation,
   JavaScript extraction, `--url-history`, and the virtual-host and directory

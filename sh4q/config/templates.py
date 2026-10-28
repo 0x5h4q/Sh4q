@@ -27,7 +27,6 @@ TEMPLATE_OWNED_OPTIONS = (
     ("--config", "config"),
     ("--profile", "profile"),
     ("--sub", "sub"),
-    ("--resolve", "resolve"),
     ("--httpx", "httpx"),
     ("--url-history", "url_history"),
     ("--js", "js"),
@@ -35,10 +34,8 @@ TEMPLATE_OWNED_OPTIONS = (
     ("--katana", "katana"),
     ("--vhosts", "vhosts"),
     ("--hosts-file", "hosts_file"),
-    ("--vhosts-file", "vhosts_file"),
     ("--vhosts-from-scan", "vhosts_from_scan"),
     ("--directories", "directories"),
-    ("--directories-file", "directories_file"),
 )
 
 

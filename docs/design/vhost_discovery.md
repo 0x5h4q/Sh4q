@@ -12,7 +12,7 @@ server returned an HTTP response for it.
 
 The first version must not perform implicit dictionary generation or broad
 Internet scanning. It should accept an operator-supplied candidate file (for
-example, `--vhosts-file`) and require an explicit `--vhosts` opt-in. A later
+example, `--vhosts candidates.txt`) and require an explicit `--vhosts` opt-in. A later
 proposal may permit candidates derived from scan-owned passive names, but that
 must remain a separate policy decision.
 

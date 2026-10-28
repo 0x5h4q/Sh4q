@@ -50,7 +50,7 @@ def test_plan_scan_with_sub_flag():
 
 
 def test_plan_scan_with_resolve_flag():
-    """--resolve adds discovered-dns + discovered-http but not subfinder."""
+    """resolve stage adds discovered-dns + discovered-http but not subfinder."""
     plan = plan_scan(target="example.com", resolve=True)
     names = [s.name for s in plan.stages]
     assert "discovered-dns" in names

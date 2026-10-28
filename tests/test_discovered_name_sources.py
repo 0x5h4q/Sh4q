@@ -51,13 +51,8 @@ plugin.accept_discoveries([subdomain(f"h{i}.example.com") for i in range(50)], "
 assert len(plugin._names) == 3, plugin._names
 
 
-# --- the flag exists, and the default scan is unchanged -------------------
-parser = build_parser()
-assert parser.parse_args(["scan", "example.com"]).resolve is False, (
-    "enrichment must stay opt-in: a default scan may not start resolving every CT name"
-)
-assert parser.parse_args(["scan", "example.com", "--resolve"]).resolve is True
-
+# --- run_scan wires the resolve stage independently of Subfinder -------
+# A default scan does not enrich; resolve stays opt-in.
 assert "include_resolve" in inspect.signature(run_scan).parameters
 
 
@@ -104,7 +99,7 @@ async def main() -> None:
     assert "discovered-dns" in resolved, resolved
     assert "discovered-http" in resolved, resolved
     assert "subfinder" not in resolved, (
-        "--resolve must not require Subfinder; that coupling was the defect"
+        "resolution must not require Subfinder; stages are independent"
     )
 
     print("discovered name sources test passed")

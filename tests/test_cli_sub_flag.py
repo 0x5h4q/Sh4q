@@ -30,19 +30,12 @@ for kind in ("style_url", "page_url", "xhr_endpoint"):
 default_args = parser.parse_args(["scan", "example.com"])
 assert default_args.sub is False
 assert default_args.js is False
-directory_args = parser.parse_args(["scan", "example.com", "--directories", "--directories-file", "paths.txt"])
-assert directory_args.directories is True
-assert directory_args.directories_file == "paths.txt"
-quiet_args = parser.parse_args(["scan", "example.com", "-q"])
-assert quiet_args.quiet is True and quiet_args.verbose is False
-verbose_args = parser.parse_args(["scan", "example.com", "-v"])
-assert verbose_args.verbose is True and verbose_args.quiet is False
+directory_args = parser.parse_args(["scan", "example.com", "--directories", "paths.txt"])
+assert directory_args.directories == "paths.txt"
+quiet_args = parser.parse_args(["scan", "example.com", "--progress", "quiet"])
+assert quiet_args.progress == "quiet"
+default_args = parser.parse_args(["scan", "example.com"])
+assert default_args.progress == "human"
 jsonl_args = parser.parse_args(["scan", "example.com", "--progress", "jsonl"])
 assert jsonl_args.progress == "jsonl"
-try:
-    parser.parse_args(["scan", "example.com", "-q", "-v"])
-except SystemExit:
-    pass
-else:
-    raise AssertionError("quiet and verbose should be mutually exclusive")
 print("CLI --sub flag test passed")

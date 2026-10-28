@@ -141,14 +141,14 @@ async def run_scan(
         )
     if include_vhosts:
         if vhosts_file and vhosts_scan_id:
-            raise AdapterExecutionError("--vhosts-file and --vhosts-from-scan cannot be combined")
+            raise AdapterExecutionError("--vhosts and --vhosts-from-scan cannot be combined")
         if vhosts_file:
             candidate_path = Path(vhosts_file).expanduser()
             if not candidate_path.is_file():
                 raise AdapterExecutionError(f"vhost candidate file not found: {candidate_path}")
             vhosts_file = str(candidate_path)
     if include_directories and not directories_file:
-        raise AdapterExecutionError("--directories requires --directories-file")
+        raise AdapterExecutionError("--directories requires a wordlist file")
     supplied_hosts: tuple[str, ...] = ()
     if hosts_file:
         try:

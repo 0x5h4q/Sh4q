@@ -196,16 +196,14 @@ by the `web` or `full` profiles.
 For bounded virtual-host discovery, provide an explicit candidate file:
 
 ```bash
-sh4q scan company.example --vhosts --vhosts-file ./vhosts.txt
+sh4q scan company.example --vhosts ./vhosts.txt
 ```
 
 Directory/content discovery is also explicit and requires an operator-supplied
 relative-path wordlist:
 
 ```bash
-sh4q scan company.example \
-  --directories \
-  --directories-file ./directories.txt
+sh4q scan company.example --directories ./directories.txt
 ```
 
 Both stages enforce scope, request limits, evidence retention, and scan-owned
@@ -219,16 +217,16 @@ not-found response. Those are observations for an operator to judge, not
 findings. See
 [Reading Observations](docs/operator_reference.md#reading-observations).
 
-For scripts and scheduled jobs, select the output mode explicitly:
+For scripts and scheduled jobs, select quiet output:
 
 ```bash
-sh4q scan company.example --quiet
+sh4q scan company.example --progress quiet
 sh4q scan company.example --progress jsonl
 ```
 
-`--quiet` prints the final summary only. `--progress jsonl` emits structured
-lifecycle records for stage attempts, retries, timeouts, errors, completion,
-and the final scan result.
+`--progress quiet` prints the final summary only. `--progress jsonl` emits
+structured lifecycle records for stage attempts, retries, timeouts, errors,
+completion, and the final scan result.
 
 For common combinations, use a scan profile:
 
@@ -262,11 +260,11 @@ Templates declare `schema_version`, a name, an optional configuration file,
 and explicit stages. Sh4q prints the selected template and stages before the
 scan starts. A template cannot be combined with `--profile` or `--config`.
 
-Certificate transparency finds names; `--resolve` turns them into verified
-assets by resolving them and probing the ones that answer:
+Certificate transparency finds names; `--sub` turns them into verified assets
+by resolving them and probing the ones that answer:
 
 ```bash
-sh4q scan company.example --resolve
+sh4q scan company.example --sub
 ```
 
 Check a list of hosts you already hold, from a prior scan or a client

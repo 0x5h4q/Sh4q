@@ -30,8 +30,8 @@ for title, group in groups.items():
 
 # Every stage flag belongs to a group, and to the right one. A stage that
 # generates traffic must not be listed among the passive ones.
-PASSIVE = {"--sub", "--resolve", "--hosts-file", "--httpx", "--url-history", "--js", "--js-bundles"}
-ACTIVE = {"--katana", "--vhosts", "--vhosts-file", "--vhosts-from-scan", "--directories", "--directories-file"}
+PASSIVE = {"--sub", "--hosts-file", "--httpx", "--url-history", "--js", "--js-bundles"}
+ACTIVE = {"--katana", "--vhosts", "--vhosts-from-scan", "--directories"}
 for flag in PASSIVE:
     assert placed.get(flag) == "passive stages", f"{flag} -> {placed.get(flag)}"
 for flag in ACTIVE:
@@ -39,8 +39,7 @@ for flag in ACTIVE:
 for flag in ("--config", "--template", "--profile"):
     assert placed.get(flag) == "scope and configuration", f"{flag} -> {placed.get(flag)}"
 
-# Nothing may be stranded in the default bucket, which is how -q and --vhosts
-# escaped grouping the first time.
+# Nothing may be stranded in the default bucket.
 stranded = [
     option
     for action in scan._actions

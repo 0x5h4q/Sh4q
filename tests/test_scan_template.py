@@ -128,12 +128,13 @@ for flag, attribute in [
     ("--config", "config"), ("--profile", "profile"), ("--sub", "sub"),
     ("--httpx", "httpx"), ("--url-history", "url_history"),
     ("--js", "js"), ("--js-bundles", "js_bundles"), ("--katana", "katana"),
-    ("--vhosts", "vhosts"), ("--vhosts-file", "vhosts_file"),
-    ("--vhosts-from-scan", "vhosts_from_scan"), ("--directories", "directories"),
-    ("--directories-file", "directories_file"),
+    ("--vhosts", "vhosts"), ("--vhosts-from-scan", "vhosts_from_scan"),
+    ("--directories", "directories"),
 ]:
     value = [] if attribute in {"sub", "httpx", "url_history", "js", "js_bundles",
-                                "katana", "vhosts", "directories"} else ["web" if flag == "--profile" else "x"]
+                                "katana"} else (["/tmp/sh4q_template_test/candidates.txt"]
+                                if attribute in {"vhosts", "directories"}
+                                else ["web" if flag == "--profile" else "x"])
     parsed = parser.parse_args(["scan", "example.com", "--template", str(template_path), flag, *value])
     assert getattr(parsed, attribute), f"{flag} did not set {attribute}"
     assert conflicting_template_options(parsed) == [flag], (

@@ -32,7 +32,7 @@ def joined(steps) -> str:
 unchecked = joined(next_steps(summary(ct_names=907, discoveries=908, http_endpoints=1),
                               resolved_stage_ran=False))
 assert "907 hostname(s) were found but not checked" in unchecked, unchecked
-assert "sh4q scan example.com --resolve" in unchecked, unchecked
+assert "sh4q scan example.com --sub" in unchecked, unchecked
 
 # Once they have been checked, the suggestion must not persist.
 checked = joined(next_steps(summary(ct_names=907, discoveries=908, http_endpoints=1),
@@ -87,11 +87,11 @@ scoped = joined(next_steps(
     resolved_stage_ran=False,
     scope_flags="--config local/lab/scope.yaml ",
 ))
-assert "sh4q scan example.com --config local/lab/scope.yaml --resolve" in scoped, scoped
+assert "sh4q scan example.com --config local/lab/scope.yaml --sub" in scoped, scoped
 
 # No config was passed, so none may be invented.
 unscoped = joined(next_steps(summary(ct_names=16, discoveries=18), resolved_stage_ran=False))
-assert "sh4q scan example.com --resolve" in unscoped, unscoped
+assert "sh4q scan example.com --sub" in unscoped, unscoped
 assert "--config" not in unscoped, unscoped
 
 # A template owns stage selection, so the parser refuses `--template X
@@ -134,7 +134,7 @@ nothing_tried = NameComposition(
     auto_issued=0, auto_issued_resolved=0, label_counts=(),
 )
 assert nothing_tried.resolved == 0 and nothing_tried.unresolved == 0, (
-    "with nothing attempted, suggesting --resolve is the correct advice"
+    "with nothing attempted, suggesting --sub is the correct advice"
 )
 
 bound_limited = NameComposition(
@@ -142,7 +142,7 @@ bound_limited = NameComposition(
     auto_issued=524, auto_issued_resolved=0, label_counts=(("www", 133),),
 )
 assert bound_limited.resolved + bound_limited.unresolved > 0, (
-    "resolution ran, so the remainder is past the bound and --resolve is "
+    "resolution ran, so the remainder is past the bound and --sub is "
     "advice the operator has already taken"
 )
 assert bound_limited.resolved + bound_limited.unresolved + bound_limited.unchecked == bound_limited.total

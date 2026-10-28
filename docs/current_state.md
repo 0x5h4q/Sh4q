@@ -77,9 +77,9 @@ create materially more traffic:
 | `--vhosts` | Virtual-host probing | Active-low, maximum 500 candidates |
 | `--directories` | Directory/path probing | Active-low, supplied file and request budget |
 
-Virtual-host candidates can come from `--vhosts-file`,
+Virtual-host candidates can come from `--vhosts <file>`,
 `--vhosts-from-scan`, or discoveries made earlier in the same scan. Directory
-discovery always requires `--directories-file`.
+discovery always requires `--directories <file>`.
 
 ## Configuration and Scope
 
@@ -156,10 +156,10 @@ Stable current capabilities:
 - durable events, evidence, scan ownership, metrics, and SQLite migrations;
 - Subfinder, Waybackurls, HTTPX, JavaScript extraction, and bundle inspection;
 - terminal results, scan overview, JSON/CSV/HTML export, redaction, and diff;
-- quiet, verbose, and JSONL progress modes;
+- quiet and JSONL progress modes (via `--progress`);
 - versioned configuration schema and named scan templates;
 - every authorized port probed, not only the well-known pair;
-- resolution and probing of discovered names (`--resolve`) and of an
+- resolution and probing of discovered names (`--sub`) and of an
   operator-supplied host list (`--hosts-file`);
 - hostname composition and response-attribute reporting (`results --names`,
   `results --response-attributes`);
