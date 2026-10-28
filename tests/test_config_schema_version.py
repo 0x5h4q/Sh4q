@@ -48,4 +48,12 @@ else:
     raise AssertionError("non-mapping config should be rejected")
 
 assert Sh4qConfig().schema_version == 1
+
+# `logging` was removed from the schema because nothing ever read it. A file
+# that still carries the old block must keep loading, with the block ignored.
+assert "logging" not in Sh4qConfig.model_fields
+retired_logging = root / "retired-logging.yaml"
+write(retired_logging, "schema_version: 1\nlogging:\n  level: DEBUG\n  structured: false\n")
+assert load_config(retired_logging).schema_version == 1
+
 print("config schema version test passed")

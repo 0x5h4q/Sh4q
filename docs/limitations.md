@@ -173,11 +173,6 @@ useful or useless when it is not. Nothing stops you scanning
 
 ## Configuration
 
-- `logging.level` and `logging.structured` are accepted by the configuration
-  schema and **never read**. Sh4q prints directly and imports no logging
-  module, so setting them changes nothing. They are listed here rather than
-  quietly tolerated, because a setting that validates and does nothing is
-  worse than one that errors.
 - `config/default.yaml` is not a general default. It is a localhost-only lab
   scope with `allow_private_addresses: true`, and passing it while scanning a
   public target produces a Gate 1 denial. Use `config/example-scope.yaml` as a

@@ -169,6 +169,12 @@ Use `--config path.yaml` to define scope, ports, rate limits, timeouts, output,
 and adapter bounds. Without a config file, the target and its subdomains are
 allowed on ports 80 and 443.
 
+`logging` is not a configuration key. Earlier releases accepted a
+`logging.level` and `logging.structured` block that nothing read; the schema no
+longer defines it, and a file that still contains a `logging` block loads with
+that block ignored. Sh4q prints directly and imports no logging module, so there
+is no log level to set.
+
 `scope.ports` does two things: it authorizes destinations, and it decides which
 origins the HTTP stage probes. Every authorized port is probed. A port with an
 unambiguous scheme uses it -- 80 and 8080 over HTTP, 443 and 8443 over HTTPS --
