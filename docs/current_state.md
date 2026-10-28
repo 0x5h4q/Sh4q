@@ -263,6 +263,12 @@ The rest of the working order is:
    invariant; nothing testable against a fake; and a schema change ripples into
    12 files. → v1.6.0.
 
+**Recorded but not on the near-term order:** Challenge-Aware Response
+Classification (see `docs/v1_roadmap.md`). It is deliberately not scheduled for
+v1.5.0 or v1.6.0; its authorization and evidence requirements need design work
+before it is considered. Core sh4q remains scope-controlled discovery,
+observation, persistence, and reporting — no silent challenge bypass.
+
 On Platform v2: `architecture_overview.md` words PostgreSQL as being for
 "larger or shared deployments", and only *shared* holds. Data volume is not a
 driver — the largest database here holds 8,658 evidence rows, which SQLite does

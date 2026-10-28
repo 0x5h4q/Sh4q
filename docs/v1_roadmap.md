@@ -110,6 +110,33 @@ Only after the local workflow foundation is stable:
 Platform v2 is a separate product milestone, not an excuse to weaken the local
 CLI's safety and evidence invariants.
 
+## Future Capability: Challenge-Aware Response Classification (design note)
+
+This is **not** on the current core roadmap. It is recorded here so the idea is
+not lost, and it should be revisited only after the execution-identity and
+read-seam milestones are complete.
+
+**Name:** Challenge-Aware Response Classification — not `cloudflare-skip` or any
+automatic bypass flag.
+
+**First version would:**
+- Identify likely WAF/challenge responses and distinguish them from ordinary
+  application denials;
+- Preserve the evidence and confidence behind each classification;
+- Never silently circumvention a 403 as an automatic fallback.
+
+**If owner-authorized browser access is ever added:**
+- It must have a distinct execution identity and authorization record;
+- Its results must not be confused with unauthenticated observations.
+
+**Boundaries:**
+- Core sh4q remains scope-controlled discovery, observation, persistence, and
+  reporting;
+- Challenge-aware access is outside the current roadmap until its authorization
+  and evidence requirements are designed properly;
+- Sh4q stays trustworthy while leaving room for a more capable, carefully
+  governed reconnaissance workflow later.
+
 ## Ongoing Operations
 
 - Restore GitHub Actions when the account/billing issue is resolved.
