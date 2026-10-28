@@ -184,7 +184,7 @@ def test_render_dry_run_allow():
     plan = plan_scan(target="example.com", dry_run=True)
     output = render_dry_run(plan, decision)
     assert "SH4Q DRY RUN" in output
-    assert "Gate 1   ALLOW" in output
+    assert "ALLOW" in output
     assert "example.com" in output
     assert "No network requests were made" in output
 

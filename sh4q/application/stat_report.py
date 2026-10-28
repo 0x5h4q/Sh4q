@@ -15,6 +15,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from sh4q.application.disclosure import planned_disclosures
+from sh4q.cli.branding import (
+    accent,
+    figure,
+    muted,
+    note,
+    refusal,
+    status_line,
+)
 from sh4q.config.schema import (
     DEFAULT_CT_SOURCES,
     EnrichmentConfig,
@@ -418,11 +426,28 @@ def plan_scan(
 # Rendering
 # ---------------------------------------------------------------------------
 
-_RISK_STYLE = {
-    "passive": "passive",
-    "active-low": "active-low",
-    "external-controlled": "external",
+# One kaomoji per section header — minimal, never on every row.
+_SECTION = {
+    "dry_run": "ʕ – ㉨ – ʔ",
+    "scope": "┐(･_･)┌",
+    "plan": "(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧",
+    "disclosures": "(づ｡◕‿‿◕｡)づ",
+    "done": "(;´༎ຶД༎ຶ`)",
 }
+
+# Risk level -> branding status used for colour-coding table rows.
+_RISK_STYLE = {
+    "passive": "ok",
+    "active-low": "muted",
+    "external": "error",
+}
+
+from sh4q.cli.branding import (
+    accent,
+    figure,
+    refusal,
+    status_line,
+)
 
 
 def _risk_label(plan: StagePlan) -> str:
@@ -432,6 +457,22 @@ def _risk_label(plan: StagePlan) -> str:
     if plan.required_tool is not None:
         return "external"
     return "active-low"
+
+
+def _risk_row(plan: StagePlan, name_w: int, risk_w: int, tool_w: int) -> str:
+    """One table row, colour-coded by risk level."""
+    tool = plan.required_tool or "-"
+    path = "yes" if plan.tool_on_path else "no"
+    if plan.required_tool is not None and not plan.tool_on_path:
+        path = "MISSING"
+    status = _RISK_STYLE[_risk_label(plan)]
+    return status_line(
+        f"  {plan.name:<{name_w}}  "
+        f"{_risk_label(plan):<{risk_w}}  "
+        f"{tool:<{tool_w}}  "
+        f"{path:<4}  {plan.bound}",
+        status,
+    )
 
 
 def render_stage_table(plans: tuple[StagePlan, ...], narrow: bool = False) -> str:
@@ -450,7 +491,7 @@ def render_stage_table(plans: tuple[StagePlan, ...], narrow: bool = False) -> st
         f"{'TOOL':<{tool_w}}  "
         f"{'PATH':<4}  BOUND"
     )
-    lines.append(header)
+    lines.append(accent(header))
     lines.append(
         f"  {'-' * name_w}  "
         f"{'-' * risk_w}  "
@@ -458,16 +499,7 @@ def render_stage_table(plans: tuple[StagePlan, ...], narrow: bool = False) -> st
         f"{'-' * 4}  {'-' * 40}"
     )
     for p in plans:
-        tool = p.required_tool or "-"
-        path = "yes" if p.tool_on_path else "no"
-        if p.required_tool is not None and not p.tool_on_path:
-            path = "MISSING"
-        lines.append(
-            f"  {p.name:<{name_w}}  "
-            f"{_risk_label(p):<{risk_w}}  "
-            f"{tool:<{tool_w}}  "
-            f"{path:<4}  {p.bound}"
-        )
+        lines.append(_risk_row(p, name_w, risk_w, tool_w))
     return "\n".join(lines)
 
 
@@ -479,7 +511,9 @@ def render_missing_tools(missing_tools: tuple[str, ...]) -> str:
     if not missing_tools:
         return ""
     lines = [
-        "Scan cannot start because requested optional tools are missing.",
+        refusal(
+            "Scan cannot start because requested optional tools are missing."
+        ),
         "",
         "Missing:",
     ]
@@ -496,33 +530,37 @@ def render_missing_tools(missing_tools: tuple[str, ...]) -> str:
 def render_disclosures(disclosures: tuple) -> str:
     """Render planned third-party disclosures as a string."""
     if not disclosures:
-        return "  No third parties will be contacted."
+        return f"  {_SECTION['disclosures']} No third parties will be contacted."
 
     services = list(dict.fromkeys(d.service for d in disclosures))
-    lines = [f"  {len(services)} third part(ies) will learn this target:"]
+    lines = [
+        f"  {_SECTION['disclosures']} {len(services)} third part(ies) will learn this target:",
+    ]
     for service in services:
-        lines.append(f"    {service}")
+        lines.append(f"    • {service}")
     return "\n".join(lines)
 
 
 def render_scan_plan(plan: ScanPlan, narrow: bool = False) -> str:
     """Render the complete scan plan (stages + disclosures) as a string."""
     lines: list[str] = []
-    lines.append("\n  SH4Q SCAN PLAN")
+    lines.append(f"\n  {_SECTION['plan']} SH4Q SCAN PLAN")
     lines.append("  ==============")
     lines.append(f"  Target   {plan.target}")
-    lines.append(f"  Stages   {len(plan.stages)} stage(s) will run")
+    lines.append(f"  Stages   {figure(str(len(plan.stages)))} stage(s) will run")
     lines.append("")
     lines.append(render_stage_table(plan.stages, narrow=narrow))
     lines.append("")
     lines.append(render_disclosures(plan.planned_disclosures))
     lines.append("")
     lines.append(
-        f"  Request budget: {plan.request_budget} "
+        f"  Request budget: {figure(str(plan.request_budget))} "
         f"request(s) shared across all stages"
     )
     if plan.dry_run:
-        lines.append("  Dry run: no network requests will be made.")
+        lines.append(
+            status_line("  Dry run: no network requests will be made.", "ok")
+        )
     else:
         if plan.missing_tools:
             lines.append("")
@@ -533,25 +571,34 @@ def render_scan_plan(plan: ScanPlan, narrow: bool = False) -> str:
 def render_dry_run(plan: ScanPlan, gate_decision, narrow: bool = False) -> str:
     """Render the complete dry-run output: Gate 1, scope, plan."""
     lines: list[str] = []
-    lines.append("\n  SH4Q DRY RUN")
+    lines.append(f"\n  {_SECTION['dry_run']} SH4Q DRY RUN")
     lines.append("  ============")
     lines.append(f"  Target   {plan.target}")
+    gate_status = "ALLOW" if gate_decision.allowed else "DENY"
+    gate_style = "ok" if gate_decision.allowed else "error"
     lines.append(
-        f"  Gate 1   {'ALLOW' if gate_decision.allowed else 'DENY'} "
-        f"({gate_decision.reason})"
+        f"  Gate 1   "
+        + status_line(f"{gate_status} ({gate_decision.reason})", gate_style)
     )
     if not gate_decision.allowed:
-        lines.append("  Dry run aborted: target not authorised.")
+        lines.append(
+            refusal("  Dry run aborted: target not authorised.")
+        )
         return "\n".join(lines)
 
     lines.append("")
-    lines.append("  SCOPE")
+    lines.append(f"  {_SECTION['scope']} SCOPE")
     lines.append("  -----")
-    lines.append(f"    Target   {plan.target}")
-    lines.append(f"    Ports    80, 443 (default narrow scope)")
+    lines.append(f"  Target   {plan.target}")
+    lines.append(f"  Ports    80, 443 (default narrow scope)")
     lines.append("")
 
     lines.append(render_scan_plan(plan, narrow=narrow))
     lines.append("")
-    lines.append("  Dry run complete. No network requests were made.")
+    lines.append(
+        status_line(
+            f"  {_SECTION['done']} Dry run complete. No network requests were made.",
+            "ok",
+        )
+    )
     return "\n".join(lines)
