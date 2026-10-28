@@ -28,10 +28,6 @@ output:
   directory: "./sh4q-output"
   format: "json"
 
-logging:
-  level: "INFO"
-  structured: true
-
 adapters:
   httpx:
     max_endpoints: 200

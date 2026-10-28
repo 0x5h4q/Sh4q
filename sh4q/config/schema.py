@@ -31,11 +31,6 @@ class OutputConfig(BaseModel):
     format: str = "json"   
 
 
-class LoggingConfig(BaseModel):
-    level: str = "INFO"
-    structured: bool = True   
-
-
 class HttpxAdapterConfig(BaseModel):
     max_endpoints: int = Field(default=200, ge=1, le=1000)
     timeout_seconds: float = Field(default=120.0, gt=0, le=600)
@@ -112,7 +107,6 @@ class Sh4qConfig(BaseModel):
     rate_limit: RateLimitConfig = Field(default_factory=RateLimitConfig)
     timeout: TimeoutConfig = Field(default_factory=TimeoutConfig)
     output: OutputConfig = Field(default_factory=OutputConfig)
-    logging: LoggingConfig = Field(default_factory=LoggingConfig)
     adapters: AdaptersConfig = Field(default_factory=AdaptersConfig)
     enrichment: EnrichmentConfig = Field(default_factory=EnrichmentConfig)
     certificate_transparency: CertificateTransparencyConfig = Field(
