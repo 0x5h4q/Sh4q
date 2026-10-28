@@ -12,8 +12,16 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from sh4q.application import run_scan
+from sh4q.application.stat_report import (
+    plan_scan,
+    render_dry_run,
+    render_missing_tools,
+    render_scan_plan,
+)
 from sh4q.adapters import AdapterExecutionError
+from sh4q.config import ConfigFileError, Sh4qConfig, conflicting_template_options, load_config, load_template
 from sh4q.events.event_log import DurableEventLog
+from sh4q.scope import ScopeEngine
 from sh4q.storage.scan_runs import count_scans, get_scan, latest_scan, list_scans, scan_asset_count
 from sh4q.application.detection import MINIMUM_OBSERVATIONS, summarize_detections
 from sh4q.application.disclosure import DECLARED, OBSERVED, summarize_disclosures
@@ -21,7 +29,6 @@ from sh4q.application.results import friendly_technology_source, list_assets, li
 from sh4q.application.exporter import ScanOwnershipUnavailableError, export_scan
 from sh4q.application.scan_report import build_scan_report
 from sh4q.application.diff import build_scan_diff, diff_document
-from sh4q.config import ConfigFileError, conflicting_template_options, load_template
 from sh4q.storage.db import SchemaVersionError, ensure_schema_version
 from sh4q.storage.errors import StorageError
 from sh4q.cli.branding import (
@@ -446,6 +453,12 @@ def build_parser() -> argparse.ArgumentParser:
     scan_setup.add_argument(
         "--template",
         help="Path to a versioned YAML scan template that selects stages and configuration.",
+    )
+    scan_setup.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Perform Gate 1 and print the resolved scope, stage list, bounds, and "
+        "planned disclosures without making any network request.",
     )
     scan_setup.add_argument(
         "--profile",
@@ -1013,6 +1026,48 @@ def _main() -> None:
             render_identity()
         web_profile = args.profile in {"web", "full"}
         full_profile = args.profile == "full"
+
+        # Resolve the stage set and build the pre-scan disclosure plan.
+        # This runs before Gate 1 so missing tools and the stage plan are
+        # visible before any network activity. Template and profile flags
+        # have already been folded into args.sub / args.httpx / etc. above.
+        plan = plan_scan(
+            target=args.target,
+            sub=args.sub or full_profile,
+            resolve=args.resolve or web_profile,
+            httpx=args.httpx or full_profile,
+            url_history=args.url_history or full_profile,
+            js=args.js or web_profile,
+            js_bundles=args.js_bundles or web_profile,
+            katana=args.katana,
+            vhosts=args.vhosts,
+            directories=args.directories,
+            dry_run=args.dry_run,
+        )
+        # A template or flag set requesting a missing external tool fails
+        # before Gate 1 with one combined message, not the first hit.
+        if plan.missing_tools:
+            print(render_missing_tools(plan.missing_tools))
+            sys.exit(2)
+        if not args.quiet and args.progress == "human" and not args.dry_run:
+            print(render_scan_plan(plan))
+        if args.dry_run:
+            # Dry run: perform Gate 1, print the resolved scope, stage plan,
+            # and planned disclosures, then exit without any network request.
+            if args.config:
+                config = load_config(args.config)
+            else:
+                config = Sh4qConfig(**{
+                    "scope": {"targets": [args.target], "ports": [80, 443]},
+                })
+            scope = ScopeEngine(config)
+            decision = scope.authorize(args.target)
+            if not args.quiet:
+                print(render_dry_run(plan, decision))
+            else:
+                print(f"  Gate 1: {'ALLOW' if decision.allowed else 'DENY'} ({decision.reason})")
+            sys.exit(0)
+
         progress_callback = None
         if args.progress == "jsonl":
             def progress_callback(record):

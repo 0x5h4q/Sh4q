@@ -163,6 +163,53 @@ request budgets, evidence retention, or provenance, and it cannot enable an
 active stage implicitly: `katana`, `vhosts`, and `directories` are only ever
 run when the template lists them by name.
 
+## Stage disclosure and dry-run
+
+Before every scan starts, Sh4q prints a disclosure table listing each stage
+that will run, its risk level (`passive`, `active-low`, or `external`), the
+external tool it requires (if any), whether that tool is on `PATH`, and the
+effective bound (timeout, max candidates, or request budget). Active-low and
+external-controlled stages are visually distinct from passive ones.
+
+```bash
+sh4q scan example.com --template config/example-template.yaml
+```
+
+If a selected stage requires an external tool that is not on `PATH`, Sh4q
+fails before Gate 1 with one combined message naming every missing tool and
+how to install them:
+
+```text
+Scan cannot start because requested optional tools are missing.
+
+Missing:
+  subfinder  required by a selected scan stage
+  katana     required by a selected scan stage
+
+Install:
+  go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
+  go install -v github.com/projectdiscovery/katana/cmd/katana@latest
+
+Run `sh4q doctor` to check all optional dependencies.
+```
+
+### Dry-run
+
+`--dry-run` performs Gate 1, prints the resolved scope, the stage disclosure
+table, the worst-case request budget, and the planned third-party disclosures,
+then exits without making a single network request. It is safe to show to a
+supervisor or client before touching any infrastructure:
+
+```bash
+sh4q scan example.com --dry-run
+```
+
+With `--config`, the dry run uses that configuration's scope and bounds:
+
+```bash
+sh4q scan example.com --config scope.yaml --dry-run
+```
+
 ## Configuration
 
 Use `--config path.yaml` to define scope, ports, rate limits, timeouts, output,

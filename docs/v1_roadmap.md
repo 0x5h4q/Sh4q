@@ -67,8 +67,11 @@ silent inclusion in a general profile.
 1. **Versioned configuration:** complete. New files declare
    `schema_version: 1`; incompatible versions fail before network activity.
 2. **Scan templates:** the recipe itself is complete and shipped in v1.3.0.
-   Remaining: disclose every enabled stage, its required dependency, its
-   active/passive classification, and its effective limit before execution.
+   Stage disclosure is complete: before every scan, Sh4q prints per-stage risk
+   level, required external tool, PATH status, and effective bound.
+   `--dry-run` performs Gate 1, prints the resolved scope, stage plan, request
+   budget, and planned third-party disclosures, then exits without a network
+   request.
 3. **Repeatable comparisons:** persist the effective configuration/template,
    selected stages, and relevant tool versions with each scan so result changes
    can be separated from execution-setting changes.

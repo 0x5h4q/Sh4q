@@ -98,6 +98,7 @@ OFFLINE_TESTS = (
     "test_vhost_request_accounting.py",
     "test_scope_manual.py",
     "test_scoped_http.py",
+    "test_stat_report.py",
     "test_sqlite_concurrency.py",
     "test_storage_hardening.py",
     "test_stage_timing.py",

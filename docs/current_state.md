@@ -244,8 +244,15 @@ helper, results/export/show skip malformed rows and report how many, and event
 recovery dead-letters an undecodable payload instead of retrying it forever.
 The rest of the working order is:
 
-1. **Template stage disclosure + dry-run** — one job, not two. Both answer
-   "what will this run do before it does it" (backlog 0.2 and 4.2).
+1. **Template stage disclosure + dry-run** — complete. `sh4q scan --dry-run`
+   performs Gate 1, prints the resolved scope, the ordered stage list with
+   per-stage risk level, required tool, PATH status, and effective bound, the
+   worst-case request budget, and planned third-party disclosures, then exits
+   without a network request. The same disclosure table prints before every
+   scan run. A template or flag set requesting a missing external tool fails
+   before Gate 1 with one combined message (backlog 0.2 and 4.2).
+   Implemented in `sh4q/application/stat_report.py` and wired into
+   `sh4q/cli/main.py` as `--dry-run`.
 2. **Execution identity** — roadmap step 3, and a genuine schema migration.
 3. **v1.5.0.**
 4. **Read seam** — 63 raw `.execute()` calls across 12 modules outside
