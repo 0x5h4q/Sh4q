@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 
 from sh4q.storage.scan_runs import ScanRun
-from sh4q.storage.db import open_sync_database
+from sh4q.storage.db import open_sync_database, row_identifier
+from sh4q.storage.errors import CorruptRecordError
+from sh4q.storage.json_fields import MALFORMED, decode_object
 
 
 @dataclass(frozen=True)
@@ -26,10 +27,12 @@ class ScanReport:
     stages: list[dict] = field(default_factory=list)
     external_adapter_metrics: dict = field(default_factory=dict)
     historical_urls: int = 0
+    skipped_records: int = 0
 
 
 def build_scan_report(database: str, run: ScanRun) -> ScanReport:
-    with open_sync_database(database) as db:
+    skipped: list[CorruptRecordError] = []
+    with open_sync_database(database, "build scan report") as db:
         asset_types = dict(db.execute(
             """SELECT n.type, COUNT(DISTINCT n.id)
             FROM scan_assets sa JOIN nodes n ON n.id = sa.asset_id
@@ -75,11 +78,19 @@ def build_scan_report(database: str, run: ScanRun) -> ScanReport:
         stages = []
         external_adapter_metrics = {}
         rows = db.execute(
-            "SELECT kind, content FROM evidence WHERE scan_run_id = ?",
+            f"SELECT {row_identifier(db, 'evidence')} AS record_id, kind, content "
+            "FROM evidence WHERE scan_run_id = ?",
             (run.id,),
         ).fetchall()
-        for kind, raw_content in rows:
-            content = json.loads(raw_content)
+        for record_id, kind, raw_content in rows:
+            content = decode_object(
+                raw_content,
+                field="content",
+                record_id=record_id,
+                skipped=skipped,
+            )
+            if content is MALFORMED:
+                continue
             if kind == "discovered_dns_error":
                 reason = content.get("reason") or (
                     "timeout" if "timed out" in content.get("error", "").lower() else "resolver_error"
@@ -118,4 +129,5 @@ def build_scan_report(database: str, run: ScanRun) -> ScanReport:
         stages=stages,
         external_adapter_metrics=external_adapter_metrics,
         historical_urls=historical_urls,
+        skipped_records=len(skipped),
     )

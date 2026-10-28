@@ -16,7 +16,7 @@ class ScanRun:
 
 
 def scan_asset_count(database: str, scan_id: str) -> int:
-    with open_sync_database(database) as db:
+    with open_sync_database(database, "count scan assets") as db:
         table = db.execute(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name='scan_assets'"
         ).fetchone()
@@ -31,7 +31,7 @@ def scan_asset_count(database: str, scan_id: str) -> int:
 def create_scan(database: str, target: str) -> ScanRun:
     started = datetime.now(timezone.utc).isoformat()
     run = ScanRun(uuid4().hex, target, started, None, "RUNNING")
-    with open_sync_database(database) as db:
+    with open_sync_database(database, "create scan run") as db:
         db.execute("CREATE TABLE IF NOT EXISTS scan_runs (id TEXT PRIMARY KEY, target TEXT NOT NULL, started_at TEXT NOT NULL, completed_at TEXT, status TEXT NOT NULL)")
         db.execute("INSERT INTO scan_runs VALUES (?, ?, ?, NULL, ?)", (run.id, run.target, run.started_at, run.status))
         db.commit()
@@ -39,7 +39,7 @@ def create_scan(database: str, target: str) -> ScanRun:
 
 
 def finish_scan(database: str, scan_id: str, status: str) -> None:
-    with open_sync_database(database) as db:
+    with open_sync_database(database, "finish scan run") as db:
         db.execute("UPDATE scan_runs SET completed_at = ?, status = ? WHERE id = ?", (datetime.now(timezone.utc).isoformat(), status, scan_id))
         db.commit()
 
@@ -55,7 +55,7 @@ def list_scans(database: str, limit: int | None = 50) -> list[ScanRun]:
 
     A requested limit is honoured as asked; this clamped to 500 silently.
     """
-    with open_sync_database(database) as db:
+    with open_sync_database(database, "list scan runs") as db:
         db.execute(_SCAN_RUNS_TABLE)
         query = "SELECT id, target, started_at, completed_at, status FROM scan_runs ORDER BY started_at DESC"
         if limit is None:
@@ -67,7 +67,7 @@ def list_scans(database: str, limit: int | None = 50) -> list[ScanRun]:
 
 def count_scans(database: str) -> int:
     """How many scan runs are recorded, whatever a listing chose to show."""
-    with open_sync_database(database) as db:
+    with open_sync_database(database, "count scan runs") as db:
         db.execute(_SCAN_RUNS_TABLE)
         return int(db.execute("SELECT COUNT(*) FROM scan_runs").fetchone()[0])
 
@@ -86,13 +86,13 @@ def latest_scan(
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
     query += " ORDER BY started_at DESC LIMIT 1"
-    with open_sync_database(database) as db:
+    with open_sync_database(database, "read latest scan") as db:
         row = db.execute(query, params).fetchone()
     return ScanRun(*row) if row else None
 
 
 def get_scan(database: str, scan_id: str) -> ScanRun | None:
-    with open_sync_database(database) as db:
+    with open_sync_database(database, "read scan") as db:
         row = db.execute(
             "SELECT id, target, started_at, completed_at, status FROM scan_runs WHERE id = ?",
             (scan_id,),

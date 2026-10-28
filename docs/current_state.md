@@ -237,25 +237,24 @@ existing `first_seen` / `last_seen` columns, not a schema migration, and it
 works retroactively on every scan already on disk. The dead `logging` config was
 also removed: `LoggingConfig` is gone from the schema, `config/default.yaml` no
 longer advertises it, and a file that still contains a `logging` block loads
-with that block ignored. The rest of the working order is:
+with that block ignored. Storage hardening is complete too: SQLite open and
+statement failures become `StorageError` with the database path and operation,
+the results/export/show/event-recovery reads decode stored JSON through one
+helper, results/export/show skip malformed rows and report how many, and event
+recovery dead-letters an undecodable payload instead of retrying it forever.
+The rest of the working order is:
 
-1. **Storage hardening** — 32 unguarded `json.loads` (11 in
-   `application/results.py`, 5 in `exporter.py`, the rest spread), and **zero**
-   `sqlite3` error handlers anywhere. There is no `StorageError` to wrap them
-   in: sh4q defines eight exception classes and none of them is for storage.
-   This is real debt, not a live hazard: every one of those `json.loads` reads
-   a row sh4q itself wrote.
-2. **Template stage disclosure + dry-run** — one job, not two. Both answer
+1. **Template stage disclosure + dry-run** — one job, not two. Both answer
    "what will this run do before it does it" (backlog 0.2 and 4.2).
-3. **Execution identity** — roadmap step 3, and a genuine schema migration.
-4. **v1.5.0.**
-5. **Read seam** — 62 raw `.execute()` calls across 12 modules outside
-   `storage/` (16 in `application/results.py`, 15 in `events/event_log.py`, 10
+2. **Execution identity** — roadmap step 3, and a genuine schema migration.
+3. **v1.5.0.**
+4. **Read seam** — 63 raw `.execute()` calls across 12 modules outside
+   `storage/` (16 in `application/results.py`, 16 in `events/event_log.py`, 10
    in `exporter.py`). `StorageRepository` covers only write methods. Worth
    doing on its own merits, not as PostgreSQL preparation: there is no single
    place enforcing that `limit=None` means every row, which *is* the reporting
-   invariant; no single place to add the storage wrapping from item 1; nothing
-   testable against a fake; and a schema change ripples into 12 files. → v1.6.0.
+   invariant; nothing testable against a fake; and a schema change ripples into
+   12 files. → v1.6.0.
 
 On Platform v2: `architecture_overview.md` words PostgreSQL as being for
 "larger or shared deployments", and only *shared* holds. Data volume is not a

@@ -7,7 +7,9 @@ from pathlib import Path
 
 from sh4q.storage.scan_runs import ScanRun
 from sh4q.application.results import list_technology_observations
-from sh4q.storage.db import node_timestamp_columns, open_sync_database
+from sh4q.storage.db import node_timestamp_columns, open_sync_database, row_identifier
+from sh4q.storage.errors import CorruptRecordError
+from sh4q.storage.json_fields import MALFORMED, decode_object
 from sh4q.application.html_report import render_html_report
 from sh4q.application.detection import summarize_detections
 from sh4q.application.redaction import Redactor
@@ -17,20 +19,37 @@ class ScanOwnershipUnavailableError(Exception):
     pass
 
 
-def _javascript_observations(db, scan_id: str) -> list[dict]:
+def _skipped_keys(skipped: list[CorruptRecordError]) -> tuple[str, ...]:
+    """Identify each bad row once, even when two read paths saw it."""
+    return tuple(
+        dict.fromkeys(str(item.record_id or item.field) for item in skipped)
+    )
+
+
+def _javascript_observations(
+    db, scan_id: str, *, skipped: list[CorruptRecordError] | None = None
+) -> list[dict]:
     columns = {row[1] for row in db.execute("PRAGMA table_info(evidence)").fetchall()}
     if not {"kind", "content", "captured_at"}.issubset(columns):
         return []
     rows = db.execute(
-        "SELECT kind, content, captured_at FROM evidence WHERE scan_run_id = ? "
+        f"SELECT {row_identifier(db, 'evidence')} AS record_id, kind, content, "
+        "captured_at FROM evidence WHERE scan_run_id = ? "
         "AND kind LIKE 'javascript_%' ORDER BY captured_at",
         (scan_id,),
     ).fetchall()
     from sh4q.application.triage import classify_javascript_reference
 
     observations = []
-    for kind, raw_content, captured_at in rows:
-        content = json.loads(raw_content)
+    for record_id, kind, raw_content, captured_at in rows:
+        content = decode_object(
+            raw_content,
+            field="content",
+            record_id=record_id,
+            skipped=skipped,
+        )
+        if content is MALFORMED:
+            continue
         value = content.get("value", "")
         source_endpoint = content.get("source_endpoint", "")
         observations.append(
@@ -48,7 +67,9 @@ def _javascript_observations(db, scan_id: str) -> list[dict]:
     return observations
 
 
-def _http_inventory(db, scan_id: str) -> list[dict]:
+def _http_inventory(
+    db, scan_id: str, *, skipped: list[CorruptRecordError] | None = None
+) -> list[dict]:
     endpoint_first_seen, endpoint_last_seen = node_timestamp_columns(db, "endpoint")
     endpoint_rows = db.execute(
         f"""SELECT DISTINCT domain.id, domain.value, endpoint.id, endpoint.value,
@@ -97,7 +118,14 @@ def _http_inventory(db, scan_id: str) -> list[dict]:
         technologies = []
         sources = {row[0] for row in source_rows if row[0]}
         for technology, raw_attributes, source in technology_rows:
-            attributes = json.loads(raw_attributes)
+            attributes = decode_object(
+                raw_attributes,
+                field="attributes",
+                record_id=technology,
+                skipped=skipped,
+            )
+            if attributes is MALFORMED:
+                continue
             technologies.append({
                 "name": technology,
                 "category": attributes.get("category", ""),
@@ -108,7 +136,14 @@ def _http_inventory(db, scan_id: str) -> list[dict]:
             })
             if source:
                 sources.add(source)
-        endpoint_attributes = json.loads(raw_endpoint_attributes)
+        endpoint_attributes = decode_object(
+            raw_endpoint_attributes,
+            field="attributes",
+            record_id=endpoint_id,
+            skipped=skipped,
+        )
+        if endpoint_attributes is MALFORMED:
+            continue
         inventory.append({
             "type": "http-inventory",
             "domain": domain,
@@ -144,6 +179,20 @@ class ExportResult:
     redaction_enabled: bool = False
     fields_considered: int = 0
     fields_redacted: int = 0
+    #: Stored JSON rows skipped because they could not be decoded. The export
+    #: is still useful; silently omitting the row would not be.
+    skipped_records: int = 0
+    skipped_examples: tuple[str, ...] = ()
+
+    @property
+    def skipped_summary(self) -> str:
+        if not self.skipped_records:
+            return ""
+        example = f" ({', '.join(self.skipped_examples)})" if self.skipped_examples else ""
+        return (
+            f"Skipped {self.skipped_records} malformed record(s) while reading "
+            f"this scan{example}."
+        )
 
     def __int__(self) -> int:
         return self.asset_count
@@ -182,6 +231,7 @@ def export_scan(
     redact: bool = False,
 ) -> ExportResult:
     redactor = Redactor(enabled=redact)
+    skipped: list[CorruptRecordError] = []
     if alive not in (None, "http", "dns"):
         raise ValueError(f"unsupported alive filter: {alive}")
     if alive and asset_type:
@@ -189,8 +239,12 @@ def export_scan(
     with open_sync_database(database) as db:
         n_first_seen, n_last_seen = node_timestamp_columns(db, "n")
         domain_first_seen, domain_last_seen = node_timestamp_columns(db, "domain")
-        inventory_assets = _http_inventory(db, run.id) if asset_type == "http-inventory" else None
-        javascript_observations = _javascript_observations(db, run.id)
+        inventory_assets = (
+            _http_inventory(db, run.id, skipped=skipped)
+            if asset_type == "http-inventory"
+            else None
+        )
+        javascript_observations = _javascript_observations(db, run.id, skipped=skipped)
         if alive in ("http", "dns"):
             relationship_type = "SERVES" if alive == "http" else "RESOLVES_TO"
             endpoint_type = "url" if alive == "http" else "ip"
@@ -244,7 +298,9 @@ def export_scan(
         # No cap: an export is the record handed to someone else, and a
         # silently shortened one is worse than none. Terminal listings cap
         # because they are read on screen; this is not.
-        observations = list_technology_observations(database, scan_id=run.id, limit=None)
+        observations = list_technology_observations(
+            database, scan_id=run.id, limit=None, skipped=skipped
+        )
         assets = [
             {
                 "type": "technology",
@@ -262,18 +318,38 @@ def export_scan(
             for item in observations
         ]
     else:
-        assets = [
-        {
-            "type": "historical-url" if row[0] == "url" and row[4] and not row[5] else row[0],
-            "value": row[1],
-            "attributes": json.loads(row[2]),
-            "sources": sorted((row[3] or "").split(",")),
-            "first_seen": row[6],
-            "last_seen": row[7],
-        }
-        | ({"endpoint": row[4], "endpoint_attributes": json.loads(row[5])} if alive in ("http", "dns") else {})
-        for row in rows
-        ]
+        assets = []
+        for row in rows:
+            attributes = decode_object(
+                row[2],
+                field="attributes",
+                record_id=row[1],
+                skipped=skipped,
+            )
+            if attributes is MALFORMED:
+                continue
+            asset = {
+                "type": "historical-url" if row[0] == "url" and row[4] and not row[5] else row[0],
+                "value": row[1],
+                "attributes": attributes,
+                "sources": sorted((row[3] or "").split(",")),
+                "first_seen": row[6],
+                "last_seen": row[7],
+            }
+            if alive in ("http", "dns"):
+                endpoint_attributes = decode_object(
+                    row[5],
+                    field="attributes",
+                    record_id=row[1],
+                    skipped=skipped,
+                )
+                if endpoint_attributes is MALFORMED:
+                    continue
+                asset |= {
+                    "endpoint": row[4],
+                    "endpoint_attributes": endpoint_attributes,
+                }
+            assets.append(asset)
 
     if format == "sigma":
         # The only format whose output is a directory: one rule per detectable
@@ -303,11 +379,15 @@ def export_scan(
             redaction_enabled=redactor.enabled,
             fields_considered=redactor.considered,
             fields_redacted=redactor.redacted,
+            skipped_records=len(_skipped_keys(skipped)),
+            skipped_examples=_skipped_keys(skipped)[:3],
         )
 
     if format == "html":
         output.write_text(
-            render_html_report(database, run, redactor=redactor), encoding="utf-8"
+            render_html_report(
+                database, run, redactor=redactor, skipped=skipped
+            ), encoding="utf-8"
         )
     elif format == "json":
         document = {
@@ -414,4 +494,6 @@ def export_scan(
         redaction_enabled=redactor.enabled,
         fields_considered=redactor.considered,
         fields_redacted=redactor.redacted,
+        skipped_records=len(_skipped_keys(skipped)),
+        skipped_examples=_skipped_keys(skipped)[:3],
     )

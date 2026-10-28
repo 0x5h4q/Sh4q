@@ -5,6 +5,7 @@ import aiosqlite
 
 from .models import Node, Relationship
 from .db import ensure_schema_version, open_database
+from .json_fields import decode_object
 
 
 class SQLiteStorage:
@@ -14,7 +15,7 @@ class SQLiteStorage:
     async def init(self) -> None:
         """Create tables if they don't exist. Call once at startup."""
         ensure_schema_version(self._db_path)
-        async with open_database(self._db_path) as db:
+        async with open_database(self._db_path, "create graph tables") as db:
             await db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS nodes (
@@ -54,7 +55,7 @@ class SQLiteStorage:
             await db.commit()
 
     async def save_node(self, node: Node) -> Node:
-        async with open_database(self._db_path) as db:
+        async with open_database(self._db_path, "save node") as db:
             await db.execute(
                 """
                 INSERT INTO nodes (id, type, value, attributes, first_seen, last_seen)
@@ -73,7 +74,7 @@ class SQLiteStorage:
     async def save_nodes_batch(self, nodes: list[Node]) -> None:
         if not nodes:
             return
-        async with open_database(self._db_path) as db:
+        async with open_database(self._db_path, "save nodes") as db:
             await db.executemany(
                 """INSERT INTO nodes (id, type, value, attributes, first_seen, last_seen)
                 VALUES (?, ?, ?, ?, ?, ?)
@@ -85,7 +86,7 @@ class SQLiteStorage:
             await db.commit()
 
     async def get_node(self, node_id: str) -> Node | None:
-        async with open_database(self._db_path) as db:
+        async with open_database(self._db_path, "read node") as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM nodes WHERE id = ?", (node_id,))
             row = await cursor.fetchone()
@@ -94,13 +95,13 @@ class SQLiteStorage:
             return Node(
                 type=row["type"],
                 value=row["value"],
-                attributes=json.loads(row["attributes"]),
+                attributes=decode_object(row["attributes"], field="attributes", record_id=row["id"]),
                 first_seen=row["first_seen"],
                 last_seen=row["last_seen"],
             )
 
     async def save_relationship(self, relationship: Relationship) -> Relationship:
-        async with open_database(self._db_path) as db:
+        async with open_database(self._db_path, "save relationship") as db:
             await db.execute(
                 "INSERT OR IGNORE INTO relationships "
                 "(id, from_id, to_id, type, attributes, created_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -113,7 +114,7 @@ class SQLiteStorage:
     async def save_relationships_batch(self, relationships: list[Relationship]) -> None:
         if not relationships:
             return
-        async with open_database(self._db_path) as db:
+        async with open_database(self._db_path, "save relationships") as db:
             await db.executemany(
                 "INSERT OR IGNORE INTO relationships (id, from_id, to_id, type, attributes, created_at) VALUES (?, ?, ?, ?, ?, ?)",
                 [(item.id, item.from_id, item.to_id, item.type, json.dumps(item.attributes), item.created_at) for item in relationships],
@@ -121,7 +122,7 @@ class SQLiteStorage:
             await db.commit()
 
     async def get_relationships(self, node_id: str) -> list[Relationship]:
-        async with open_database(self._db_path) as db:
+        async with open_database(self._db_path, "read relationships") as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 "SELECT * FROM relationships WHERE from_id = ? OR to_id = ?",
@@ -133,7 +134,7 @@ class SQLiteStorage:
                     from_id=row["from_id"],
                     to_id=row["to_id"],
                     type=row["type"],
-                    attributes=json.loads(row["attributes"]),
+                    attributes=decode_object(row["attributes"], field="attributes", record_id=row["id"]),
                     created_at=row["created_at"],
                 )
                 for row in rows

@@ -23,6 +23,7 @@ from sh4q.application.scan_report import build_scan_report
 from sh4q.application.diff import build_scan_diff, diff_document
 from sh4q.config import ConfigFileError, conflicting_template_options, load_template
 from sh4q.storage.db import SchemaVersionError, ensure_schema_version
+from sh4q.storage.errors import StorageError
 from sh4q.cli.branding import (
     accent,
     column,
@@ -49,6 +50,17 @@ def _terminal_is_narrow(minimum_width: int) -> bool:
 def _narrow_value(value: object, indent: int = 4) -> str:
     width = max(20, shutil.get_terminal_size((80, 24)).columns - indent)
     return _fit(value, width)
+
+
+def _report_skipped(skipped: list) -> None:
+    """Say what a read view left out, rather than quietly shortening itself."""
+    if not skipped:
+        return
+    examples = tuple(
+        dict.fromkeys(str(item.record_id or item.field) for item in skipped)
+    )[:3]
+    suffix = f" ({', '.join(examples)})" if examples else ""
+    print(note(f"  Skipped {len(skipped)} malformed record(s){suffix}."))
 
 
 def render_technology_results(rows) -> None:
@@ -383,6 +395,11 @@ def render_scan_report(report) -> None:
         print(f"    Reported responses      {metrics.get('reported_responses', 0):>6}")
         print(f"    Unreported endpoints    {metrics.get('unreported_endpoints', 0):>6}")
         print(f"    Tool processes          {metrics.get('tool_processes', 0):>6}")
+    if getattr(report, "skipped_records", 0):
+        print(note(
+            f"  Skipped {report.skipped_records} malformed evidence record(s) "
+            "while building this overview."
+        ))
     if report.stages:
         print("\n  Stages")
         print("    NAME                STATUS               ATTEMPTS  FINDINGS  DURATION")
@@ -915,7 +932,7 @@ def render_summary(
     print()
 
 
-def main() -> None:
+def _main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
@@ -938,7 +955,7 @@ def main() -> None:
         if database.exists():
             try:
                 ensure_schema_version(str(database))
-            except (SchemaVersionError, ValueError) as error:
+            except (SchemaVersionError, ValueError, StorageError) as error:
                 parser.error(str(error))
 
     if args.command == "scan":
@@ -1035,8 +1052,10 @@ def main() -> None:
             print("  Unfinished durable events will be recovered on the next scan.")
             print()
             sys.exit(130)
-        except (AdapterExecutionError, ConfigFileError, SchemaVersionError) as error:
-            print(f"  Scan could not start: {error}")
+        except (AdapterExecutionError, ConfigFileError, SchemaVersionError, StorageError) as error:
+            # A storage or adapter failure can arrive after the scan started;
+            # the runner has already marked the run INTERRUPTED in that case.
+            print(f"  Scan failed: {error}")
             sys.exit(2)
         if args.progress == "jsonl":
             print(json.dumps({"event": "scan_complete", "scan_run_id": summary.scan_run_id,
@@ -1118,6 +1137,7 @@ def main() -> None:
         print("  ===============")
         if args.details:
             records, total = asyncio.run(_event_records(event_log, args))
+            _report_skipped(event_log.skipped)
             if not records:
                 print("  No matching events.")
             else:
@@ -1142,6 +1162,7 @@ def main() -> None:
         print()
         print("  SH4Q RESULTS")
         print("  ============")
+        skipped: list = []
         if args.detections:
             scan_id = args.scan
             if args.latest:
@@ -1185,8 +1206,10 @@ def main() -> None:
             history = list_inventory_history(
                 str(database), asset_type=args.type, target=args.target,
                 scan_id=scan_id, source=args.source, limit=args.limit,
+                skipped=skipped,
             )
             render_inventory_history(history, scan_selected=bool(scan_id))
+            _report_skipped(skipped)
             print()
             return
 
@@ -1199,7 +1222,10 @@ def main() -> None:
                     return
                 scan_id = latest.id
                 print(f"  Scan     {latest.id} ({latest.target})")
-            c = summarize_names(str(database), target=args.target, scan_id=scan_id)
+            c = summarize_names(
+                str(database), target=args.target, scan_id=scan_id, skipped=skipped
+            )
+            _report_skipped(skipped)
             if not c.total:
                 print("  No hostnames recorded.\n")
                 return
@@ -1247,7 +1273,10 @@ def main() -> None:
                 print(f"  Scan     {latest.id} ({latest.target})")
             # No display limit: this view groups endpoints by pattern and
             # names at most five per group, so it stays readable regardless.
-            rows = list_response_attributes(str(database), target=args.target, scan_id=scan_id)
+            rows = list_response_attributes(
+                str(database), target=args.target, scan_id=scan_id, skipped=skipped
+            )
+            _report_skipped(skipped)
             if not rows:
                 print("  No endpoint recorded cookies or review headers.\n")
                 return
@@ -1301,7 +1330,8 @@ def main() -> None:
                 scan_id = latest.id
                 print(f"  Scan     {latest.id} ({latest.target})")
             rows = list_failures(
-                str(database), target=args.target, scan_id=scan_id, limit=None
+                str(database), target=args.target, scan_id=scan_id, limit=None,
+                skipped=skipped,
             )
             if not rows:
                 print("  No recorded failures.")
@@ -1322,7 +1352,7 @@ def main() -> None:
                 rows = list_technology_observations(
                     str(database), target=args.target, scan_id=scan_id,
                     source=args.source, category=args.category, status=args.status,
-                    limit=None,
+                    limit=None, skipped=skipped,
                 )
                 if args.details:
                     shown = rows[: max(1, args.limit)]
@@ -1340,6 +1370,7 @@ def main() -> None:
                 rows = list_javascript_observations(
                     str(database), scan_id=scan_id, kind=args.js_kind,
                     source_filter=args.source_endpoint, limit=None,
+                    skipped=skipped,
                 )
                 shown = rows[: max(1, args.limit)]
                 render_javascript_results(shown)
@@ -1352,16 +1383,19 @@ def main() -> None:
                     unfiltered = list_javascript_observations(
                         str(database), scan_id=scan_id,
                         source_filter=args.source_endpoint, limit=None,
+                        skipped=skipped,
                     )
                     print(note(no_javascript_message(len(unfiltered), args.js_kind)))
             else:
                 rows = list_assets(
                     str(database), asset_type=args.type, target=args.target,
-                    scan_id=scan_id, source=args.source, limit=None
+                    scan_id=scan_id, source=args.source, limit=None,
+                    skipped=skipped,
                 )
                 shown = rows[: max(1, args.limit)]
                 render_asset_results(shown)
                 print(showing(len(shown), len(rows), "asset(s)"))
+        _report_skipped(skipped)
         print()
         return
 
@@ -1431,8 +1465,24 @@ def main() -> None:
         # would a regression that silently stopped redacting.
         if count.redaction_summary:
             print(note(f"  {count.redaction_summary}"))
+        if count.skipped_summary:
+            print(note(f"  {count.skipped_summary}"))
         print()
         return
+
+
+def main() -> None:
+    """Run the CLI, turning a storage failure into one actionable line.
+
+    Read commands reach storage in many places; wrapping the dispatcher keeps
+    a locked or corrupt database from escaping as a traceback while leaving
+    argument errors and explicit `sys.exit` codes alone.
+    """
+    try:
+        _main()
+    except StorageError as error:
+        print(f"\n  Storage error: {error}\n", file=sys.stderr)
+        sys.exit(2)
 
 
 if __name__ == "__main__":

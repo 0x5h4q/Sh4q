@@ -8,6 +8,7 @@ from typing import Protocol
 import aiosqlite
 
 from sh4q.storage.db import open_database
+from sh4q.storage.json_fields import decode_object
 
 
 def _now() -> str:
@@ -39,7 +40,7 @@ class SQLiteEvidenceStore:
         self._db_path = db_path
 
     async def init(self) -> None:
-        async with open_database(self._db_path) as db:
+        async with open_database(self._db_path, "create evidence table") as db:
             await db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS evidence (
@@ -67,7 +68,7 @@ class SQLiteEvidenceStore:
             await db.commit()
 
     async def append(self, evidence: Evidence) -> None:
-        async with open_database(self._db_path) as db:
+        async with open_database(self._db_path, "append evidence") as db:
             await db.execute(
                 "INSERT OR IGNORE INTO evidence (id, target, plugin, kind, content, captured_at, scan_run_id) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -77,7 +78,7 @@ class SQLiteEvidenceStore:
             await db.commit()
 
     async def get(self, evidence_id: str) -> Evidence | None:
-        async with open_database(self._db_path) as db:
+        async with open_database(self._db_path, "read evidence") as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM evidence WHERE id = ?", (evidence_id,))
             row = await cursor.fetchone()
@@ -85,11 +86,11 @@ class SQLiteEvidenceStore:
                 return None
             return Evidence(
                 id=row["id"], target=row["target"], plugin=row["plugin"], kind=row["kind"],
-                content=json.loads(row["content"]), captured_at=row["captured_at"], scan_run_id=row["scan_run_id"],
+                content=decode_object(row["content"], field="content", record_id=row["id"]), captured_at=row["captured_at"], scan_run_id=row["scan_run_id"],
             )
 
     async def list_for_target(self, target: str, *, captured_after: str | None = None) -> list[Evidence]:
-        async with open_database(self._db_path) as db:
+        async with open_database(self._db_path, "list evidence") as db:
             db.row_factory = aiosqlite.Row
             if captured_after is None:
                 cursor = await db.execute(
@@ -104,13 +105,13 @@ class SQLiteEvidenceStore:
             return [
                 Evidence(
                     id=row["id"], target=row["target"], plugin=row["plugin"], kind=row["kind"],
-                    content=json.loads(row["content"]), captured_at=row["captured_at"], scan_run_id=row["scan_run_id"],
+                    content=decode_object(row["content"], field="content", record_id=row["id"]), captured_at=row["captured_at"], scan_run_id=row["scan_run_id"],
                 )
                 for row in rows
             ]
 
     async def list_for_scan(self, scan_run_id: str, *, kind: str | None = None) -> list[Evidence]:
-        async with open_database(self._db_path) as db:
+        async with open_database(self._db_path, "list evidence") as db:
             db.row_factory = aiosqlite.Row
             if kind is None:
                 cursor = await db.execute(
@@ -126,7 +127,7 @@ class SQLiteEvidenceStore:
             return [
                 Evidence(
                     id=row["id"], target=row["target"], plugin=row["plugin"], kind=row["kind"],
-                    content=json.loads(row["content"]), captured_at=row["captured_at"], scan_run_id=row["scan_run_id"],
+                    content=decode_object(row["content"], field="content", record_id=row["id"]), captured_at=row["captured_at"], scan_run_id=row["scan_run_id"],
                 )
                 for row in rows
             ]
