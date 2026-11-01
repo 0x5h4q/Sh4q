@@ -1,16 +1,20 @@
 
 
+import hashlib
+import json
 import shutil
 import os
 import textwrap
 import time
 import httpx
+from typing import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
 from sh4q.cli.branding import status_line
 from sh4q.config import Sh4qConfig, load_config
+from sh4q.config.templates import load_template
 from sh4q.events import EventBus
 from sh4q.events.event_log import DurableEventLog
 from sh4q.handlers import make_discovery_handler
@@ -80,6 +84,10 @@ class ScanSummary:
     historical_urls: int = 0
     historical_urls_rejected: int = 0
     historical_urls_truncated: int = 0
+    config_hash: str | None = None
+    template_name: str | None = None
+    stages: str | None = None
+    tool_versions: str | None = None
 
 
 def javascript_http_observations(evidence: list) -> list[dict]:
@@ -92,6 +100,72 @@ def javascript_http_observations(evidence: list) -> list[dict]:
         for item in evidence
         if item.content.get("html_sample")
     ]
+
+
+def _config_hash(config: Sh4qConfig) -> str:
+    """Stable hash of the effective configuration used for a scan.
+
+    Two scans with the same config produce the same hash, so an operator
+    can tell whether result changes came from execution settings or the
+    target itself.
+    """
+    payload = json.dumps(config.model_dump(mode="json"), sort_keys=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
+async def _probe_tool_versions(
+    output_directory: str,
+    *,
+    subfinder: bool = False,
+    httpx: bool = False,
+    url_history: bool = False,
+    katana: bool = False,
+) -> str:
+    """Probe versions of requested external tools that are available.
+
+    Returns a JSON object mapping tool name to version string. Tools that
+    are not installed or whose version probe fails are omitted.
+    """
+    versions: dict[str, str] = {}
+    cwd = Path(output_directory)
+
+    probes: list[tuple[str, str, Sequence[str]]] = []
+    if subfinder:
+        probes.append(("subfinder", "subfinder", ("-version",)))
+    if httpx:
+        # httpx has multiple candidates on PATH; use the first compatible one.
+        candidates = []
+        for directory in os.environ.get("PATH", "").split(os.pathsep):
+            candidate = Path(directory or ".") / "httpx"
+            if candidate.is_file() and os.access(candidate, os.X_OK):
+                resolved = str(candidate.resolve())
+                if resolved not in candidates:
+                    candidates.append(resolved)
+        for candidate in candidates:
+            try:
+                await validate_projectdiscovery_httpx(
+                    candidate, ControlledProcessRunner({candidate}), cwd=cwd
+                )
+                probes.append(("httpx", candidate, ("-version",)))
+                break
+            except AdapterExecutionError:
+                continue
+    if url_history:
+        probes.append(("waybackurls", "waybackurls", ("--version",)))
+    if katana:
+        probes.append(("katana", "katana", ("-version",)))
+
+    for name, executable, arguments in probes:
+        try:
+            runner = ControlledProcessRunner({executable})
+            version = await runner.probe_version(
+                executable, arguments=arguments, cwd=cwd
+            )
+            versions[name] = version
+        except Exception:
+            versions[name] = "[version probe failed]"
+
+    return json.dumps(versions, sort_keys=True) if versions else ""
 
 
 def _default_config(target: str) -> Sh4qConfig:
@@ -128,12 +202,35 @@ async def run_scan(
     vhosts_scan_id: str | None = None,
     include_directories: bool = False,
     directories_file: str | None = None,
+    template_name: str | None = None,
     progress_callback=None,
 ) -> ScanSummary:
     start = time.monotonic()
     scan_started_at = datetime.now(timezone.utc).isoformat()
 
     config = load_config(config_path) if config_path else _default_config(target)
+    config_hash = _config_hash(config)
+
+    # Resolve the stage list that will run, for execution identity.
+    stages = ", ".join(
+        name
+        for name, enabled in (
+            ("dns", True),
+            ("http", True),
+            ("ct", True),
+            ("subfinder", include_subfinder),
+            ("discovered-dns", include_subfinder or include_resolve or bool(hosts_file)),
+            ("discovered-http", include_subfinder or include_resolve or bool(hosts_file)),
+            ("httpx-fingerprint", include_httpx),
+            ("url-history", include_url_history),
+            ("javascript-extraction", include_javascript or include_javascript_bundles),
+            ("javascript-bundles", include_javascript_bundles),
+            ("katana", include_katana),
+            ("vhost-discovery", include_vhosts),
+            ("directory-discovery", include_directories),
+        )
+        if enabled
+    )
     if config.scope.allow_private_addresses:
         print(
             "  WARNING: private/reserved address access is enabled; "
@@ -186,7 +283,13 @@ async def run_scan(
     await evidence_store.init()
     event_log = DurableEventLog(db_path)
     await event_log.init()
-    scan_run = create_scan(db_path, target)
+    scan_run = create_scan(
+        db_path,
+        target,
+        config_hash=config_hash,
+        template_name=template_name,
+        stages=stages,
+    )
     scan_asset_store = SQLiteScanAssetStore(db_path)
     await scan_asset_store.init()
 
@@ -475,6 +578,7 @@ async def run_scan(
                 + "\n".join(wrapped)
             )
         enrichment_notice = "\n".join(notices) if notices else None
+        tool_versions = None
         decision = await scheduler.run(target, before_stages=enrichment_notice)
         await bus.drain()
     except BaseException:
@@ -502,7 +606,21 @@ async def run_scan(
                 outcomes=scheduler.stage_outcomes,
                 scan_run_id=scan_run.id,
             )
-        finish_scan(db_path, scan_run.id, "COMPLETED" if outcome == "completed" else "INTERRUPTED")
+        tool_versions = await _probe_tool_versions(
+            config.output.directory,
+            subfinder=include_subfinder,
+            httpx=include_httpx,
+            url_history=include_url_history,
+            katana=include_katana,
+        )
+        finish_scan(
+            db_path,
+            scan_run.id,
+            "COMPLETED" if outcome == "completed" else "INTERRUPTED",
+            tool_versions=tool_versions or None,
+        )
+        # scan_run is a frozen dataclass; capture tool_versions directly
+        # for the summary since finish_scan only writes to the database.
 
     evidence_records = await evidence_store.list_for_target(target)
     scan_evidence_records = await evidence_store.list_for_target(
@@ -539,4 +657,8 @@ async def run_scan(
         requests_failed=request_metrics.failed,
         peak_request_concurrency=request_metrics.peak_concurrency,
         stage_durations=scheduler.stage_durations,
+        config_hash=scan_run.config_hash,
+        template_name=scan_run.template_name,
+        stages=scan_run.stages,
+        tool_versions=tool_versions,
     )

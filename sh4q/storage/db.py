@@ -7,7 +7,7 @@ import aiosqlite
 from .errors import StorageError
 
 
-CURRENT_SCHEMA_VERSION = 4
+CURRENT_SCHEMA_VERSION = 5
 
 
 class SchemaVersionError(Exception):
@@ -138,7 +138,34 @@ def _migration_4(db: sqlite3.Connection) -> None:
         )
 
 
-MIGRATIONS = {1: _migration_1, 2: _migration_2, 3: _migration_3, 4: _migration_4}
+def _migration_5(db: sqlite3.Connection) -> None:
+    """Add execution identity columns to scan_runs.
+
+    Every scan records what configuration and template it ran under, which
+    stages were selected, and which external tool versions were in use, so
+    two scans of the same target can be compared and the operator can tell
+    whether result changes came from execution settings or the target itself.
+    """
+    if not _table_exists(db, "scan_runs"):
+        return
+    columns = {row[1] for row in db.execute("PRAGMA table_info(scan_runs)").fetchall()}
+    if "config_hash" not in columns:
+        db.execute("ALTER TABLE scan_runs ADD COLUMN config_hash TEXT")
+    if "template_name" not in columns:
+        db.execute("ALTER TABLE scan_runs ADD COLUMN template_name TEXT")
+    if "stages" not in columns:
+        db.execute("ALTER TABLE scan_runs ADD COLUMN stages TEXT")
+    if "tool_versions" not in columns:
+        db.execute("ALTER TABLE scan_runs ADD COLUMN tool_versions TEXT")
+
+
+MIGRATIONS = {
+    1: _migration_1,
+    2: _migration_2,
+    3: _migration_3,
+    4: _migration_4,
+    5: _migration_5,
+}
 
 
 @contextmanager

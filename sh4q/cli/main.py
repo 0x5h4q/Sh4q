@@ -1062,6 +1062,7 @@ def _main() -> None:
                         include_katana=args.katana, include_vhosts=bool(args.vhosts) or bool(args.vhosts_from_scan),
                         vhosts_file=args.vhosts, vhosts_scan_id=args.vhosts_from_scan,
                         include_directories=bool(args.directories), directories_file=args.directories,
+                        template_name=template.name if template else None,
                         progress_callback=progress_callback,
                     ))
             else:
@@ -1076,6 +1077,7 @@ def _main() -> None:
                     include_katana=args.katana, include_vhosts=bool(args.vhosts) or bool(args.vhosts_from_scan),
                     vhosts_file=args.vhosts, vhosts_scan_id=args.vhosts_from_scan,
                     include_directories=bool(args.directories), directories_file=args.directories,
+                    template_name=template.name if template else None,
                 ))
         except KeyboardInterrupt:
             print()
