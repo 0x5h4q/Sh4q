@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.5.0 - 2026-11-02
+
+Execution identity release. Every scan now records its execution context so
+result changes can be separated from execution-setting changes.
+
+### Schema migration (v4 → v5)
+
+The `scan_runs` table gains four columns: `config_hash`, `template_name`,
+`stages`, and `tool_versions`. Every scan run stores the effective
+configuration hash, the template name (if any), the ordered stage list, and
+the versions of external tools in use (subfinder, httpx, waybackurls,
+katana). This is a genuine schema migration: databases written by v1.5.0
+cannot be opened by v1.4.0 or earlier.
+
+### Runtime capture
+
+- `run_scan()` computes a stable config hash from the effective
+  `Sh4qConfig`, resolves the stage list that will run, and records the
+  template name at scan creation time.
+- After the scan completes, tool versions are probed (subfinder, httpx,
+  waybackurls, katana) and stored with the finished scan run.
+- `ScanSummary` exposes `config_hash`, `template_name`, `stages`, and
+  `tool_versions` for views and export.
+
+### CLI
+
+- `sh4q scan --template ...` records the template name with the scan run.
+- `sh4q show` and `sh4q results --history` surface execution identity so
+  operators can compare scans across runs.
+
 ## 1.4.0 - 2026-10-06
 
 Correctness release. Two scope-authorization fixes change what enters the

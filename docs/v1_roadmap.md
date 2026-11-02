@@ -72,9 +72,9 @@ silent inclusion in a general profile.
    `--dry-run` performs Gate 1, prints the resolved scope, stage plan, request
    budget, and planned third-party disclosures, then exits without a network
    request.
-3. **Repeatable comparisons:** persist the effective configuration/template,
-   selected stages, and relevant tool versions with each scan so result changes
-   can be separated from execution-setting changes.
+3. **Repeatable comparisons:** complete. Schema migration v4 → v5 records
+   `config_hash`, `template_name`, `stages`, and `tool_versions` on every
+   scan run so result changes can be separated from execution-setting changes.
 4. **Proxy support:** define proxy behavior for native HTTP traffic and disclose
    which external adapters do or do not inherit it. Proxying must never bypass
    scope validation or destination authorization. Two constraints found while

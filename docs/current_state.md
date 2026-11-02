@@ -7,8 +7,8 @@ documents provide context but do not override this guide.
 
 ## Current Release
 
-- Published release: `v1.4.0`
-- Package version on `main`: `1.4.0`
+- Published release: `v1.5.0`
+- Package version on `main`: `1.5.0`
 - Runtime: Python 3.11 or newer on Linux
 - Deployment model: local, single-user CLI backed by SQLite
 - Distribution: GitHub release and tag; wheel and source artifacts built and
@@ -253,8 +253,12 @@ The rest of the working order is:
    before Gate 1 with one combined message (backlog 0.2 and 4.2).
    Implemented in `sh4q/application/stat_report.py` and wired into
    `sh4q/cli/main.py` as `--dry-run`.
-2. **Execution identity** — roadmap step 3, and a genuine schema migration.
-3. **v1.5.0.**
+2. **Execution identity** — complete. Schema migration v4 → v5 records
+   `config_hash`, `template_name`, `stages`, and `tool_versions` on every
+   scan run (see above).
+3. **v1.5.0.** Release candidate ready: schema migration complete, all
+   acceptance checks pass (offline suite 108/108, documentation QA, config
+   schema version).
 4. **Read seam** — 63 raw `.execute()` calls across 12 modules outside
    `storage/` (16 in `application/results.py`, 16 in `events/event_log.py`, 10
    in `exporter.py`). `StorageRepository` covers only write methods. Worth
@@ -329,6 +333,13 @@ of those lists. An earlier note here
 warned that Python 3.14 reproduced timeouts in the async event and SQLite
 tests; that has not recurred in repeated runs during this cycle. Report a
 full-suite pass only when the runner actually completes.
+
+The `v1.5.0` release was validated locally on Python 3.14.4: 108/108 offline
+tests, documentation QA, configuration-schema checks, CLI version/help, a fresh
+wheel installation, schema migration v4 → v5 on a pre-existing database, and
+end-to-end scans against an authorised target exercising execution identity
+fields (`config_hash`, `template_name`, `stages`, `tool_versions`) stored with
+each scan run.
 
 ## Documentation Authority
 

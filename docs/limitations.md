@@ -1,6 +1,6 @@
 # Known Limitations
 
-This list describes the v1.4.0 boundary. It should be read before judging scan output.
+This list describes the v1.5.0 boundary. It should be read before judging scan output.
 
 ## Discovery and Providers
 
@@ -222,6 +222,6 @@ useful or useless when it is not. Nothing stops you scanning
 
 ## Review Status
 
-The limitations review applies to the published `v1.4.0` release. The adapter
+The limitations review applies to the published `v1.5.0` release. The adapter
 scheduler and provenance path is covered offline, but this does not turn
 third-party tool output into a completeness or liveness guarantee.
