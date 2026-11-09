@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from urllib.parse import urlsplit
+import json
+import urllib.request
+import urllib.error
 from typing import Sequence
 
-from sh4q.plugins import Discovery
-
-from .interface import AdapterContext, ExternalToolAdapter
+from sh4q.plugins import Discovery, Plugin, PluginMetadata
+from sh4q.scope import ScopeEngine
 
 
 def _select(values: list[str], limit: int) -> list[str]:
@@ -29,6 +30,7 @@ def _select(values: list[str], limit: int) -> list[str]:
 
     by_host: dict[str, list[str]] = {}
     for value in values:
+        from urllib.parse import urlsplit
         host = urlsplit(value).hostname or ""
         by_host.setdefault(host, []).append(value)
 
@@ -63,56 +65,71 @@ def _select(values: list[str], limit: int) -> list[str]:
     return sorted(dict.fromkeys(chosen))
 
 
-class URLHistoryAdapter(ExternalToolAdapter):
-    """Parse passive URL-history output without treating URLs as live."""
+class URLHistoryAdapter(Plugin):
+    """Query the Wayback Machine CDX API directly for historical URLs.
 
-    name = "url-history"
-    version_arguments: Sequence[str] = ("--version",)
+    Replaces the waybackurls external-tool dependency: the CDX API is queried
+    over HTTP and the results are parsed in-process. This avoids depending on
+    an external binary that may be missing or broken.
+    """
 
-    def __init__(self, executable: str = "waybackurls", *, max_urls: int = 5000):
+    metadata = PluginMetadata(name="url-history", timeout=60.0, risk_level="external-controlled")
+
+    CDX_API = "http://web.archive.org/cdx/search/cdx"
+
+    def __init__(self, scope: ScopeEngine, *, max_urls: int = 5000):
         if max_urls < 1:
             raise ValueError("max_urls must be positive")
-        self.executable = executable
-        self.max_urls = max_urls
+        self._scope = scope
+        self._max_urls = max_urls
 
-    def build_argv(self, target: str, context: AdapterContext) -> Sequence[str]:
-        # Pass the target as an argument, matching the supported Waybackurls
-        # invocation used by operators and avoiding stdin-dependent behavior.
-        return (self.executable, target.rstrip(".\n"))
+    def _query_cdx(self, domain: str) -> list[str]:
+        """Query the CDX API for archived URLs under *domain.
 
-    def parse_stdout(self, target: str, stdout: str) -> list[Discovery]:
-        root = target.lower().rstrip(".")
-        urls: set[str] = set()
-        for line in stdout.splitlines():
+        Returns the raw original URLs from the `fl=original` field.
+        """
+        url = (
+            f"{self.CDX_API}?url=*.{domain}"
+            f"&output=text&fl=original&collapse=urlkey&limit={self._max_urls}"
+        )
+        try:
+            with urllib.request.urlopen(url, timeout=30.0) as response:
+                body = response.read().decode("utf-8", errors="replace")
+        except (urllib.error.URLError, OSError, ValueError):
+            return []
+        urls: list[str] = []
+        for line in body.splitlines():
             value = line.strip()
-            if not value or len(value) > 8192:
+            if not value:
                 continue
-            try:
-                parsed = urlsplit(value)
-            except ValueError:
-                continue
-            if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-                continue
-            hostname = parsed.hostname.lower().rstrip(".")
-            if hostname == root or hostname.endswith("." + root):
-                # Hostnames are case-insensitive; retain path/query casing.
-                try:
-                    host = hostname + (f":{parsed.port}" if parsed.port else "")
-                except ValueError:
-                    continue
-                normalized = parsed._replace(netloc=host).geturl()
-                urls.add(normalized)
-        values = sorted(urls)
-        discoveries = [Discovery(
-            kind="url_history_batch",
-            data={"domain": target, "urls": _select(values, self.max_urls), "source": self.name},
-        )]
-        if len(values) > self.max_urls:
-            discoveries.append(Discovery(
-                kind="url_history_truncated",
-                data={"domain": target, "retained": self.max_urls, "available": len(urls), "source": self.name},
-            ))
-        return discoveries
+            urls.append(value)
+        return urls
 
-    def evidence_argv(self, argv: Sequence[str]) -> list[str]:
-        return [argv[0], "<target>"]
+    async def execute(self, target: str) -> list[Discovery]:
+        """Query the CDX API for historical URLs under *target.
+
+        Scope checking is done by the handler (discovered-http-style), so this
+        adapter returns every URL the CDX API knows about; the handler refuses
+        anything out of scope.
+        """
+        urls = self._query_cdx(target)
+        values = _select(urls, self._max_urls)
+        discoveries = [
+            Discovery(
+                kind="url_history_batch",
+                data={"domain": target, "urls": values, "source": self.name},
+            )
+        ]
+        if len(urls) > self._max_urls:
+            discoveries.append(
+                Discovery(
+                    kind="url_history_truncated",
+                    data={
+                        "domain": target,
+                        "retained": self._max_urls,
+                        "available": len(urls),
+                        "source": self.name,
+                    },
+                )
+            )
+        return discoveries

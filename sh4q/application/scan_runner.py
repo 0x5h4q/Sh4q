@@ -150,8 +150,6 @@ async def _probe_tool_versions(
                 break
             except AdapterExecutionError:
                 continue
-    if url_history:
-        probes.append(("waybackurls", "waybackurls", ("--version",)))
     if katana:
         probes.append(("katana", "katana", ("-version",)))
 
@@ -261,7 +259,6 @@ async def run_scan(
     missing = missing_dependencies(
         subfinder=include_subfinder,
         httpx=include_httpx,
-        url_history=include_url_history,
         katana=include_katana,
     )
     if missing:
@@ -391,26 +388,10 @@ async def run_scan(
                 endpoint_scheme=sweep_scheme, endpoint_port=sweep_port,
             ))
         if include_url_history:
-            executable = shutil.which("waybackurls")
-            if executable is None:
-                raise AdapterExecutionError(
-                    "waybackurls is not installed or is not available on PATH"
-                )
-            adapter_home = Path(config.output.directory) / "adapters" / "waybackurls-home"
-            adapter_home.mkdir(parents=True, exist_ok=True)
             plugins.append(
-                ExternalAdapterPlugin(
-                    URLHistoryAdapter(
-                        executable=executable,
-                        max_urls=config.enrichment.max_historical_urls,
-                    ),
-                    AdapterContext(scope, Path(config.output.directory)),
-                    ControlledProcessRunner(
-                        {executable},
-                        max_output_bytes=16_000_000,
-                        environment={"HOME": str(adapter_home.resolve())},
-                    ),
-                    timeout=60.0,
+                URLHistoryAdapter(
+                    scope,
+                    max_urls=config.enrichment.max_historical_urls,
                 )
             )
         if include_katana:
