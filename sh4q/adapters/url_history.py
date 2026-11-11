@@ -83,7 +83,7 @@ class URLHistoryAdapter(Plugin):
         self._scope = scope
         self._max_urls = max_urls
 
-    def _query_cdx(self, domain: str) -> list[str]:
+    async def _query_cdx(self, domain: str) -> list[str]:
         """Query the CDX API for archived URLs under *domain.
 
         Returns the raw original URLs from the `fl=original` field.
