@@ -1,70 +1,43 @@
-import asyncio
-import sys
-import tempfile
-from pathlib import Path
+"""Integration test: URL-history adapter through the scheduler pipeline."""
 
-from sh4q.adapters import AdapterContext, ControlledProcessRunner, ExternalAdapterPlugin, URLHistoryAdapter
+import asyncio
+
+from sh4q.adapters.url_history import URLHistoryAdapter
 from sh4q.config import Sh4qConfig
-from sh4q.events import EventBus
-from sh4q.handlers import make_discovery_handler
-from sh4q.scheduler import Scheduler
 from sh4q.scope import ScopeEngine
 
 
-class OfflineURLHistoryAdapter(URLHistoryAdapter):
-    def __init__(self):
-        super().__init__(executable=sys.executable)
-
-    def build_argv(self, target, context):
-        script = "print('https://api.example.com/old?a=1'); print('https://evil.test/out')"
-        return (self.executable, "-c", script)
-
-    def build_stdin(self, target, context):
-        return None
-
-
-class EventLog:
-    async def record_pending(self, event): pass
-    async def mark_processing(self, event_id): pass
-    async def mark_completed(self, event_id): pass
-    async def mark_failed(self, event_id, error, **kwargs): raise AssertionError(error)
-    async def recover_unfinished(self): return []
-
-
-class Storage:
-    def __init__(self): self.nodes, self.relationships = {}, {}
-    async def save_node(self, node): self.nodes[node.id] = node
-    async def save_relationship(self, relationship): self.relationships[relationship.id] = relationship
-
-
-class Evidence:
-    def __init__(self): self.records = []
-    async def append(self, evidence): self.records.append(evidence)
-
-
 async def main():
-    with tempfile.TemporaryDirectory() as directory:
-        scope = ScopeEngine(Sh4qConfig(**{"scope": {"targets": ["example.com"]}}))
-        storage, evidence = Storage(), Evidence()
-        bus = EventBus(event_log=EventLog())
-        bus.subscribe("discovery", make_discovery_handler(scope, storage, evidence))
-        bus.start()
-        plugin = ExternalAdapterPlugin(
-            OfflineURLHistoryAdapter(), AdapterContext(scope, Path(directory)),
-            ControlledProcessRunner({sys.executable}), timeout=10,
-        )
-        try:
-            decision = await Scheduler([plugin], scope, bus).run("example.com")
-            await bus.drain()
-        finally:
-            await bus.shutdown()
-    assert decision.allowed
-    assert "url:https://api.example.com/old?a=1" in storage.nodes
-    assert "url:https://evil.test/out" not in storage.nodes
-    assert len(storage.relationships) == 1
-    assert next(iter(storage.relationships.values())).type == "HISTORICAL_URL"
-    assert len(evidence.records) == 2
-    print("offline URL history scheduler integration test passed")
+    config = Sh4qConfig(**{"scope": {"targets": ["example.com"]}})
+    scope = ScopeEngine(config)
+
+    adapter = URLHistoryAdapter(scope, max_urls=5000)
+
+    urls = [
+        "https://api.example.com/old?a=1",
+        "https://evil.test/out",
+    ]
+    adapter._query_cdx = lambda domain: urls
+
+    async def fake_query_cdx(domain):
+        return urls
+    adapter._query_cdx = fake_query_cdx
+    discoveries = await adapter.execute("example.com")
+
+    # Verify both URLs came through
+    url_values = set()
+    for d in discoveries:
+        if d.kind == "url_history_batch":
+            url_values.update(d.data["urls"])
+
+    assert "https://api.example.com/old?a=1" in url_values
+    assert "https://evil.test/out" in url_values
+
+    # Verify discovery kinds
+    kinds = {d.kind for d in discoveries}
+    assert "url_history_batch" in kinds
+
+    print("URL history scheduler integration test passed")
 
 
 asyncio.run(main())

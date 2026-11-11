@@ -112,12 +112,12 @@ class URLHistoryAdapter(Plugin):
         adapter returns every URL the CDX API knows about; the handler refuses
         anything out of scope.
         """
-        urls = self._query_cdx(target)
+        urls = await self._query_cdx(target)
         values = _select(urls, self._max_urls)
         discoveries = [
             Discovery(
                 kind="url_history_batch",
-                data={"domain": target, "urls": values, "source": self.name},
+                data={"domain": target, "urls": values, "source": self.metadata.name},
             )
         ]
         if len(urls) > self._max_urls:
@@ -128,7 +128,7 @@ class URLHistoryAdapter(Plugin):
                         "domain": target,
                         "retained": self._max_urls,
                         "available": len(urls),
-                        "source": self.name,
+                        "source": self.metadata.name,
                     },
                 )
             )
